@@ -43,7 +43,8 @@ function FormField<
   control,
   ...props
 }: Omit<ControllerProps<TFieldValues, TName>, "control"> & {
-  control?: unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control?: any
 }) {
   const id = React.useId()
   const formItemId = `${id}-form-item`
