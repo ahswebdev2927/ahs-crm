@@ -108,7 +108,10 @@ export function CrmShell({ children }: { children: React.ReactNode }) {
         {/* Main Application Container */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           {/* Header/Topbar */}
-          <Topbar onToggleMobileSidebar={() => setMobileOpen(true)} />
+          <Topbar
+            onToggleMobileSidebar={() => setMobileOpen(true)}
+            onToggleSidebar={() => handleSetCollapsed(!collapsed)}
+          />
 
           {/* Page Body Viewport */}
           <main className="flex-1 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950/20">

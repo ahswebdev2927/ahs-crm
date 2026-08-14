@@ -82,10 +82,10 @@ export function NotificationMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring cursor-pointer">
-            <Bell className="h-5 w-5" />
+          <button className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input/10 cursor-pointer transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+            <Bell className="h-4.5 w-4.5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white tabular-nums ring-2 ring-background">
+              <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-extrabold text-white tabular-nums ring-2 ring-background">
                 {unreadCount}
               </span>
             )}

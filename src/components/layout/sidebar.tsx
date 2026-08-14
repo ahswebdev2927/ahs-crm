@@ -6,9 +6,7 @@ import { usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { navigationConfig } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface SidebarProps {
   collapsed: boolean
@@ -110,24 +108,7 @@ export function Sidebar({ collapsed, setCollapsed, className }: SidebarProps) {
         ))}
       </div>
 
-      {/* Collapse controls footer */}
-      <div className="p-3 border-t border-border/60 dark:border-input/5 flex justify-end">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
-              <ChevronLeft className="h-4 w-4 shrink-0" />
-              <span className="mr-1 select-none">Collapse</span>
-            </div>
-          )}
-        </Button>
-      </div>
+
     </aside>
   )
 }
