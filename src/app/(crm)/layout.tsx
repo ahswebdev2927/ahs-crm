@@ -2,14 +2,26 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { AuthProvider, useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/contexts/auth-context"
 import { CrmShell } from "@/components/layout/crm-shell"
 import { navigationConfig } from "@/lib/navigation"
 import { ErrorState } from "@/components/shared/error-state"
 
 function PermissionGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { hasPermission, user } = useAuth()
+  const { hasPermission, user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neutral-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   // Find the required permission code for the active route
   const requiredPermission = React.useMemo(() => {
@@ -46,10 +58,8 @@ function PermissionGuard({ children }: { children: React.ReactNode }) {
 
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <CrmShell>
-        <PermissionGuard>{children}</PermissionGuard>
-      </CrmShell>
-    </AuthProvider>
+    <CrmShell>
+      <PermissionGuard>{children}</PermissionGuard>
+    </CrmShell>
   )
 }
