@@ -13,7 +13,7 @@ export function successResponse<T>({
   return NextResponse.json(
     {
       status: true,
-      statusCode,
+      statusCode: statusCode,
       message,
       data,
     },
@@ -38,7 +38,7 @@ export function errorResponse({
 
   const payload: ApiErrorResponse = {
     status: false,
-    statusCode,
+    statusCode: statusCode,
     message,
     data: null,
   };
