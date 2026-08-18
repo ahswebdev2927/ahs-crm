@@ -11,18 +11,6 @@ function PermissionGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { hasPermission, user, isLoading } = useAuth()
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neutral-600"></div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
-  }
-
   // Find the required permission code for the active route
   const requiredPermission = React.useMemo(() => {
     // Loop through the groups and items to find a matching prefix
@@ -41,6 +29,18 @@ function PermissionGuard({ children }: { children: React.ReactNode }) {
     if (!requiredPermission) return true
     return hasPermission(requiredPermission)
   }, [requiredPermission, hasPermission])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neutral-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   if (!isAuthorized) {
     return (
