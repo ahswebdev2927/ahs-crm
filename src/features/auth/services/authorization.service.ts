@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
-import { or, eq, exists, and } from "drizzle-orm";
+import { or, eq, exists, and, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { AppError } from "@/lib/errors/AppError";
 import { logAuthzFailure } from "@/lib/logger";
 import {
+  users,
   leads,
   leadPartners,
   customers,
@@ -110,13 +111,37 @@ export const checkAnyPermission = async (
 };
 
 /**
- * Generates a Drizzle ORM filter condition for Lead visibility based on the user's role.
- * - 'super_admin' and 'sales_manager' see all records (returns undefined).
- * - Sales Team members see leads they own, created, or are partnered on.
+ * Generates a Drizzle ORM filter condition for Lead visibility based on the user's role and team.
+ * - 'super_admin' and 'all' visibility see all records (returns undefined).
+ * - 'team' visibility filters leads owned by any member of the user's assigned team.
+ * - 'own' visibility filters leads owned, created, or partnered by the user.
  */
-export const getLeadVisibilityFilter = (userId: string, roleCode: string) => {
-  if (roleCode === "super_admin" || roleCode === "sales_manager") {
+export const getLeadVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  dataVisibility?: string,
+  teamId?: number | null
+) => {
+  if (roleCode === "super_admin" || dataVisibility === "all") {
     return undefined;
+  }
+
+  if (dataVisibility === "team" && teamId) {
+    return or(
+      eq(leads.ownerId, userId),
+      eq(leads.createdById, userId),
+      exists(
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.id, leads.ownerId),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
   }
 
   return or(

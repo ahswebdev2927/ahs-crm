@@ -1,6 +1,7 @@
 import "dotenv/config";
+import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { departments, roles, permissions, rolePermissions, users } from "./schema";
+import { departments, roles, permissions, rolePermissions, teams, users } from "./schema";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
@@ -10,6 +11,7 @@ async function main() {
   console.log("Clearing existing authorization tables...");
   await db.delete(rolePermissions);
   await db.delete(users);
+  await db.delete(teams);
   await db.delete(roles);
   await db.delete(departments);
   await db.delete(permissions);
@@ -21,13 +23,13 @@ async function main() {
   ];
   await db.insert(departments).values(departmentRecords);
 
-  // 3. Seed default roles
+  // 3. Seed default roles with isManager flag
   console.log("Seeding default roles...");
   const roleRecords = [
-    { id: 1, name: "Super Admin", code: "super_admin", description: "Full system administration access", departmentId: 1 },
-    { id: 2, name: "Sales Manager", code: "sales_manager", description: "Manages sales operations and assignments", departmentId: 1 },
-    { id: 3, name: "Inside Sales", code: "inside_sales", description: "In-office sales: creates leads, schedules visits and appointments", departmentId: 1, parentId: 2 },
-    { id: 4, name: "Field Sales", code: "field_sales", description: "Field agent: conducts site visits and uploads visit reports", departmentId: 1, parentId: 2 },
+    { id: 1, name: "Super Admin", code: "super_admin", description: "Full system administration access", departmentId: 1, isManager: false },
+    { id: 2, name: "Sales Manager", code: "sales_manager", description: "Manages sales operations, assigns leads, and owns a sales team", departmentId: 1, isManager: true },
+    { id: 3, name: "Inside Sales", code: "inside_sales", description: "In-office sales: creates leads, schedules visits and appointments", departmentId: 1, parentId: 2, isManager: false },
+    { id: 4, name: "Field Sales", code: "field_sales", description: "Field agent: conducts site visits and uploads visit reports", departmentId: 1, parentId: 2, isManager: false },
   ];
   await db.insert(roles).values(roleRecords);
 
@@ -50,7 +52,9 @@ async function main() {
     { code: "quotations:view", name: "View Quotations", description: "Access billing quotes" },
     { code: "quotations:create", name: "Create Quotations", description: "Generate billing quotes" },
     { code: "invoices:view", name: "View Invoices", description: "Access client invoice structures" },
+    { code: "invoices:create", name: "Generate Invoices", description: "Create and issue billing invoices (Sales Manager & Admin only)" },
     { code: "payments:view", name: "View Payments", description: "Access transactions record ledger" },
+    { code: "payments:create", name: "Add/Receive Payments", description: "Record customer payment receipts" },
     { code: "reports:view", name: "View Reports", description: "Access performance analytics reports" },
     { code: "notifications:view", name: "View Notifications", description: "Access alerts notification history" },
     { code: "team:view", name: "View Team Management", description: "Access team member directory" },
@@ -100,6 +104,9 @@ async function main() {
         "services:view",
         "quotations:view",
         "quotations:create",
+        "invoices:view",
+        "payments:view",
+        "payments:create",
         "notifications:view",
       ],
     },
@@ -119,6 +126,9 @@ async function main() {
         "customers:view",
         "services:view",
         "quotations:view",
+        "invoices:view",
+        "payments:view",
+        "payments:create",
         "notifications:view",
       ],
     },
@@ -138,12 +148,39 @@ async function main() {
 
   await db.insert(rolePermissions).values(rolePermissionsToInsert);
 
-  // 6. Seed Initial Users with hashed password
+  // 6. Seed Initial Users & Teams
   console.log("Hashing default passwords...");
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
   console.log("Seeding default users...");
-  const userRecords = [
+  // First insert Marcus Vance (Sales Manager) so teams record can reference him
+  const managerUser = {
+    id: "user-manager",
+    name: "Marcus Vance",
+    email: "marcus.vance@ahs-crm.com",
+    passwordHash,
+    roleId: 2, // sales_manager
+    departmentId: 1, // Sales
+    dataVisibility: "team" as const,
+    status: "active" as const,
+  };
+  await db.insert(users).values([managerUser]);
+
+  console.log("Seeding Sales Team Alpha...");
+  const teamAlpha = {
+    id: 1,
+    name: "Sales Team Alpha",
+    code: "sales_alpha",
+    departmentId: 1,
+    managerId: "user-manager",
+  };
+  await db.insert(teams).values([teamAlpha]);
+
+  // Update Marcus Vance with his owned teamId
+  await db.update(users).set({ teamId: 1 }).where(eq(users.id, "user-manager"));
+
+  // Insert remaining users linked to Team Alpha & Manager Marcus Vance
+  const otherUsers = [
     {
       id: "user-admin",
       name: "Alex Thorne",
@@ -155,22 +192,14 @@ async function main() {
       status: "active" as const,
     },
     {
-      id: "user-manager",
-      name: "Marcus Vance",
-      email: "marcus.vance@ahs-crm.com",
-      passwordHash,
-      roleId: 2, // sales_manager
-      departmentId: 1, // Sales
-      dataVisibility: "all" as const,
-      status: "active" as const,
-    },
-    {
       id: "user-inside",
       name: "Sarah Jenkins",
       email: "sarah.j@ahs-crm.com",
       passwordHash,
       roleId: 3, // inside_sales
       departmentId: 1, // Sales
+      teamId: 1, // Sales Team Alpha
+      managerId: "user-manager", // Managed by Marcus Vance
       dataVisibility: "team" as const,
       status: "active" as const,
     },
@@ -181,12 +210,14 @@ async function main() {
       passwordHash,
       roleId: 4, // field_sales
       departmentId: 1, // Sales
+      teamId: 1, // Sales Team Alpha
+      managerId: "user-manager", // Managed by Marcus Vance
       dataVisibility: "own" as const,
       status: "active" as const,
     },
   ];
 
-  await db.insert(users).values(userRecords);
+  await db.insert(users).values(otherUsers);
 
   console.log("Database seeded successfully!");
 }

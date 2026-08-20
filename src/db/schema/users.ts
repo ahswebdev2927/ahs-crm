@@ -18,6 +18,7 @@ export const roles = sqliteTable('roles', {
   description: text('description'),
   departmentId: integer('department_id').references(() => departments.id, { onDelete: 'set null' }),
   parentId: integer('parent_id'),
+  isManager: integer('is_manager', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
@@ -41,6 +42,19 @@ export const rolePermissions = sqliteTable('role_permissions', {
   primaryKey({ columns: [t.roleId, t.permissionId] }),
 ]);
 
+export const teams = sqliteTable('teams', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  code: text('code').notNull().unique(),
+  departmentId: integer('department_id').references(() => departments.id, { onDelete: 'cascade' }),
+  managerId: text('manager_id'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (t) => [
+  index('teams_department_id_idx').on(t.departmentId),
+  index('teams_manager_id_idx').on(t.managerId),
+]);
+
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(), // UUID
   name: text('name').notNull(),
@@ -48,6 +62,8 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   roleId: integer('role_id').notNull().references(() => roles.id),
   departmentId: integer('department_id').references(() => departments.id, { onDelete: 'set null' }),
+  teamId: integer('team_id').references(() => teams.id, { onDelete: 'set null' }),
+  managerId: text('manager_id'),
   dataVisibility: text('data_visibility', { enum: ['own', 'shared', 'partnered', 'team', 'all'] }).notNull().default('own'),
   status: text('status', { enum: ['active', 'inactive', 'suspended'] }).notNull().default('active'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
@@ -57,6 +73,8 @@ export const users = sqliteTable('users', {
   index('users_email_idx').on(t.email),
   index('users_role_id_idx').on(t.roleId),
   index('users_department_id_idx').on(t.departmentId),
+  index('users_team_id_idx').on(t.teamId),
+  index('users_manager_id_idx').on(t.managerId),
 ]);
 
 export const userPermissions = sqliteTable('user_permissions', {
@@ -83,7 +101,23 @@ export const sessions = sqliteTable('sessions', {
 // Relational Definitions
 export const departmentsRelations = relations(departments, ({ many }) => ({
   roles: many(roles),
+  teams: many(teams),
   users: many(users),
+}));
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [teams.departmentId],
+    references: [departments.id],
+  }),
+  manager: one(users, {
+    fields: [teams.managerId],
+    references: [users.id],
+    relationName: 'teamManager',
+  }),
+  members: many(users, {
+    relationName: 'teamMembers',
+  }),
 }));
 
 export const rolesRelations = relations(roles, ({ one, many }) => ({
@@ -123,6 +157,22 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   department: one(departments, {
     fields: [users.departmentId],
     references: [departments.id],
+  }),
+  team: one(teams, {
+    fields: [users.teamId],
+    references: [teams.id],
+    relationName: 'teamMembers',
+  }),
+  manager: one(users, {
+    fields: [users.managerId],
+    references: [users.id],
+    relationName: 'userManager',
+  }),
+  managedTeams: many(teams, {
+    relationName: 'teamManager',
+  }),
+  managedUsers: many(users, {
+    relationName: 'userManager',
   }),
   userPermissions: many(userPermissions),
   sessions: many(sessions),

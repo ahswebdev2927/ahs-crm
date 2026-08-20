@@ -20,6 +20,9 @@ export const createUserSchema = z.object({
     .regex(/[0-9]/, "Password must contain at least one number."),
   roleId: z.number().int().positive("Role is required."),
   departmentId: z.number().int().positive().nullable().optional(),
+  teamId: z.number().int().positive().nullable().optional(),
+  managerId: z.string().trim().nullable().optional(),
+  teamName: z.string().trim().min(2, "Team name must be at least 2 characters.").optional(),
   dataVisibility: dataVisibilityEnum.default("own"),
   permissions: z.array(userPermissionOverrideSchema).optional().default([]),
 });
@@ -29,6 +32,9 @@ export const updateUserSchema = z.object({
   email: z.string().trim().email("Please provide a valid email address.").optional(),
   roleId: z.number().int().positive("Role must be valid.").optional(),
   departmentId: z.number().int().positive().nullable().optional(),
+  teamId: z.number().int().positive().nullable().optional(),
+  managerId: z.string().trim().nullable().optional(),
+  teamName: z.string().trim().min(2, "Team name must be at least 2 characters.").optional(),
   dataVisibility: dataVisibilityEnum.optional(),
   permissions: z.array(userPermissionOverrideSchema).optional(),
 });

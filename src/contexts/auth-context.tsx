@@ -100,6 +100,9 @@ export const SIMULATED_USERS: Record<RoleCode, UserProfile> = {
       "services:view",
       "quotations:view",
       "quotations:create",
+      "invoices:view",
+      "payments:view",
+      "payments:create",
       "notifications:view"
     ]
   },
@@ -124,6 +127,9 @@ export const SIMULATED_USERS: Record<RoleCode, UserProfile> = {
       "customers:view",
       "services:view",
       "quotations:view",
+      "invoices:view",
+      "payments:view",
+      "payments:create",
       "notifications:view"
     ]
   }

@@ -1,9 +1,11 @@
 import { eq, and, or, like, sql, count } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { db } from "@/db";
 import {
   users,
   roles,
   departments,
+  teams,
   permissions,
   userPermissions,
   sessions,
@@ -11,6 +13,8 @@ import {
 import type { UserQueryInput } from "../schemas/user.schema";
 
 export interface UserFilterParams extends UserQueryInput {}
+
+const managerUsers: any = alias(users, "manager_users");
 
 export class UsersRepository {
   /**
@@ -55,9 +59,14 @@ export class UsersRepository {
           roleId: users.roleId,
           roleName: roles.name,
           roleCode: roles.code,
+          isManager: roles.isManager,
           departmentId: users.departmentId,
           departmentName: departments.name,
           departmentCode: departments.code,
+          teamId: users.teamId,
+          teamName: teams.name,
+          managerId: users.managerId,
+          managerName: managerUsers.name,
           dataVisibility: users.dataVisibility,
           status: users.status,
           createdAt: users.createdAt,
@@ -66,6 +75,8 @@ export class UsersRepository {
         .from(users)
         .leftJoin(roles, eq(users.roleId, roles.id))
         .leftJoin(departments, eq(users.departmentId, departments.id))
+        .leftJoin(teams, eq(users.teamId, teams.id))
+        .leftJoin(managerUsers, eq(users.managerId, managerUsers.id))
         .where(whereClause)
         .limit(limit)
         .offset(offset)
@@ -93,7 +104,7 @@ export class UsersRepository {
   }
 
   /**
-   * Finds a user by ID with role, department, and custom user permissions
+   * Finds a user by ID with role, department, team, manager, and custom user permissions
    */
   static async findUserById(id: string) {
     const user = await db
@@ -104,9 +115,14 @@ export class UsersRepository {
         roleId: users.roleId,
         roleName: roles.name,
         roleCode: roles.code,
+        isManager: roles.isManager,
         departmentId: users.departmentId,
         departmentName: departments.name,
         departmentCode: departments.code,
+        teamId: users.teamId,
+        teamName: teams.name,
+        managerId: users.managerId,
+        managerName: managerUsers.name,
         dataVisibility: users.dataVisibility,
         status: users.status,
         createdAt: users.createdAt,
@@ -115,6 +131,8 @@ export class UsersRepository {
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
       .leftJoin(departments, eq(users.departmentId, departments.id))
+      .leftJoin(teams, eq(users.teamId, teams.id))
+      .leftJoin(managerUsers, eq(users.managerId, managerUsers.id))
       .where(eq(users.id, id))
       .get();
 
@@ -150,7 +168,34 @@ export class UsersRepository {
   }
 
   /**
-   * Creates a new user record
+   * Fetches available Managers (users whose role has isManager = true)
+   */
+  static async getAvailableManagers(departmentId?: number) {
+    const conditions = [eq(roles.isManager, true), eq(users.status, "active")];
+    if (departmentId) {
+      conditions.push(eq(users.departmentId, departmentId));
+    }
+
+    return await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        teamId: users.teamId,
+        teamName: teams.name,
+        roleName: roles.name,
+      })
+      .from(users)
+      .innerJoin(roles, eq(users.roleId, roles.id))
+      .leftJoin(teams, eq(users.teamId, teams.id))
+      .where(and(...conditions))
+      .orderBy(users.name);
+  }
+
+  /**
+   * Creates a new user record.
+   * - If user's role has isManager === true, automatically provisions a team entity for them.
+   * - If user's role has isManager === false and managerId is provided, attaches member to manager's team.
    */
   static async createUser(data: {
     id: string;
@@ -159,10 +204,29 @@ export class UsersRepository {
     passwordHash: string;
     roleId: number;
     departmentId?: number | null;
+    teamId?: number | null;
+    managerId?: string | null;
+    teamName?: string;
     dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
     status?: "active" | "inactive" | "suspended";
   }) {
-    const [inserted] = await db
+    // 1. Fetch role info to check isManager flag
+    const targetRole = await db.select().from(roles).where(eq(roles.id, data.roleId)).get();
+    const isManagerRole = Boolean(targetRole?.isManager);
+
+    let assignedTeamId = data.teamId ?? null;
+    let assignedManagerId = data.managerId ?? null;
+
+    // If creating a non-manager and managerId was passed, resolve manager's teamId
+    if (!isManagerRole && assignedManagerId) {
+      const managerUserRecord = await db.select({ teamId: users.teamId }).from(users).where(eq(users.id, assignedManagerId)).get();
+      if (managerUserRecord?.teamId) {
+        assignedTeamId = managerUserRecord.teamId;
+      }
+    }
+
+    // 2. Insert user record
+    const insertedArray = await db
       .insert(users)
       .values({
         id: data.id,
@@ -171,10 +235,36 @@ export class UsersRepository {
         passwordHash: data.passwordHash,
         roleId: data.roleId,
         departmentId: data.departmentId ?? null,
-        dataVisibility: data.dataVisibility ?? "own",
+        teamId: assignedTeamId,
+        managerId: assignedManagerId,
+        dataVisibility: data.dataVisibility ?? (isManagerRole ? "team" : "own"),
         status: data.status ?? "active",
       })
       .returning();
+
+    const inserted = insertedArray[0];
+
+    // 3. If new member is a Manager, provision an owned team group automatically
+    if (isManagerRole) {
+      const teamCodeStr = `team_${data.id.substring(0, 8)}`;
+      const teamNameStr = data.teamName && data.teamName.trim() ? data.teamName.trim() : `${data.name}'s Team`;
+
+      const newTeamArray = await db
+        .insert(teams)
+        .values({
+          name: teamNameStr,
+          code: teamCodeStr,
+          departmentId: data.departmentId ?? 1,
+          managerId: inserted.id,
+        })
+        .returning();
+
+      const newTeam = newTeamArray[0];
+
+      // Update manager user with newly created teamId
+      await db.update(users).set({ teamId: newTeam.id }).where(eq(users.id, inserted.id));
+      inserted.teamId = newTeam.id;
+    }
 
     return inserted;
   }
@@ -189,6 +279,8 @@ export class UsersRepository {
       email?: string;
       roleId?: number;
       departmentId?: number | null;
+      teamId?: number | null;
+      managerId?: string | null;
       dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
       updatedAt?: Date;
     }
@@ -202,6 +294,17 @@ export class UsersRepository {
     if (data.roleId !== undefined) updatePayload.roleId = data.roleId;
     if (data.departmentId !== undefined) updatePayload.departmentId = data.departmentId;
     if (data.dataVisibility !== undefined) updatePayload.dataVisibility = data.dataVisibility;
+
+    if (data.managerId !== undefined) {
+      updatePayload.managerId = data.managerId;
+      if (data.managerId) {
+        const mgr = await db.select({ teamId: users.teamId }).from(users).where(eq(users.id, data.managerId)).get();
+        if (mgr?.teamId) {
+          updatePayload.teamId = mgr.teamId;
+        }
+      }
+    }
+    if (data.teamId !== undefined) updatePayload.teamId = data.teamId;
 
     const [updated] = await db
       .update(users)

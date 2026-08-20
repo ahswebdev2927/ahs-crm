@@ -47,11 +47,24 @@ export class UsersService {
       throw new AppError("A user with this email address already exists.", 409, "CONFLICT");
     }
 
-    // 2. Hash initial password
+    // 2. Validate Manager vs Non-Manager rules
+    const rolesList = await UsersRepository.getRoles();
+    const targetRole = rolesList.find((r) => r.id === input.roleId);
+    const isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
+
+    if (isManagerRole && (!input.teamName || input.teamName.trim() === "")) {
+      throw new AppError("Team Name is required when creating a Manager account.", 400, "BAD_REQUEST");
+    }
+
+    if (!isManagerRole && (!input.managerId || input.managerId.trim() === "")) {
+      throw new AppError("Selecting an assigned Manager is required when creating a non-manager team member.", 400, "BAD_REQUEST");
+    }
+
+    // 3. Hash initial password
     const passwordHash = await bcrypt.hash(input.password, 10);
     const newUserId = `user-${crypto.randomUUID()}`;
 
-    // 3. Create user
+    // 4. Create user
     const newUser = await UsersRepository.createUser({
       id: newUserId,
       name: input.name,
@@ -59,6 +72,9 @@ export class UsersService {
       passwordHash,
       roleId: input.roleId,
       departmentId: input.departmentId,
+      teamId: input.teamId,
+      managerId: input.managerId,
+      teamName: input.teamName,
       dataVisibility: input.dataVisibility,
       status: "active",
     });
@@ -79,6 +95,8 @@ export class UsersService {
         email: input.email,
         roleId: input.roleId,
         departmentId: input.departmentId,
+        teamId: input.teamId,
+        managerId: input.managerId,
         dataVisibility: input.dataVisibility,
       }),
     });
@@ -116,6 +134,8 @@ export class UsersService {
       email: input.email,
       roleId: input.roleId,
       departmentId: input.departmentId,
+      teamId: input.teamId,
+      managerId: input.managerId,
       dataVisibility: input.dataVisibility,
     });
 
@@ -135,6 +155,8 @@ export class UsersService {
         email: user.email,
         roleId: user.roleId,
         departmentId: user.departmentId,
+        teamId: user.teamId,
+        managerId: user.managerId,
         dataVisibility: user.dataVisibility,
       }),
       newData: JSON.stringify(input),
@@ -228,21 +250,23 @@ export class UsersService {
   }
 
   /**
-   * Fetches metadata for dropdowns (departments, roles, permissions)
+   * Fetches metadata for dropdowns (departments, roles, permissions, managers)
    */
   static async listDepartmentsAndRoles() {
     await checkPermission("team:view");
 
-    const [departmentsList, rolesList, permissionsList] = await Promise.all([
+    const [departmentsList, rolesList, permissionsList, managersList] = await Promise.all([
       UsersRepository.getDepartments(),
       UsersRepository.getRoles(),
       UsersRepository.getPermissions(),
+      UsersRepository.getAvailableManagers(),
     ]);
 
     return {
       departments: departmentsList,
       roles: rolesList,
       permissions: permissionsList,
+      managers: managersList,
     };
   }
 }
