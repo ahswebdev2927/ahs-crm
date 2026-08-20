@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { db } from "./index";
-import { roles, permissions, rolePermissions, users } from "./schema";
+import { departments, roles, permissions, rolePermissions, users } from "./schema";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
@@ -11,19 +11,27 @@ async function main() {
   await db.delete(rolePermissions);
   await db.delete(users);
   await db.delete(roles);
+  await db.delete(departments);
   await db.delete(permissions);
 
-  // 2. Seed default roles
+  // 2. Seed departments
+  console.log("Seeding departments...");
+  const departmentRecords = [
+    { id: 1, name: "Sales", code: "sales", description: "Core internal sales department" },
+  ];
+  await db.insert(departments).values(departmentRecords);
+
+  // 3. Seed default roles
   console.log("Seeding default roles...");
   const roleRecords = [
-    { id: 1, name: "Super Admin", code: "super_admin", description: "Full system administration access" },
-    { id: 2, name: "Sales Manager", code: "sales_manager", description: "Manages sales operations and assignments" },
-    { id: 3, name: "Inside Sales", code: "inside_sales", description: "Creates leads, schedules visits and appointments" },
-    { id: 4, name: "Field Sales", code: "field_sales", description: "Conducts site visits and uploads visit reports" },
+    { id: 1, name: "Super Admin", code: "super_admin", description: "Full system administration access", departmentId: 1 },
+    { id: 2, name: "Sales Manager", code: "sales_manager", description: "Manages sales operations and assignments", departmentId: 1 },
+    { id: 3, name: "Inside Sales", code: "inside_sales", description: "In-office sales: creates leads, schedules visits and appointments", departmentId: 1, parentId: 2 },
+    { id: 4, name: "Field Sales", code: "field_sales", description: "Field agent: conducts site visits and uploads visit reports", departmentId: 1, parentId: 2 },
   ];
   await db.insert(roles).values(roleRecords);
 
-  // 3. Seed default permissions
+  // 4. Seed default permissions
   console.log("Seeding default permissions...");
   const ALL_PERMISSIONS = [
     { code: "dashboard:view", name: "View Dashboard", description: "Access the CRM landing dashboard" },
@@ -45,7 +53,8 @@ async function main() {
     { code: "payments:view", name: "View Payments", description: "Access transactions record ledger" },
     { code: "reports:view", name: "View Reports", description: "Access performance analytics reports" },
     { code: "notifications:view", name: "View Notifications", description: "Access alerts notification history" },
-    { code: "team:view", name: "View Team Management", description: "Access team member logs list" },
+    { code: "team:view", name: "View Team Management", description: "Access team member directory" },
+    { code: "team:edit", name: "Manage Team Members", description: "Create, edit, suspend, and configure team member accounts and permissions" },
     { code: "settings:view", name: "View Settings", description: "Access SuperAdmin global preferences" },
   ];
 
@@ -61,7 +70,7 @@ async function main() {
   const permMap = new Map<string, number>();
   permissionRecords.forEach((p) => permMap.set(p.code, p.id));
 
-  // 4. Seed Role Permissions
+  // 5. Seed Role Permissions
   console.log("Seeding role permissions...");
   const rolePermissionsToInsert: any[] = [];
 
@@ -129,7 +138,7 @@ async function main() {
 
   await db.insert(rolePermissions).values(rolePermissionsToInsert);
 
-  // 5. Seed Initial Users with hashed password
+  // 6. Seed Initial Users with hashed password
   console.log("Hashing default passwords...");
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
@@ -141,6 +150,8 @@ async function main() {
       email: "alex.thorne@ahs-crm.com",
       passwordHash,
       roleId: 1, // super_admin
+      departmentId: 1, // Sales
+      dataVisibility: "all" as const,
       status: "active" as const,
     },
     {
@@ -149,6 +160,8 @@ async function main() {
       email: "marcus.vance@ahs-crm.com",
       passwordHash,
       roleId: 2, // sales_manager
+      departmentId: 1, // Sales
+      dataVisibility: "all" as const,
       status: "active" as const,
     },
     {
@@ -157,6 +170,8 @@ async function main() {
       email: "sarah.j@ahs-crm.com",
       passwordHash,
       roleId: 3, // inside_sales
+      departmentId: 1, // Sales
+      dataVisibility: "team" as const,
       status: "active" as const,
     },
     {
@@ -165,6 +180,8 @@ async function main() {
       email: "david.m@ahs-crm.com",
       passwordHash,
       roleId: 4, // field_sales
+      departmentId: 1, // Sales
+      dataVisibility: "own" as const,
       status: "active" as const,
     },
   ];

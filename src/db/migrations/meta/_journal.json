@@ -15,6 +15,13 @@
       "when": 1787204537810,
       "tag": "0001_mysterious_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787216768539,
+      "tag": "0002_shiny_microbe",
+      "breakpoints": true
     }
   ]
 }

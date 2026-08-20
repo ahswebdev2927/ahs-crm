@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
-export const roles = sqliteTable('roles', {
+export const departments = sqliteTable('departments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(),
   code: text('code').notNull().unique(),
@@ -10,6 +10,19 @@ export const roles = sqliteTable('roles', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 });
+
+export const roles = sqliteTable('roles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  code: text('code').notNull().unique(),
+  description: text('description'),
+  departmentId: integer('department_id').references(() => departments.id, { onDelete: 'set null' }),
+  parentId: integer('parent_id'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (t) => [
+  index('roles_department_id_idx').on(t.departmentId),
+]);
 
 export const permissions = sqliteTable('permissions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -34,6 +47,8 @@ export const users = sqliteTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   roleId: integer('role_id').notNull().references(() => roles.id),
+  departmentId: integer('department_id').references(() => departments.id, { onDelete: 'set null' }),
+  dataVisibility: text('data_visibility', { enum: ['own', 'shared', 'partnered', 'team', 'all'] }).notNull().default('own'),
   status: text('status', { enum: ['active', 'inactive', 'suspended'] }).notNull().default('active'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
@@ -41,6 +56,7 @@ export const users = sqliteTable('users', {
 }, (t) => [
   index('users_email_idx').on(t.email),
   index('users_role_id_idx').on(t.roleId),
+  index('users_department_id_idx').on(t.departmentId),
 ]);
 
 export const userPermissions = sqliteTable('user_permissions', {
@@ -65,7 +81,20 @@ export const sessions = sqliteTable('sessions', {
 ]);
 
 // Relational Definitions
-export const rolesRelations = relations(roles, ({ many }) => ({
+export const departmentsRelations = relations(departments, ({ many }) => ({
+  roles: many(roles),
+  users: many(users),
+}));
+
+export const rolesRelations = relations(roles, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [roles.departmentId],
+    references: [departments.id],
+  }),
+  parent: one(roles, {
+    fields: [roles.parentId],
+    references: [roles.id],
+  }),
   users: many(users),
   rolePermissions: many(rolePermissions),
 }));
@@ -90,6 +119,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, {
     fields: [users.roleId],
     references: [roles.id],
+  }),
+  department: one(departments, {
+    fields: [users.departmentId],
+    references: [departments.id],
   }),
   userPermissions: many(userPermissions),
   sessions: many(sessions),
