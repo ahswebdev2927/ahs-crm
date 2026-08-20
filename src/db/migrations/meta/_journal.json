@@ -8,6 +8,13 @@
       "when": 1786538751807,
       "tag": "0000_workable_franklin_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787204537810,
+      "tag": "0001_mysterious_supernaut",
+      "breakpoints": true
     }
   ]
 }
