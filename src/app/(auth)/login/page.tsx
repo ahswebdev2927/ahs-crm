@@ -7,6 +7,7 @@ import { z } from "zod"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Info, X } from "lucide-react"
 
 const loginFormSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const { login } = useAuth()
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false)
+  const [showForgotPasswordNotice, setShowForgotPasswordNotice] = React.useState<boolean>(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -45,13 +47,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-950 p-4 select-none">
       <div className="w-full max-w-[400px] animate-in fade-in duration-300">
-        
+
         {/* Main Custom Login Card */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-          
+
           {/* Card body content */}
           <div className="p-8 space-y-6">
-            
+
             {/* Top Brand Badge */}
             <div className="flex justify-center">
               <div className="rounded-lg bg-neutral-950 px-4 py-1.5 border border-neutral-800">
@@ -78,9 +80,30 @@ export default function LoginPage() {
               </Alert>
             )}
 
+            {/* Forgot Password Notice Alert */}
+            {showForgotPasswordNotice && (
+              <div className="bg-blue-950/40 border border-blue-800/60 text-blue-200 p-3.5 rounded-lg text-xs animate-in fade-in slide-in-from-top-2 duration-200 relative flex items-start gap-2.5">
+                <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1">
+                  <p className="font-bold text-blue-100">Forgot Password?</p>
+                  <p className="text-blue-300/90 leading-relaxed font-medium">
+                    Contact Admin To change the password. Password management is handled centrally by Admin.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPasswordNotice(false)}
+                  className="text-blue-400 hover:text-blue-200 transition-colors p-0.5"
+                  aria-label="Close notification"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Input Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              
+
               {/* Email Input */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-neutral-200 block">
@@ -102,9 +125,18 @@ export default function LoginPage() {
 
               {/* Password Input */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-neutral-200 block">
-                  Password
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-neutral-200 block">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPasswordNotice(true)}
+                    className="text-xs font-semibold text-neutral-400 hover:text-neutral-200 transition-colors focus:outline-none focus:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <input
                   type="password"
                   placeholder="••••••••"
