@@ -4,6 +4,7 @@ import { z } from "zod";
 import { login } from "@/features/auth/services/auth.service";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
+import { getClientIp, checkRateLimit } from "@/lib/security/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email format"),
@@ -15,7 +16,15 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   const credentials = loginSchema.parse(body);
 
   const userAgent = request.headers.get("user-agent");
-  const ipAddress = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip");
+  const ipAddress = await getClientIp();
+
+  // Enforce rate limiting: 5 attempts per 15 minutes per IP
+  await checkRateLimit({
+    key: "login",
+    identifier: ipAddress,
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+  });
 
   const { user, token } = await login(
     credentials.email,

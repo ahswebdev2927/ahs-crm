@@ -23,20 +23,20 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   // ==========================================
   if (endpoint === "check-auth") {
     const user = await requireAuth();
-    return successResponse({ statusCode: 200, data: { user } });
+    return successResponse({ statusCode: 200, message: "Auth checked successfully", data: { user } });
   }
 
   if (endpoint === "check-permission") {
     const perm = searchParams.get("permission") || "";
     const user = await checkPermission(perm);
-    return successResponse({ statusCode: 200, data: { user } });
+    return successResponse({ statusCode: 200, message: "Permission checked successfully", data: { user } });
   }
 
   if (endpoint === "check-lead-access") {
     const id = searchParams.get("id") || "";
     const action = (searchParams.get("action") as any) || "view";
     const user = await checkLeadAccess(id, action);
-    return successResponse({ statusCode: 200, data: { user } });
+    return successResponse({ statusCode: 200, message: "Lead access checked successfully", data: { user } });
   }
 
   // ==========================================
