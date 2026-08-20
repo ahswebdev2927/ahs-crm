@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { or, eq, exists, and } from "drizzle-orm";
 import { db } from "@/db";
 import { AppError } from "@/lib/errors/AppError";
+import { logAuthzFailure } from "@/lib/logger";
 import {
   leads,
   leadPartners,
@@ -27,7 +28,7 @@ export const getSessionUser = async (): Promise<AuthenticatedUserPayload | null>
     const token = cookieStore.get("session_token")?.value;
     if (!token) return null;
     return await verifySession(token);
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };
@@ -62,6 +63,11 @@ export const checkPermission = async (
   }
 
   if (!user.permissions.includes(permissionCode)) {
+    logAuthzFailure({
+      userId: user.id,
+      requiredPermission: permissionCode,
+      reason: "Missing permission code",
+    });
     throw new AppError(
       `Access denied. You do not have the required permission: ${permissionCode}`,
       403,
@@ -88,6 +94,11 @@ export const checkAnyPermission = async (
 
   const hasAny = permissionCodes.some((code) => user.permissions.includes(code));
   if (!hasAny) {
+    logAuthzFailure({
+      userId: user.id,
+      requiredPermission: permissionCodes.join(", "),
+      reason: "Missing all required permission codes",
+    });
     throw new AppError(
       `Access denied. You do not have any of the required permissions: ${permissionCodes.join(", ")}`,
       403,
@@ -182,7 +193,7 @@ export const checkLeadAccess = async (
  */
 export const checkCustomerAccess = async (
   customerId: string,
-  action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete"
 ): Promise<AuthenticatedUserPayload> => {
   const user = await checkPermission("customers:view");
 
@@ -212,7 +223,7 @@ export const checkCustomerAccess = async (
     try {
       await checkLeadAccess(customer.leadId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored: falls through to access denied error
     }
   }
@@ -260,7 +271,7 @@ export const checkAppointmentAccess = async (
   try {
     await checkLeadAccess(appointment.leadId, "view");
     return user;
-  } catch (e) {
+  } catch (_e) {
     // Ignored
   }
 
@@ -307,7 +318,7 @@ export const checkFollowUpAccess = async (
   try {
     await checkLeadAccess(followUp.leadId, "view");
     return user;
-  } catch (e) {
+  } catch (_e) {
     // Ignored
   }
 
@@ -354,7 +365,7 @@ export const checkFieldVisitAccess = async (
   try {
     await checkLeadAccess(visit.leadId, "view");
     return user;
-  } catch (e) {
+  } catch (_e) {
     // Ignored
   }
 
@@ -403,7 +414,7 @@ export const checkTaskAccess = async (
     try {
       await checkLeadAccess(task.leadId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored
     }
   }
@@ -412,7 +423,7 @@ export const checkTaskAccess = async (
     try {
       await checkCustomerAccess(task.customerId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored
     }
   }
@@ -429,9 +440,9 @@ export const checkTaskAccess = async (
  */
 export const checkQuotationAccess = async (
   quotationId: string,
-  action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete"
 ): Promise<AuthenticatedUserPayload> => {
-  const permCode = action === "view" ? "quotations:view" : "quotations:create";
+  const permCode = _action === "view" ? "quotations:view" : "quotations:create";
   const user = await checkPermission(permCode);
 
   if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
@@ -461,7 +472,7 @@ export const checkQuotationAccess = async (
     try {
       await checkLeadAccess(quotation.leadId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored
     }
   }
@@ -470,7 +481,7 @@ export const checkQuotationAccess = async (
     try {
       await checkCustomerAccess(quotation.customerId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored
     }
   }
@@ -487,7 +498,7 @@ export const checkQuotationAccess = async (
  */
 export const checkInvoiceAccess = async (
   invoiceId: string,
-  action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete"
 ): Promise<AuthenticatedUserPayload> => {
   const user = await checkPermission("invoices:view");
 
@@ -517,7 +528,7 @@ export const checkInvoiceAccess = async (
     try {
       await checkCustomerAccess(invoice.customerId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored
     }
   }
@@ -534,7 +545,7 @@ export const checkInvoiceAccess = async (
  */
 export const checkPaymentAccess = async (
   paymentId: string,
-  action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete"
 ): Promise<AuthenticatedUserPayload> => {
   const user = await checkPermission("payments:view");
 
@@ -564,7 +575,7 @@ export const checkPaymentAccess = async (
     try {
       await checkInvoiceAccess(payment.invoiceId, "view");
       return user;
-    } catch (e) {
+    } catch (_e) {
       // Ignored
     }
   }

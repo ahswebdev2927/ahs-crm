@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import * as jwt from "jsonwebtoken";
 import * as crypto from "crypto";
 import { db } from "@/db";
 import { users, sessions, leads, leadPartners, leadStages } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import {
@@ -34,7 +34,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
 
   if (endpoint === "check-lead-access") {
     const id = searchParams.get("id") || "";
-    const action = (searchParams.get("action") as any) || "view";
+    const action = (searchParams.get("action") as "view" | "edit" | "delete" | "create" | "assign" | "export") || "view";
     const user = await checkLeadAccess(id, action);
     return successResponse({ statusCode: 200, message: "Lead access checked successfully", data: { user } });
   }
@@ -43,7 +43,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   // MAIN TEST RUNNER
   // ==========================================
   const origin = new URL(request.url).origin;
-  const results: any[] = [];
+  const results: Array<Record<string, unknown>> = [];
 
   // Helper to run a test scenario via local fetch
   const runTestCase = async (
@@ -72,13 +72,14 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
         passed: statusMatch,
         response: data,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       results.push({
         scenario: name,
         expectedStatus,
         actualStatus: 500,
         passed: false,
-        error: err.message,
+        error: errMsg,
       });
     }
   };

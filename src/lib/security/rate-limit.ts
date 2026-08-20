@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { rateLimits } from "@/db/schema/security";
 import { AppError } from "@/lib/errors/AppError";
+import { logRateLimitViolation } from "@/lib/logger";
 import { eq, and, sql, count } from "drizzle-orm";
 
 interface RateLimitConfig {
@@ -45,6 +46,12 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<void> {
   const currentCount = countResult?.count ?? 0;
 
   if (currentCount >= limit) {
+    logRateLimitViolation({
+      key: fullKey,
+      ip: identifier,
+      limit,
+      windowMs,
+    });
     throw new AppError(
       "Too many login attempts. Please try again in 15 minutes.",
       429,

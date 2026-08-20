@@ -5,6 +5,7 @@ import { lt } from "drizzle-orm";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
 import { AppError } from "@/lib/errors/AppError";
+import { logger } from "@/lib/logger";
 
 export const GET = withErrorHandling(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
@@ -17,7 +18,17 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
 
   const now = Date.now();
   const result = await db.delete(rateLimits).where(lt(rateLimits.expiresAt, now));
-  const deletedCount = (result as any).rowsAffected ?? (result as any).changes ?? 0;
+  const resultObj = result as unknown as { rowsAffected?: number; changes?: number };
+  const deletedCount = resultObj.rowsAffected ?? resultObj.changes ?? 0;
+
+  logger.info(
+    {
+      event: "CRON_CLEANUP_RATE_LIMITS",
+      deletedCount,
+      timestamp: now,
+    },
+    `Cron cleanup completed: ${deletedCount} expired rate limits purged`
+  );
 
   return successResponse({
     statusCode: 200,
@@ -28,3 +39,4 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     },
   });
 });
+

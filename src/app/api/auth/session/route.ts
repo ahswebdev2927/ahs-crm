@@ -5,7 +5,7 @@ import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
 import { AppError } from "@/lib/errors/AppError";
 
-export const GET = withErrorHandling(async (request: NextRequest) => {
+export const GET = withErrorHandling(async (_request: NextRequest) => {
   const cookieStore = await cookies();
   const token = cookieStore.get("session_token")?.value;
 

@@ -2,19 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AppError } from "../errors/AppError";
 import { errorResponse } from "./response";
+import { logger } from "../logger";
+
+type RouteHandlerContext = {
+  params?: Promise<Record<string, string | string[]>> | Record<string, string | string[]>;
+};
 
 type RouteHandler = (
   request: NextRequest,
-  context: any
+  context: RouteHandlerContext
 ) => Promise<NextResponse> | NextResponse;
 
 export function withErrorHandling(handler: RouteHandler): RouteHandler {
-  return async (request: NextRequest, context: any) => {
+  return async (request: NextRequest, context: RouteHandlerContext) => {
     try {
       return await handler(request, context);
     } catch (error) {
       // 1. Handle AppError (anticipated domain-level errors)
       if (error instanceof AppError) {
+        if (error.statusCode >= 500) {
+          logger.error(
+            {
+              event: "APP_ERROR_SERVER",
+              statusCode: error.statusCode,
+              errorCode: error.errorCode,
+              url: request.url,
+              method: request.method,
+              stack: error.stack,
+            },
+            `Server AppError (${error.statusCode}): ${error.message}`
+          );
+        } else {
+          logger.warn(
+            {
+              event: "APP_ERROR_CLIENT",
+              statusCode: error.statusCode,
+              errorCode: error.errorCode,
+              url: request.url,
+              method: request.method,
+            },
+            `Client AppError (${error.statusCode}): ${error.message}`
+          );
+        }
+
         return errorResponse({
           statusCode: error.statusCode,
           message: error.message,
@@ -35,6 +65,16 @@ export function withErrorHandling(handler: RouteHandler): RouteHandler {
           fieldErrors[path].push(err.message);
         });
 
+        logger.warn(
+          {
+            event: "VALIDATION_FAILURE",
+            url: request.url,
+            method: request.method,
+            errors: fieldErrors,
+          },
+          `Validation failed for ${request.method} ${request.url}`
+        );
+
         return errorResponse({
           statusCode: 400,
           message: "Validation failed",
@@ -48,13 +88,16 @@ export function withErrorHandling(handler: RouteHandler): RouteHandler {
       const errMessage = error instanceof Error ? error.message : "Unknown error";
       const errStack = error instanceof Error ? error.stack : undefined;
 
-      // Log server-side (Pino logging will refine this in Phase 08)
-      console.error("[Unexpected Error]:", {
-        message: errMessage,
-        stack: errStack,
-        url: request.url,
-        method: request.method,
-      });
+      logger.error(
+        {
+          event: "UNEXPECTED_EXCEPTION",
+          url: request.url,
+          method: request.method,
+          errorMessage: errMessage,
+          stack: errStack,
+        },
+        `Unexpected exception handling ${request.method} ${request.url}: ${errMessage}`
+      );
 
       return errorResponse({
         statusCode: 500,
@@ -65,3 +108,4 @@ export function withErrorHandling(handler: RouteHandler): RouteHandler {
     }
   };
 }
+

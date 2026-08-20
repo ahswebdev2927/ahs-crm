@@ -10,6 +10,7 @@ import {
   getUserPermissionOverrides,
 } from "../repositories/auth.repository";
 import { AppError } from "@/lib/errors/AppError";
+import { logger, logAuthFailure } from "@/lib/logger";
 
 const JWT_SECRET = process.env.JWT_SECRET || "local_development_jwt_access_secret_key_long_enough";
 const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
@@ -60,6 +61,7 @@ export const login = async (
   const userRecord = await findUserByEmail(email);
 
   if (!userRecord) {
+    logAuthFailure({ email, ip: ipAddress, reason: "Invalid credentials", userAgent });
     throw new AppError("Invalid email or password.", 401, "INVALID_CREDENTIALS");
   }
 
@@ -68,15 +70,18 @@ export const login = async (
   // 2. Verify password match
   const passwordMatch = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatch) {
+    logAuthFailure({ email, ip: ipAddress, reason: "Invalid credentials", userAgent });
     throw new AppError("Invalid email or password.", 401, "INVALID_CREDENTIALS");
   }
 
   // 3. Verify user status
   if (user.status === "inactive") {
+    logAuthFailure({ email, ip: ipAddress, reason: "Account inactive", userAgent });
     throw new AppError("Your account is inactive. Please contact administrator.", 403, "ACCOUNT_INACTIVE");
   }
 
   if (user.status === "suspended") {
+    logAuthFailure({ email, ip: ipAddress, reason: "Account suspended", userAgent });
     throw new AppError("Your account is suspended due to violations.", 403, "ACCOUNT_SUSPENDED");
   }
 
@@ -107,6 +112,17 @@ export const login = async (
   // 6. Retrieve combined permissions list
   const userPermissionsList = await resolvePermissions(user.id, user.roleId);
 
+  logger.info(
+    {
+      event: "AUTH_SUCCESS",
+      userId: user.id,
+      email: user.email,
+      role: role.code,
+      ip: ipAddress || "unknown",
+    },
+    `User ${user.email} (${user.id}) logged in successfully`
+  );
+
   return {
     user: {
       id: user.id,
@@ -134,10 +150,17 @@ export const logout = async (token: string): Promise<void> => {
       await deleteSession(decoded.sessionId);
     }
   } catch (error) {
-    // If verification fails during logout, ignore and do not throw
-    console.warn("Session logout warning (token decode failed):", error);
+    // If verification fails during logout, log warning safely
+    logger.warn(
+      {
+        event: "LOGOUT_TOKEN_VERIFY_WARNING",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "Session logout warning: token decode failed"
+    );
   }
 };
+
 
 /**
  * Verify session token and retrieve user profile metadata
@@ -147,7 +170,7 @@ export const verifySession = async (token: string): Promise<AuthenticatedUserPay
   
   try {
     decoded = jwt.verify(token, JWT_SECRET) as typeof decoded;
-  } catch (error) {
+  } catch (_error) {
     throw new AppError("Invalid or expired session token.", 401, "SESSION_EXPIRED");
   }
 
