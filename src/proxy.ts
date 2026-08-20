@@ -56,9 +56,90 @@ const verifyJwt = async (token: string, secret: string): Promise<any | null> => 
 
 export const proxy = async (request: NextRequest) => {
   const { pathname } = request.nextUrl;
-  const sessionToken = request.cookies.get("session_token")?.value;
 
-  // 1. Verify token
+  // =============================================================
+  // 1. CORS & CSRF Checks for API routes
+  // =============================================================
+  if (pathname.startsWith("/api/")) {
+    // Exclude cron routes from standard CORS/CSRF checks
+    if (pathname.startsWith("/api/cron/")) {
+      return NextResponse.next();
+    }
+
+    const origin = request.headers.get("origin");
+    const method = request.method;
+    const isProduction = process.env.APP_ENV === "production";
+    
+    // Whitelisted origins from environment variable
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+      : [];
+      
+    const host = request.headers.get("host") || "";
+    const protocol = request.headers.get("x-forwarded-proto") || "http";
+    const hostOrigin = `${protocol}://${host}`;
+    
+    // 1.1 CORS Verification
+    if (origin && origin !== hostOrigin) {
+      if (isProduction && !allowedOrigins.includes(origin)) {
+        return new NextResponse(
+          JSON.stringify({
+            status: false,
+            statusCode: 403,
+            message: "CORS policy: Access denied.",
+            errorCode: "CORS_ERROR",
+          }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+    
+    // 1.2 CSRF/Origin check on state-changing browser requests (POST/PUT/PATCH/DELETE)
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      const referer = request.headers.get("referer");
+      let isSameOrigin = false;
+      
+      if (origin) {
+        isSameOrigin = origin === hostOrigin || allowedOrigins.includes(origin);
+      } else if (referer) {
+        try {
+          const refererUrl = new URL(referer);
+          const refererOrigin = `${refererUrl.protocol}//${refererUrl.host}`;
+          isSameOrigin = refererOrigin === hostOrigin || allowedOrigins.includes(refererOrigin);
+        } catch (e) {
+          isSameOrigin = false;
+        }
+      } else {
+        const hasSession = request.cookies.has("session_token");
+        isSameOrigin = !hasSession;
+      }
+      
+      if (!isSameOrigin) {
+        return new NextResponse(
+          JSON.stringify({
+            status: false,
+            statusCode: 403,
+            message: "CSRF policy: Invalid request origin.",
+            errorCode: "CSRF_ERROR",
+          }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+    
+    return NextResponse.next();
+  }
+
+  // =============================================================
+  // 2. Auth redirect logic for Page routes
+  // =============================================================
+  const sessionToken = request.cookies.get("session_token")?.value;
   let decodedToken = null;
   if (sessionToken) {
     decodedToken = await verifyJwt(sessionToken, JWT_SECRET);
@@ -67,7 +148,6 @@ export const proxy = async (request: NextRequest) => {
   const isAuthenticated = !!decodedToken;
   const isLoginPage = pathname === "/login";
 
-  // 2. Redirect logic
   if (!isAuthenticated) {
     // Allow unauthenticated users to access / and /login.
     // Redirect them to /login if they attempt to access protected pages (like /dashboard).
@@ -90,12 +170,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for:
-     * - api (API endpoints)
      * - _next/static (Next.js static build outputs)
      * - _next/image (Next.js image optimization)
      * - favicon.ico (Favicon asset)
      * - test-ui (Manual testing page)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|test-ui).*)",
+    "/((?!_next/static|_next/image|favicon.ico|test-ui).*)",
   ],
 };
+
