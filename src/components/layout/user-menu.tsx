@@ -110,49 +110,6 @@ export function UserMenu() {
 
           <DropdownMenuSeparator className="my-1 border-border/60 dark:border-input/5" />
           
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 select-none">
-              Simulate User Role
-            </DropdownMenuLabel>
-            <DropdownMenuItem 
-              onClick={() => switchRole("super_admin")} 
-              className={`cursor-pointer gap-2 py-1.5 rounded-md ${user.roleCode === "super_admin" ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-              <span className="flex-1">Super Admin</span>
-              {user.roleCode === "super_admin" && <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">Active</span>}
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem 
-              onClick={() => switchRole("sales_manager")} 
-              className={`cursor-pointer gap-2 py-1.5 rounded-md ${user.roleCode === "sales_manager" ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-              <span className="flex-1">Sales Manager</span>
-              {user.roleCode === "sales_manager" && <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400">Active</span>}
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem 
-              onClick={() => switchRole("inside_sales")} 
-              className={`cursor-pointer gap-2 py-1.5 rounded-md ${user.roleCode === "inside_sales" ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <div className="h-2 w-2 rounded-full bg-sky-500 shrink-0" />
-              <span className="flex-1">Inside Sales</span>
-              {user.roleCode === "inside_sales" && <span className="text-[9px] font-semibold text-sky-600 dark:text-sky-400">Active</span>}
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem 
-              onClick={() => switchRole("field_sales")} 
-              className={`cursor-pointer gap-2 py-1.5 rounded-md ${user.roleCode === "field_sales" ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-              <span className="flex-1">Field Sales Rep</span>
-              {user.roleCode === "field_sales" && <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">Active</span>}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          
-          <DropdownMenuSeparator className="my-1 border-border/60 dark:border-input/5" />
-          
           <DropdownMenuItem className="cursor-pointer gap-2 py-2 text-rose-600 focus:bg-rose-500/10 focus:text-rose-600 dark:text-rose-400 dark:focus:bg-rose-500/20">
             <LogOut className="h-4 w-4" />
             <span>Sign Out</span>

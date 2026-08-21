@@ -2,10 +2,7 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  throw new Error("DATABASE_URL is not defined in environment variables.");
-}
+const url = process.env.DATABASE_URL || "file:dev.db";
 
 const authToken = process.env.DATABASE_AUTH_TOKEN;
 

@@ -14,6 +14,9 @@ export interface UserProfile {
   roleName: string
   avatarUrl?: string
   permissions: string[]
+  teamId?: number | null
+  departmentId?: number | null
+  dataVisibility?: "own" | "shared" | "partnered" | "team" | "all"
 }
 
 export const SIMULATED_USERS: Record<RoleCode, UserProfile> = {

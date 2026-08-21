@@ -55,6 +55,8 @@ export interface TeamMemberRow {
 interface TeamMemberTableProps {
   members: TeamMemberRow[]
   isLoading?: boolean
+  currentUserRoleCode?: string
+  currentUserId?: string
   onEdit: (member: TeamMemberRow) => void
   onResetPassword: (member: TeamMemberRow) => void
   onChangeStatus: (
@@ -66,10 +68,14 @@ interface TeamMemberTableProps {
 export function TeamMemberTable({
   members,
   isLoading,
+  currentUserRoleCode = "super_admin",
+  currentUserId,
   onEdit,
   onResetPassword,
   onChangeStatus,
 }: TeamMemberTableProps) {
+  const isSuperAdmin = currentUserRoleCode === "super_admin"
+
   if (isLoading) {
     return (
       <div className="border rounded-xl p-8 text-center bg-card shadow-xs animate-pulse">
@@ -143,9 +149,13 @@ export function TeamMemberTable({
               .toUpperCase()
               .slice(0, 2)
 
+            const isSelf = member.id === currentUserId
+            const isManager = currentUserRoleCode === "sales_manager"
+            const canManageThisMember = isSuperAdmin || (isManager && !isSelf && member.roleCode !== "super_admin")
+
             return (
               <TableRow key={member.id} className="hover:bg-muted/30 transition-colors">
-                {/* Staff Member Info */}
+                {/* Member Identity */}
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20">
@@ -202,45 +212,58 @@ export function TeamMemberTable({
 
                 {/* Actions Dropdown */}
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-muted font-medium text-xs">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Open menu</span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 text-xs">
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                          Staff Actions
-                        </DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => onEdit(member)}>
-                          <Edit className="h-3.5 w-3.5 mr-2" />
-                          <span>Edit Profile</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onResetPassword(member)}>
-                          <KeyRound className="h-3.5 w-3.5 mr-2 text-amber-500" />
-                          <span>Reset Password</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-
-                        {member.status !== "active" && (
-                          <DropdownMenuItem onClick={() => onChangeStatus(member, "active")}>
-                            <UserCheck className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                            <span>Re-activate Account</span>
+                  {canManageThisMember ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-muted font-medium text-xs">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Open menu</span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 text-xs">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                            Staff Actions
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => onEdit(member)}>
+                            <Edit className="h-3.5 w-3.5 mr-2" />
+                            <span>{isSuperAdmin ? "Edit Profile" : "Edit Access & Status"}</span>
                           </DropdownMenuItem>
-                        )}
 
-                        {member.status !== "suspended" && (
-                          <DropdownMenuItem
-                            className="text-rose-600 dark:text-rose-400 focus:text-rose-600 focus:bg-rose-500/10"
-                            onClick={() => onChangeStatus(member, "suspended")}
-                          >
-                            <ShieldAlert className="h-3.5 w-3.5 mr-2" />
-                            <span>Suspend Account</span>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          {isSuperAdmin && (
+                            <DropdownMenuItem onClick={() => onResetPassword(member)}>
+                              <KeyRound className="h-3.5 w-3.5 mr-2 text-amber-500" />
+                              <span>Reset Password</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          {member.status !== "active" && (
+                            <DropdownMenuItem onClick={() => onChangeStatus(member, "active")}>
+                              <UserCheck className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                              <span>Re-activate Account</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          {member.status === "active" && (
+                            <DropdownMenuItem onClick={() => onChangeStatus(member, "inactive")}>
+                              <UserCheck className="h-3.5 w-3.5 mr-2 text-zinc-500" />
+                              <span>Deactivate Account</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          {isSuperAdmin && member.status !== "suspended" && (
+                            <DropdownMenuItem
+                              className="text-rose-600 dark:text-rose-400 focus:text-rose-600 focus:bg-rose-500/10"
+                              onClick={() => onChangeStatus(member, "suspended")}
+                            >
+                              <ShieldAlert className="h-3.5 w-3.5 mr-2" />
+                              <span>Suspend Account</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
                 </TableCell>
               </TableRow>
             )

@@ -24,6 +24,9 @@ export type AuthenticatedUserPayload = {
     name: string;
   };
   permissions: string[];
+  teamId?: number | null;
+  departmentId?: number | null;
+  dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
 };
 
 /**
@@ -205,6 +208,9 @@ export const verifySession = async (token: string): Promise<AuthenticatedUserPay
     id: user.id,
     name: user.name,
     email: user.email,
+    teamId: user.teamId,
+    departmentId: user.departmentId,
+    dataVisibility: user.dataVisibility,
     role: {
       code: role.code,
       name: role.name,

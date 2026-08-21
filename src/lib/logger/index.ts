@@ -43,21 +43,23 @@ const streams: pino.StreamEntry[] = [
   { level: "error", stream: process.stderr },
 ];
 
-export const logger = pino(
-  {
-    level: logLevel,
-    base: {
-      env: process.env.NODE_ENV || "development",
-      service: "ahs-salescrm",
-    },
-    timestamp: pino.stdTimeFunctions.isoTime,
-    redact: {
-      paths: sensitivePaths,
-      censor: "[REDACTED]",
-    },
+const pinoOptions: pino.LoggerOptions = {
+  level: logLevel,
+  base: {
+    env: process.env.NODE_ENV || "development",
+    service: "ahs-salescrm",
   },
-  pino.multistream(streams)
-);
+  timestamp: pino.stdTimeFunctions.isoTime,
+  redact: {
+    paths: sensitivePaths,
+    censor: "[REDACTED]",
+  },
+};
+
+export const logger =
+  typeof pino.multistream === "function"
+    ? pino(pinoOptions, pino.multistream(streams))
+    : pino(pinoOptions);
 
 // --- Domain Observability Helpers ---
 

@@ -19,20 +19,40 @@ export class UsersService {
    * Lists team members with permissions and visibility checks
    */
   static async listTeamMembers(params: UserQueryInput) {
-    await checkPermission("team:view");
-    return await UsersRepository.findUsers(params);
+    const actor = await checkPermission("team:view");
+    return await UsersRepository.findUsers({
+      ...params,
+      actorRoleCode: actor.role.code,
+      actorTeamId: actor.teamId,
+      actorUserId: actor.id,
+    });
   }
 
   /**
    * Retrieves a single team member by ID
    */
   static async getTeamMember(id: string) {
-    await checkPermission("team:view");
-    const user = await UsersRepository.findUserById(id);
-    if (!user) {
+    const actor = await checkPermission("team:view");
+    const targetUser = await UsersRepository.findUserById(id);
+    if (!targetUser) {
       throw new AppError("Team member not found.", 404, "NOT_FOUND");
     }
-    return user;
+
+    // Role-based visibility enforcement for non-SuperAdmins
+    if (actor.role.code !== "super_admin") {
+      if (targetUser.roleCode === "super_admin") {
+        throw new AppError("Access denied. SuperAdmin profiles are restricted.", 403, "FORBIDDEN");
+      }
+      const isSelf = targetUser.id === actor.id;
+      const isSameTeam = actor.teamId && targetUser.teamId === actor.teamId;
+      const isDirectReport = targetUser.managerId === actor.id;
+
+      if (!isSelf && !isSameTeam && !isDirectReport) {
+        throw new AppError("Access denied. You can only view members of your assigned team.", 403, "FORBIDDEN");
+      }
+    }
+
+    return targetUser;
   }
 
   /**
@@ -40,6 +60,9 @@ export class UsersService {
    */
   static async createTeamMember(input: CreateUserInput) {
     const actor = await checkPermission("team:edit");
+    if (actor.role.code !== "super_admin") {
+      throw new AppError("Access denied. Only SuperAdmin can create team members.", 403, "FORBIDDEN");
+    }
 
     // 1. Verify email uniqueness
     const existing = await UsersRepository.findUserByEmail(input.email);
@@ -110,7 +133,7 @@ export class UsersService {
   }
 
   /**
-   * Updates an existing team member profile, role, department, or visibility
+   * Updates an existing team member profile, role, department, visibility, or status
    */
   static async updateTeamMember(id: string, input: UpdateUserInput) {
     const actor = await checkPermission("team:edit");
@@ -120,28 +143,62 @@ export class UsersService {
       throw new AppError("Team member not found.", 404, "NOT_FOUND");
     }
 
-    // If email is changing, verify uniqueness
-    if (input.email && input.email.toLowerCase() !== user.email.toLowerCase()) {
-      const existing = await UsersRepository.findUserByEmail(input.email);
-      if (existing) {
-        throw new AppError("A user with this email address already exists.", 409, "CONFLICT");
+    if (actor.role.code !== "super_admin") {
+      // 1. Cannot modify self
+      if (user.id === actor.id) {
+        throw new AppError("Access denied. You cannot modify your own account status or visibility.", 403, "FORBIDDEN");
       }
-    }
 
-    // Update main user record
-    await UsersRepository.updateUser(id, {
-      name: input.name,
-      email: input.email,
-      roleId: input.roleId,
-      departmentId: input.departmentId,
-      teamId: input.teamId,
-      managerId: input.managerId,
-      dataVisibility: input.dataVisibility,
-    });
+      // 2. Must belong to actor's team
+      const isSameTeam = actor.teamId && user.teamId === actor.teamId;
+      const isManagedByUser = user.managerId === actor.id;
+      if (!isSameTeam && !isManagedByUser) {
+        throw new AppError("Access denied. You can only manage members of your assigned team.", 403, "FORBIDDEN");
+      }
 
-    // Update custom permission overrides if provided
-    if (input.permissions !== undefined) {
-      await UsersRepository.setUserPermissions(id, input.permissions);
+      // 3. Cannot modify SuperAdmin
+      if (user.roleCode === "super_admin") {
+        throw new AppError("Access denied. SuperAdmin accounts are restricted.", 403, "FORBIDDEN");
+      }
+
+      // 4. Data visibility restriction: team, shared, own (NOT 'all')
+      if (input.dataVisibility === "all") {
+        throw new AppError("Access denied. Managers cannot assign 'All' organization-wide data access.", 400, "BAD_REQUEST");
+      }
+
+      // 5. Status restriction: active, inactive (NOT 'suspended')
+      if ((input as any).status === "suspended") {
+        throw new AppError("Access denied. Managers cannot suspend accounts. Allowed status: Active or Inactive.", 400, "BAD_REQUEST");
+      }
+
+      // Update allowed fields only
+      await UsersRepository.updateUser(id, {
+        dataVisibility: input.dataVisibility || user.dataVisibility,
+        status: (input as any).status || user.status,
+      });
+    } else {
+      // SuperAdmin full update logic
+      if (input.email && input.email.toLowerCase() !== user.email.toLowerCase()) {
+        const existing = await UsersRepository.findUserByEmail(input.email);
+        if (existing) {
+          throw new AppError("A user with this email address already exists.", 409, "CONFLICT");
+        }
+      }
+
+      await UsersRepository.updateUser(id, {
+        name: input.name,
+        email: input.email,
+        roleId: input.roleId,
+        departmentId: input.departmentId,
+        teamId: input.teamId,
+        managerId: input.managerId,
+        dataVisibility: input.dataVisibility,
+        status: (input as any).status,
+      });
+
+      if (input.permissions !== undefined) {
+        await UsersRepository.setUserPermissions(id, input.permissions);
+      }
     }
 
     // Audit Log Entry
@@ -153,16 +210,13 @@ export class UsersService {
       oldData: JSON.stringify({
         name: user.name,
         email: user.email,
-        roleId: user.roleId,
-        departmentId: user.departmentId,
-        teamId: user.teamId,
-        managerId: user.managerId,
         dataVisibility: user.dataVisibility,
+        status: user.status,
       }),
       newData: JSON.stringify(input),
     });
 
-    logger.info({ actorId: actor.id, targetUserId: id }, `Team member profile updated: ${id}`);
+    logger.info({ actorId: actor.id, targetUserId: id }, `Team member updated by manager/admin: ${id}`);
 
     return await UsersRepository.findUserById(id);
   }
@@ -172,6 +226,9 @@ export class UsersService {
    */
   static async resetMemberPassword(id: string, input: ResetUserPasswordInput) {
     const actor = await checkPermission("team:edit");
+    if (actor.role.code !== "super_admin") {
+      throw new AppError("Access denied. Only SuperAdmin can reset passwords.", 403, "FORBIDDEN");
+    }
 
     const user = await UsersRepository.findUserById(id);
     if (!user) {
@@ -208,24 +265,43 @@ export class UsersService {
       throw new AppError("Team member not found.", 404, "NOT_FOUND");
     }
 
-    // Prevent deactivating / suspending self
-    if (actor.id === id && input.status !== "active") {
-      throw new AppError(
-        "You cannot deactivate or suspend your own active session account.",
-        400,
-        "BAD_REQUEST"
-      );
-    }
+    if (actor.role.code !== "super_admin") {
+      // 1. Cannot modify self
+      if (actor.id === id) {
+        throw new AppError("Access denied. You cannot modify your own account status.", 403, "FORBIDDEN");
+      }
 
-    // Prevent deactivating / suspending the last SuperAdmin
-    if (user.roleCode === "super_admin" && input.status !== "active") {
-      const activeSuperAdminCount = await UsersRepository.countSuperAdmins();
-      if (activeSuperAdminCount <= 1) {
+      // 2. Must belong to actor's team
+      const isSameTeam = actor.teamId && user.teamId === actor.teamId;
+      const isManagedByUser = user.managerId === actor.id;
+      if (!isSameTeam && !isManagedByUser) {
+        throw new AppError("Access denied. You can only manage members of your assigned team.", 403, "FORBIDDEN");
+      }
+
+      // 3. Status restriction: ONLY active or inactive
+      if (input.status === "suspended") {
+        throw new AppError("Access denied. Managers cannot suspend accounts. Allowed status: Active or Inactive.", 400, "BAD_REQUEST");
+      }
+    } else {
+      // Prevent deactivating / suspending self
+      if (actor.id === id && input.status !== "active") {
         throw new AppError(
-          "Cannot deactivate or suspend the last active SuperAdmin account.",
+          "You cannot deactivate or suspend your own active session account.",
           400,
           "BAD_REQUEST"
         );
+      }
+
+      // Prevent deactivating / suspending the last SuperAdmin
+      if (user.roleCode === "super_admin" && input.status !== "active") {
+        const activeSuperAdminCount = await UsersRepository.countSuperAdmins();
+        if (activeSuperAdminCount <= 1) {
+          throw new AppError(
+            "Cannot deactivate or suspend the last active SuperAdmin account.",
+            400,
+            "BAD_REQUEST"
+          );
+        }
       }
     }
 
@@ -253,7 +329,7 @@ export class UsersService {
    * Fetches metadata for dropdowns (departments, roles, permissions, managers)
    */
   static async listDepartmentsAndRoles() {
-    await checkPermission("team:view");
+    const actor = await checkPermission("team:view");
 
     const [departmentsList, rolesList, permissionsList, managersList] = await Promise.all([
       UsersRepository.getDepartments(),
@@ -262,9 +338,23 @@ export class UsersService {
       UsersRepository.getAvailableManagers(),
     ]);
 
+    let filteredRoles = rolesList;
+    if (actor.role.code !== "super_admin") {
+      filteredRoles = rolesList.filter((r) => {
+        // Exclude SuperAdmin and Admin roles from non-SuperAdmin views
+        if (r.code === "super_admin" || r.code?.includes("admin")) return false;
+
+        // Restrict to actor's department if defined
+        if (actor.departmentId && r.departmentId) {
+          return r.departmentId === actor.departmentId;
+        }
+        return true;
+      });
+    }
+
     return {
       departments: departmentsList,
-      roles: rolesList,
+      roles: filteredRoles,
       permissions: permissionsList,
       managers: managersList,
     };

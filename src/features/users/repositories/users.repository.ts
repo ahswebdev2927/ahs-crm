@@ -1,4 +1,4 @@
-import { eq, and, or, like, sql, count } from "drizzle-orm";
+import { eq, and, or, like, sql, count, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { db } from "@/db";
 import {
@@ -12,7 +12,11 @@ import {
 } from "@/db/schema";
 import type { UserQueryInput } from "../schemas/user.schema";
 
-export interface UserFilterParams extends UserQueryInput {}
+export interface UserFilterParams extends UserQueryInput {
+  actorRoleCode?: string;
+  actorTeamId?: number | null;
+  actorUserId?: string;
+}
 
 const managerUsers: any = alias(users, "manager_users");
 
@@ -21,7 +25,17 @@ export class UsersRepository {
    * Finds users matching optional filters with pagination
    */
   static async findUsers(params: UserFilterParams) {
-    const { search, roleId, departmentId, status, page = 1, limit = 10 } = params;
+    const {
+      search,
+      roleId,
+      departmentId,
+      status,
+      page = 1,
+      limit = 10,
+      actorRoleCode,
+      actorTeamId,
+      actorUserId,
+    } = params;
     const offset = (page - 1) * limit;
 
     const conditions = [];
@@ -46,6 +60,40 @@ export class UsersRepository {
 
     if (status) {
       conditions.push(eq(users.status, status));
+    }
+
+    // Role-based data visibility & team restriction rules
+    if (actorRoleCode && actorRoleCode !== "super_admin") {
+      // Exclude SuperAdmins from non-SuperAdmin views
+      conditions.push(ne(roles.code, "super_admin"));
+
+      // Restrict to actor's team / assigned team members
+      if (actorTeamId) {
+        conditions.push(
+          or(
+            eq(users.teamId, actorTeamId),
+            eq(users.managerId, actorUserId || ""),
+            eq(users.id, actorUserId || "")
+          )
+        );
+      } else if (actorUserId) {
+        conditions.push(
+          or(
+            eq(users.managerId, actorUserId),
+            eq(users.id, actorUserId)
+          )
+        );
+      }
+
+      // Exclude other team managers (Sales Manager sees self & their reps, but not other managers)
+      if (actorUserId) {
+        conditions.push(
+          or(
+            eq(users.id, actorUserId),
+            eq(roles.isManager, false)
+          )
+        );
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -85,6 +133,7 @@ export class UsersRepository {
       db
         .select({ total: count() })
         .from(users)
+        .leftJoin(roles, eq(users.roleId, roles.id))
         .where(whereClause)
         .get(),
     ]);
@@ -282,6 +331,7 @@ export class UsersRepository {
       teamId?: number | null;
       managerId?: string | null;
       dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
+      status?: "active" | "inactive" | "suspended";
       updatedAt?: Date;
     }
   ) {
@@ -294,6 +344,7 @@ export class UsersRepository {
     if (data.roleId !== undefined) updatePayload.roleId = data.roleId;
     if (data.departmentId !== undefined) updatePayload.departmentId = data.departmentId;
     if (data.dataVisibility !== undefined) updatePayload.dataVisibility = data.dataVisibility;
+    if (data.status !== undefined) updatePayload.status = data.status;
 
     if (data.managerId !== undefined) {
       updatePayload.managerId = data.managerId;

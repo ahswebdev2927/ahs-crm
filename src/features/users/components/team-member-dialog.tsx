@@ -82,6 +82,7 @@ interface TeamMemberDialogProps {
   roles: RoleItem[]
   permissions: PermissionItem[]
   managers?: ManagerItem[]
+  currentUserRoleCode?: string
   onSubmit: (data: any) => Promise<void>
 }
 
@@ -93,19 +94,13 @@ export function TeamMemberDialog({
   roles,
   permissions,
   managers = [],
+  currentUserRoleCode = "super_admin",
   onSubmit,
 }: TeamMemberDialogProps) {
   const isEditing = Boolean(memberToEdit)
+  const isSuperAdmin = currentUserRoleCode === "super_admin"
   const [activeTab, setActiveTab] = React.useState("profile")
   const [showPassword, setShowPassword] = React.useState(false)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-
-  // Map permission override states: { [permissionId]: 'default' | 'allow' | 'deny' }
-  const [permissionStates, setPermissionStates] = React.useState<
-    Record<number, "default" | "allow" | "deny">
-  >({})
-
-  const schema = isEditing ? updateUserSchema : createUserSchema
 
   const {
     register,
@@ -113,24 +108,30 @@ export function TeamMemberDialog({
     control,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<any>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(isEditing ? updateUserSchema : createUserSchema) as any,
     defaultValues: {
       name: "",
       email: "",
       password: "",
       roleId: roles[0]?.id || 1,
-      departmentId: departments[0]?.id || 1,
-      managerId: "",
+      departmentId: departments[0]?.id || null,
+      teamId: null,
+      managerId: null,
       teamName: "",
-      dataVisibility: "own",
+      dataVisibility: "own" as any,
+      status: "active" as any,
+      permissions: [],
     },
   })
 
+  // Watch selected role to toggle Manager vs Non-Manager fields
   const selectedRoleId = watch("roleId")
   const selectedRole = roles.find((r) => String(r.id) === String(selectedRoleId))
-  const isManagerRole = Boolean((selectedRole as any)?.isManager || selectedRole?.code === "sales_manager")
+  const isManagerRole = Boolean(
+    (selectedRole as any)?.isManager || selectedRole?.code === "sales_manager"
+  )
 
   React.useEffect(() => {
     if (open) {
@@ -139,68 +140,35 @@ export function TeamMemberDialog({
           name: memberToEdit.name,
           email: memberToEdit.email,
           roleId: memberToEdit.roleId,
-          departmentId: memberToEdit.departmentId || departments[0]?.id || 1,
-          managerId: memberToEdit.managerId || "",
-          dataVisibility: memberToEdit.dataVisibility,
+          departmentId: memberToEdit.departmentId || null,
+          teamId: memberToEdit.teamId || null,
+          managerId: memberToEdit.managerId || null,
+          teamName: "",
+          dataVisibility: memberToEdit.dataVisibility || "own",
+          status: memberToEdit.status || "active",
+          permissions: [],
         })
-        const initialOverrides: Record<number, "default" | "allow" | "deny"> = {}
-        memberToEdit.permissionOverrides?.forEach((o) => {
-          initialOverrides[o.permissionId] = o.type
-        })
-        setPermissionStates(initialOverrides)
       } else {
         reset({
           name: "",
           email: "",
           password: "",
-          roleId: roles.find((r) => r.code === "inside_sales")?.id || roles[0]?.id || 1,
-          departmentId: departments[0]?.id || 1,
-          managerId: managers[0]?.id || "",
+          roleId: roles[0]?.id || 1,
+          departmentId: departments[0]?.id || null,
+          teamId: null,
+          managerId: null,
           teamName: "",
           dataVisibility: "own",
+          status: "active",
+          permissions: [],
         })
-        setPermissionStates({})
       }
-      setActiveTab("profile")
-      setShowPassword(false)
     }
-  }, [open, memberToEdit, reset, departments, roles, managers])
+  }, [open, memberToEdit, reset, roles, departments])
 
-  const handleFormSubmit = async (values: any) => {
-    setIsSubmitting(true)
-    try {
-      // Build permission overrides list
-      const customPermissions: { permissionId: number; type: "allow" | "deny" }[] = []
-      Object.entries(permissionStates).forEach(([permIdStr, state]) => {
-        if (state !== "default") {
-          customPermissions.push({
-            permissionId: Number(permIdStr),
-            type: state,
-          })
-        }
-      })
-
-      const payload = {
-        ...values,
-        permissions: customPermissions,
-      }
-
-      await onSubmit(payload)
-      onOpenChange(false)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const togglePermissionState = (permId: number) => {
-    setPermissionStates((prev) => {
-      const current = prev[permId] || "default"
-      let next: "default" | "allow" | "deny" = "default"
-      if (current === "default") next = "allow"
-      else if (current === "allow") next = "deny"
-      else next = "default"
-      return { ...prev, [permId]: next }
-    })
+  const handleFormSubmit = async (data: any) => {
+    await onSubmit(data)
+    onOpenChange(false)
   }
 
   return (
@@ -213,11 +181,17 @@ export function TeamMemberDialog({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold">
-                {isEditing ? `Edit Team Member: ${memberToEdit?.name}` : "Add New Team Member"}
+                {isEditing
+                  ? isSuperAdmin
+                    ? `Edit Team Member: ${memberToEdit?.name}`
+                    : `Edit Access & Status: ${memberToEdit?.name}`
+                  : "Add New Team Member"}
               </DialogTitle>
               <DialogDescription className="text-xs">
                 {isEditing
-                  ? "Update staff details, role, data visibility, or granular permissions."
+                  ? isSuperAdmin
+                    ? "Update staff details, role, data visibility, or status."
+                    : "Update team member data access levels and account status (Active/Inactive)."
                   : "Configure credentials, assign Sales department role and data access."}
               </DialogDescription>
             </div>
@@ -235,7 +209,6 @@ export function TeamMemberDialog({
               </TabsTrigger>
             </TabsList>
 
-            {/* TAB 1: BASIC PROFILE */}
             <TabsContent value="profile" className="space-y-4 pt-4 min-h-[220px]">
               <div className="space-y-2">
                 <label htmlFor="member-name" className="text-xs font-semibold block">
@@ -245,7 +218,7 @@ export function TeamMemberDialog({
                   id="member-name"
                   placeholder="e.g. Sarah Jenkins"
                   className="text-xs"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isSuperAdmin}
                   {...register("name")}
                 />
                 {errors.name && (
@@ -262,7 +235,7 @@ export function TeamMemberDialog({
                   type="email"
                   placeholder="sarah.j@ahs-crm.com"
                   className="text-xs"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isSuperAdmin}
                   {...register("email")}
                 />
                 {errors.email && (
@@ -270,7 +243,7 @@ export function TeamMemberDialog({
                 )}
               </div>
 
-              {!isEditing ? (
+              {!isEditing && (
                 <div className="space-y-2">
                   <label htmlFor="initial-password" className="text-xs font-semibold block">
                     Initial Password
@@ -281,7 +254,7 @@ export function TeamMemberDialog({
                       type={showPassword ? "text" : "password"}
                       placeholder="Minimum 8 chars, 1 uppercase, 1 number"
                       className="pr-10 text-xs"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !isSuperAdmin}
                       {...register("password")}
                     />
                     <button
@@ -292,22 +265,10 @@ export function TeamMemberDialog({
                       {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="text-xs text-rose-500 font-medium">{errors.password.message as string}</p>
-                  )}
-                  <p className="text-[11px] text-muted-foreground">
-                    SuperAdmin sets initial credential. Share securely with the team member.
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3 rounded-lg border bg-muted/20 text-xs text-muted-foreground flex items-center justify-between">
-                  <span>Password updates are managed via SuperAdmin Direct Reset.</span>
-                  <span className="font-semibold text-foreground">Password Set</span>
                 </div>
               )}
             </TabsContent>
 
-            {/* TAB 2: ROLE & ACCESS */}
             <TabsContent value="access" className="space-y-4 pt-4 min-h-[220px]">
               <div className="space-y-2">
                 <label className="text-xs font-semibold block">Department</label>
@@ -320,7 +281,7 @@ export function TeamMemberDialog({
                       <Select
                         value={field.value ? String(field.value) : ""}
                         onValueChange={(val) => field.onChange(Number(val))}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !isSuperAdmin}
                       >
                         <SelectTrigger className="text-xs w-full">
                           <SelectValue placeholder="Select Department">
@@ -351,7 +312,7 @@ export function TeamMemberDialog({
                       <Select
                         value={field.value ? String(field.value) : ""}
                         onValueChange={(val) => field.onChange(Number(val))}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !isSuperAdmin}
                       >
                         <SelectTrigger className="text-xs w-full">
                           <SelectValue placeholder="Select Role">
@@ -361,7 +322,7 @@ export function TeamMemberDialog({
                         <SelectContent>
                           {roles.map((role) => (
                             <SelectItem key={role.id} value={String(role.id)} className="text-xs">
-                              {role.name} {(role as any).isManager ? "👑 (Manager)" : ""}
+                              {role.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -370,65 +331,6 @@ export function TeamMemberDialog({
                   }}
                 />
               </div>
-
-              {/* MANAGER VS NON-MANAGER CREATION LOGIC */}
-              {isManagerRole ? (
-                <div className="space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5">
-                  <label className="text-xs font-semibold text-primary block">
-                    Owned Team Name <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    placeholder="e.g. Sales Team Alpha, Sales Team Beta"
-                    className="text-xs bg-background"
-                    disabled={isSubmitting}
-                    {...register("teamName")}
-                  />
-                  {errors.teamName && (
-                    <p className="text-xs text-rose-500 font-medium">{errors.teamName.message as string}</p>
-                  )}
-                  <p className="text-[11px] text-muted-foreground">
-                    An Admin must enter a unique Team Name when creating any Manager account.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold block">
-                    Assigned Manager <span className="text-rose-500">*</span>
-                  </label>
-                  <Controller
-                    name="managerId"
-                    control={control}
-                    render={({ field }) => {
-                      const selectedManagerItem = managers.find((m) => m.id === field.value)
-                      return (
-                        <Select
-                          value={field.value || ""}
-                          onValueChange={field.onChange}
-                          disabled={isSubmitting || managers.length === 0}
-                        >
-                          <SelectTrigger className="text-xs w-full">
-                            <SelectValue placeholder={managers.length > 0 ? "Select Manager" : "No active managers available"}>
-                              {selectedManagerItem
-                                ? `${selectedManagerItem.name} (${selectedManagerItem.teamName || "Manager"})`
-                                : "Select Manager"}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {managers.map((mgr) => (
-                              <SelectItem key={mgr.id} value={mgr.id} className="text-xs">
-                                {mgr.name} — {mgr.teamName || "Manager"} ({mgr.email})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )
-                    }}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Non-manager team members must be assigned to an active Manager to join their Team group.
-                  </p>
-                </div>
-              )}
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold block">Data Visibility Level</label>
@@ -451,25 +353,65 @@ export function TeamMemberDialog({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="own" className="text-xs">
-                            Own (Only leads/records assigned to self)
-                          </SelectItem>
                           <SelectItem value="team" className="text-xs">
                             Team (Sales team records & shared assignments)
-                          </SelectItem>
-                          <SelectItem value="partnered" className="text-xs">
-                            Partnered (Own + Partnered leads)
                           </SelectItem>
                           <SelectItem value="shared" className="text-xs">
                             Shared (Explicitly shared company records)
                           </SelectItem>
-                          <SelectItem value="all" className="text-xs">
-                            All (Organization-wide data access)
+                          <SelectItem value="own" className="text-xs">
+                            Own (Only leads/records assigned to self)
                           </SelectItem>
+                          {isSuperAdmin && (
+                            <>
+                              <SelectItem value="partnered" className="text-xs">
+                                Partnered (Own + Partnered leads)
+                              </SelectItem>
+                              <SelectItem value="all" className="text-xs">
+                                All (Organization-wide data access)
+                              </SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     )
                   }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold block">Account Status</label>
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange} disabled={isSubmitting}>
+                      <SelectTrigger className="text-xs w-full">
+                        <SelectValue placeholder="Select Status">
+                          {field.value === "active"
+                            ? "Active"
+                            : field.value === "inactive"
+                            ? "Inactive"
+                            : field.value === "suspended"
+                            ? "Suspended"
+                            : field.value}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active" className="text-xs">
+                          Active
+                        </SelectItem>
+                        <SelectItem value="inactive" className="text-xs">
+                          Inactive
+                        </SelectItem>
+                        {isSuperAdmin && (
+                          <SelectItem value="suspended" className="text-xs text-rose-600">
+                            Suspended
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
               </div>
             </TabsContent>

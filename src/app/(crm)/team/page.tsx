@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useAuth } from "@/contexts/auth-context"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,9 @@ import { StatusChangeDialog } from "@/features/users/components/status-change-di
 import { UserPlus, Search, Filter, RefreshCw, Users } from "lucide-react"
 
 export default function TeamPage() {
+  const { user } = useAuth()
+  const isSuperAdmin = user?.roleCode === "super_admin"
+
   const [members, setMembers] = React.useState<TeamMemberRow[]>([])
   const [departments, setDepartments] = React.useState<any[]>([])
   const [roles, setRoles] = React.useState<any[]>([])
@@ -243,10 +247,12 @@ export default function TeamPage() {
           { label: "Team Management" },
         ]}
         actions={
-          <Button size="sm" onClick={handleCreateMember}>
-            <UserPlus className="h-4 w-4 mr-1.5" />
-            <span>Add Team Member</span>
-          </Button>
+          isSuperAdmin ? (
+            <Button size="sm" onClick={handleCreateMember}>
+              <UserPlus className="h-4 w-4 mr-1.5" />
+              <span>Add Team Member</span>
+            </Button>
+          ) : undefined
         }
       />
 
@@ -355,6 +361,8 @@ export default function TeamPage() {
         <TeamMemberTable
           members={members}
           isLoading={isLoading}
+          currentUserRoleCode={user?.roleCode}
+          currentUserId={user?.id}
           onEdit={handleEditMember}
           onResetPassword={handleOpenResetPassword}
           onChangeStatus={handleOpenStatusDialog}
@@ -380,6 +388,7 @@ export default function TeamPage() {
           roles={roles}
           permissions={permissions}
           managers={managers}
+          currentUserRoleCode={user?.roleCode}
           onSubmit={handleSaveMember}
         />
 

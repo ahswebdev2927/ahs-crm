@@ -36,6 +36,7 @@ export const updateUserSchema = z.object({
   managerId: z.string().trim().nullable().optional(),
   teamName: z.string().trim().min(2, "Team name must be at least 2 characters.").optional(),
   dataVisibility: dataVisibilityEnum.optional(),
+  status: userStatusEnum.optional(),
   permissions: z.array(userPermissionOverrideSchema).optional(),
 });
 
