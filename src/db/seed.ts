@@ -1,14 +1,18 @@
 import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { db } from "./index";
-import { departments, roles, permissions, rolePermissions, teams, users } from "./schema";
+import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners } from "./schema";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
   console.log("Seeding database...");
 
   // 1. Clean existing tables in correct order to avoid foreign key violations
-  console.log("Clearing existing authorization tables...");
+  console.log("Clearing existing tables...");
+  await db.delete(leadPartners);
+  await db.delete(leadStageHistory);
+  await db.delete(leads);
+  await db.delete(leadStages);
   await db.delete(rolePermissions);
   await db.delete(users);
   await db.delete(teams);
@@ -218,6 +222,108 @@ async function main() {
   ];
 
   await db.insert(users).values(otherUsers);
+
+  // 7. Seed Lead Stages
+  console.log("Seeding default lead stages...");
+  const leadStageRecords = [
+    { id: 1, name: "New Lead", code: "new", color: "#3b82f6", order: 1, description: "Newly captured inbound or self-generated lead" },
+    { id: 2, name: "Contacted", code: "contacted", color: "#8b5cf6", order: 2, description: "Initial contact or outreach completed" },
+    { id: 3, name: "Qualified", code: "qualified", color: "#06b6d4", order: 3, description: "Lead requirements and budget verified" },
+    { id: 4, name: "Meeting Scheduled", code: "meeting", color: "#eab308", order: 4, description: "Appointment or site visit scheduled" },
+    { id: 5, name: "Proposal Sent", code: "proposal", color: "#f97316", order: 5, description: "Quotation or proposal provided to prospect" },
+    { id: 6, name: "Negotiation", code: "negotiation", color: "#ec4899", order: 6, description: "Contract terms and pricing under negotiation" },
+    { id: 7, name: "Won", code: "won", color: "#22c55e", order: 7, description: "Deal successfully closed and won" },
+    { id: 8, name: "Lost", code: "lost", color: "#ef4444", order: 8, description: "Deal lost or cancelled" },
+  ];
+  await db.insert(leadStages).values(leadStageRecords);
+
+  // 8. Seed Sample Leads
+  console.log("Seeding sample leads...");
+  const sampleLeads = [
+    {
+      id: "lead-001",
+      name: "Acme Logistics Expansion",
+      company: "Acme Logistics Ltd",
+      phone: "+1 555-0192",
+      email: "contact@acmelogistics.com",
+      source: "Website",
+      requirements: "Requires commercial HVAC maintenance and air duct sanitization across 3 warehouses.",
+      notes: "Initial inquiry received from web form.",
+      priority: "high" as const,
+      ownerId: "user-inside",
+      createdById: "user-inside",
+      stageId: 1, // New Lead
+      status: "active" as const,
+    },
+    {
+      id: "lead-002",
+      name: "Apex Tower Facility Retrofit",
+      company: "Apex Properties",
+      phone: "+1 555-0143",
+      email: "facilities@apexprop.com",
+      source: "Referral",
+      requirements: "Complete building chillers replacement and ongoing monthly service plan.",
+      notes: "Site visit requested by VP of Facilities.",
+      priority: "critical" as const,
+      ownerId: "user-field",
+      createdById: "user-field",
+      stageId: 3, // Qualified
+      status: "active" as const,
+    },
+    {
+      id: "lead-003",
+      name: "Starlight Retail Outlet Inspection",
+      company: "Starlight Retail Group",
+      phone: "+1 555-0188",
+      email: "procurement@starlight.com",
+      source: "Campaign",
+      requirements: "Annual fire safety and electrical audit across 5 store locations.",
+      notes: "Proposal draft ready for client review.",
+      priority: "medium" as const,
+      ownerId: "user-inside",
+      createdById: "user-inside",
+      stageId: 5, // Proposal Sent
+      status: "active" as const,
+    },
+    {
+      id: "lead-004",
+      name: "Green Valley Tech Park Contract",
+      company: "Green Valley Real Estate",
+      phone: "+1 555-0177",
+      email: "info@greenvalleytp.com",
+      source: "Inside Sales",
+      requirements: "Comprehensive quarterly HVAC & plumbing contract.",
+      notes: "Negotiating discount structure for multi-year contract term.",
+      priority: "high" as const,
+      ownerId: "user-manager",
+      createdById: "user-inside",
+      stageId: 6, // Negotiation
+      status: "active" as const,
+    },
+  ];
+  await db.insert(leads).values(sampleLeads);
+
+  // 9. Seed Initial Stage History
+  console.log("Seeding initial stage history...");
+  const sampleHistory = [
+    {
+      id: "history-001",
+      leadId: "lead-002",
+      fromStageId: 1, // New Lead
+      toStageId: 3,   // Qualified
+      changedById: "user-field",
+      reason: "Verified requirements and budget during preliminary call.",
+    },
+    {
+      id: "history-002",
+      leadId: "lead-003",
+      fromStageId: 1, // New Lead
+      toStageId: 5,   // Proposal Sent
+      changedById: "user-inside",
+      reason: "Sent standard commercial proposal.",
+    },
+  ];
+  await db.insert(leadStageHistory).values(sampleHistory);
 
   console.log("Database seeded successfully!");
 }
