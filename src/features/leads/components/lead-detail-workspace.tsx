@@ -25,6 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LeadDetail, LeadPriority } from "../types/lead.types";
+import { LeadPartnershipSection } from "./partnership/lead-partnership-section";
 
 interface LeadDetailWorkspaceProps {
   lead: LeadDetail;
@@ -259,39 +260,7 @@ export function LeadDetailWorkspace({
 
             {/* TAB 4: PARTNERS */}
             <TabsContent value="partners" className="pt-4">
-              <Card className="border-border shadow-xs">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
-                    Lead Collaboration & Partners
-                  </CardTitle>
-                  <CardDescription>Co-assigned sales representatives collaborating on this lead.</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  {lead.partners.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-6">
-                      No partners currently assigned to this lead. Add partners in Phase 12 (Lead Partnership).
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {lead.partners.map((p, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center">
-                              {p.partner?.name.charAt(0) || "P"}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-foreground">{p.partner?.name}</div>
-                              <div className="text-[11px] text-muted-foreground">{p.partner?.email}</div>
-                            </div>
-                          </div>
-                          <Badge variant="outline">{p.role}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <LeadPartnershipSection leadId={lead.id} leadOwner={lead.owner} />
             </TabsContent>
           </Tabs>
         </div>
