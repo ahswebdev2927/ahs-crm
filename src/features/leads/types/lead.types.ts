@@ -7,6 +7,13 @@ import type {
   ReorderLeadStagesInput,
   LeadQueryInput,
 } from "../schemas/lead.schema";
+import type {
+  AddLeadPartnerInput,
+  UpdateLeadPartnerInput,
+  RemoveLeadPartnerInput,
+  LeadPartnerRole,
+  LeadPartnerStatus,
+} from "../schemas/lead-partner.schema";
 
 export type {
   CreateLeadInput,
@@ -16,6 +23,11 @@ export type {
   CreateLeadStageInput,
   ReorderLeadStagesInput,
   LeadQueryInput,
+  AddLeadPartnerInput,
+  UpdateLeadPartnerInput,
+  RemoveLeadPartnerInput,
+  LeadPartnerRole,
+  LeadPartnerStatus,
 };
 
 export type LeadPriority = "low" | "medium" | "high" | "critical";
@@ -74,16 +86,35 @@ export interface LeadStageHistoryItem {
 }
 
 export interface LeadPartnerItem {
+  id: string;
   leadId: string;
   partnerId: string;
+  percentage: number;
   role: string;
+  status: LeadPartnerStatus;
+  addedById: string | null;
+  removedById: string | null;
+  removalReason: string | null;
   createdAt: Date;
+  updatedAt: Date;
+  removedAt: Date | null;
   partner?: UserSummary | null;
+  addedBy?: UserSummary | null;
+  removedBy?: UserSummary | null;
+}
+
+export interface LeadPartnershipSummary {
+  totalPartnerPercentage: number;
+  availablePercentage: number;
+  ownerPercentage: number;
+  activePartners: LeadPartnerItem[];
+  historicalPartners: LeadPartnerItem[];
 }
 
 export interface LeadDetail extends LeadItem {
   stageHistory: LeadStageHistoryItem[];
   partners: LeadPartnerItem[];
+  partnershipSummary?: LeadPartnershipSummary;
 }
 
 export interface LeadListResponse {
