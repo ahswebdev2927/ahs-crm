@@ -14,7 +14,6 @@ describe("Lead Partnership Service Unit Tests", () => {
     email: "admin@ahs.com",
     name: "Super Admin",
     role: {
-      id: 1,
       code: "super_admin",
       name: "Super Admin",
     },
