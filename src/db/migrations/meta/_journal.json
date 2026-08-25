@@ -29,6 +29,13 @@
       "when": 1787235900748,
       "tag": "0003_curly_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787650517942,
+      "tag": "0004_square_famine",
+      "breakpoints": true
     }
   ]
 }

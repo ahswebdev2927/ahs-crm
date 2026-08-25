@@ -50,12 +50,22 @@ export const leadStageHistory = sqliteTable('lead_stage_history', {
 ]);
 
 export const leadPartners = sqliteTable('lead_partners', {
+  id: text('id').primaryKey(), // UUID
   leadId: text('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
   partnerId: text('partner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  role: text('role').notNull().default('collaborator'),
+  percentage: integer('percentage').notNull().default(0),
+  role: text('role', { enum: ['co_owner', 'collaborator', 'referral', 'technical_sales'] }).notNull().default('collaborator'),
+  status: text('status', { enum: ['active', 'removed'] }).notNull().default('active'),
+  addedById: text('added_by_id').references(() => users.id, { onDelete: 'set null' }),
+  removedById: text('removed_by_id').references(() => users.id, { onDelete: 'set null' }),
+  removalReason: text('removal_reason'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  removedAt: integer('removed_at', { mode: 'timestamp_ms' }),
 }, (t) => [
-  primaryKey({ columns: [t.leadId, t.partnerId] }),
+  index('lead_partners_lead_id_idx').on(t.leadId),
+  index('lead_partners_partner_id_idx').on(t.partnerId),
+  index('lead_partners_status_idx').on(t.status),
 ]);
 
 // Relational Definitions
@@ -111,5 +121,16 @@ export const leadPartnersRelations = relations(leadPartners, ({ one }) => ({
   partner: one(users, {
     fields: [leadPartners.partnerId],
     references: [users.id],
+    relationName: 'leadPartnerUser',
+  }),
+  addedBy: one(users, {
+    fields: [leadPartners.addedById],
+    references: [users.id],
+    relationName: 'leadPartnerAddedBy',
+  }),
+  removedBy: one(users, {
+    fields: [leadPartners.removedById],
+    references: [users.id],
+    relationName: 'leadPartnerRemovedBy',
   }),
 }));

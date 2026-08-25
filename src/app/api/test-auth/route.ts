@@ -181,6 +181,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   // -- Scenario 4: Partner Visibility (After adding partnership) --
   // Insert partnership relation
   await db.insert(leadPartners).values({
+    id: crypto.randomUUID(),
     leadId: testLeadId,
     partnerId: userInside.id,
     role: "collaborator",
