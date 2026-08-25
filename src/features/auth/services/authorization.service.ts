@@ -154,7 +154,8 @@ export const getLeadVisibilityFilter = (
         .where(
           and(
             eq(leadPartners.leadId, leads.id),
-            eq(leadPartners.partnerId, userId)
+            eq(leadPartners.partnerId, userId),
+            eq(leadPartners.status, "active")
           )
         )
     )
@@ -197,7 +198,8 @@ export const checkLeadAccess = async (
     .where(
       and(
         eq(leadPartners.leadId, leadId),
-        eq(leadPartners.partnerId, user.id)
+        eq(leadPartners.partnerId, user.id),
+        eq(leadPartners.status, "active")
       )
     )
     .get();
