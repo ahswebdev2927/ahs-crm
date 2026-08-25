@@ -58,10 +58,10 @@ export function LeadPartnershipSection({
     try {
       const res = await fetch(`/api/leads/${leadId}/partners`);
       const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!res.ok || (json.status !== true && json.success !== true)) {
         throw new Error(json.message || "Failed to load partnership data.");
       }
-      setSummary(json.data.partnershipSummary);
+      setSummary(json.data?.partnershipSummary || json.data);
     } catch (err: any) {
       setError(err.message || "Failed to load lead partners.");
     } finally {

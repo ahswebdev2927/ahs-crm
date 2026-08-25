@@ -23,12 +23,14 @@ import {
   ShieldCheck,
   Briefcase,
   Users,
+  Lock,
 } from "lucide-react";
 import type { LeadDetail, LeadPriority } from "../types/lead.types";
 import { LeadPartnershipSection } from "./partnership/lead-partnership-section";
 
 interface LeadDetailWorkspaceProps {
   lead: LeadDetail;
+  currentUserId?: string;
   onEditLead: () => void;
   onAssignLead: () => void;
   onChangeStage: () => void;
@@ -36,10 +38,18 @@ interface LeadDetailWorkspaceProps {
 
 export function LeadDetailWorkspace({
   lead,
+  currentUserId,
   onEditLead,
   onAssignLead,
   onChangeStage,
 }: LeadDetailWorkspaceProps) {
+  // Edit permission check: User can edit ONLY if owner, creator, or active partner!
+  const canUserEdit =
+    !currentUserId ||
+    lead.ownerId === currentUserId ||
+    lead.createdById === currentUserId ||
+    (lead.partners && lead.partners.some((p) => p.partnerId === currentUserId));
+
   const getPriorityBadge = (priority: LeadPriority) => {
     switch (priority) {
       case "critical":
@@ -76,6 +86,11 @@ export function LeadDetailWorkspace({
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{lead.name}</h1>
+            {!canUserEdit && (
+              <Badge variant="outline" className="text-xs text-muted-foreground ml-2">
+                <Lock className="h-3 w-3 mr-1" /> View Only
+              </Badge>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground ml-10">
@@ -97,18 +112,26 @@ export function LeadDetailWorkspace({
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <Button variant="outline" size="sm" onClick={onEditLead} className="h-9 text-xs">
-            <Edit className="h-3.5 w-3.5 mr-1.5" />
-            Edit Lead
-          </Button>
-          <Button variant="outline" size="sm" onClick={onChangeStage} className="h-9 text-xs">
-            <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
-            Change Stage
-          </Button>
-          <Button size="sm" onClick={onAssignLead} className="h-9 text-xs">
-            <UserCheck className="h-3.5 w-3.5 mr-1.5" />
-            Reassign Owner
-          </Button>
+          {canUserEdit ? (
+            <>
+              <Button variant="outline" size="sm" onClick={onEditLead} className="h-9 text-xs">
+                <Edit className="h-3.5 w-3.5 mr-1.5" />
+                Edit Lead
+              </Button>
+              <Button variant="outline" size="sm" onClick={onChangeStage} className="h-9 text-xs">
+                <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
+                Change Stage
+              </Button>
+              <Button size="sm" onClick={onAssignLead} className="h-9 text-xs">
+                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                Reassign Owner
+              </Button>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground italic flex items-center gap-1 border border-border px-3 py-1.5 rounded-lg bg-muted/20">
+              <Lock className="h-3.5 w-3.5" /> Read-Only View (Owned by {lead.owner ? lead.owner.name : "another user"})
+            </div>
+          )}
         </div>
       </div>
 

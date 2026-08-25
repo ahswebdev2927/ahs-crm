@@ -33,12 +33,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Inbox,
+  Lock,
 } from "lucide-react";
 import type { LeadItem, LeadPriority } from "../types/lead.types";
 
 interface LeadTableProps {
   leads: LeadItem[];
   isLoading: boolean;
+  currentUserId?: string;
   pagination: {
     total: number;
     page: number;
@@ -55,6 +57,7 @@ interface LeadTableProps {
 export function LeadTable({
   leads,
   isLoading,
+  currentUserId,
   pagination,
   onPageChange,
   onEditLead,
@@ -131,123 +134,142 @@ export function LeadTable({
                 </TableCell>
               </TableRow>
             ) : (
-              leads.map((lead) => (
-                <TableRow key={lead.id} className="group hover:bg-muted/40 transition-colors">
-                  {/* Lead / Company */}
-                  <TableCell className="font-medium">
-                    <div className="space-y-0.5">
-                      <Link
-                        href={`/sales/leads/${lead.id}`}
-                        className="text-sm font-semibold hover:text-primary transition-colors line-clamp-1"
-                      >
-                        {lead.name}
-                      </Link>
-                      {lead.company && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
-                          <Building2 className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{lead.company}</span>
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
+              leads.map((lead) => {
+                // Edit permission rule: User can edit ONLY if owner, creator, or active partner!
+                const canUserEdit =
+                  !currentUserId ||
+                  lead.ownerId === currentUserId ||
+                  lead.createdById === currentUserId ||
+                  (lead.partners && lead.partners.some((p) => p.partnerId === currentUserId));
 
-                  {/* Contact Info */}
-                  <TableCell className="text-xs space-y-1">
-                    {lead.phone ? (
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Phone className="h-3 w-3 shrink-0" />
-                        <span>{lead.phone}</span>
-                      </div>
-                    ) : null}
-                    {lead.email ? (
-                      <div className="flex items-center gap-1.5 text-muted-foreground truncate">
-                        <Mail className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{lead.email}</span>
-                      </div>
-                    ) : null}
-                    {!lead.phone && !lead.email && <span className="text-muted-foreground/60">—</span>}
-                  </TableCell>
-
-                  {/* Source */}
-                  <TableCell className="text-xs text-muted-foreground">
-                    {lead.source || "Direct"}
-                  </TableCell>
-
-                  {/* Priority */}
-                  <TableCell>
-                    {getPriorityBadge(lead.priority)}
-                  </TableCell>
-
-                  {/* Stage */}
-                  <TableCell>
-                    {lead.stage ? (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border/60 bg-muted/30">
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: lead.stage.color }}
-                        />
-                        <span className="truncate">{lead.stage.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-
-                  {/* Owner */}
-                  <TableCell className="text-xs">
-                    {lead.owner ? (
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center text-[10px]">
-                          {lead.owner.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="font-medium text-foreground truncate">{lead.owner.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground/70 italic">Unassigned</span>
-                    )}
-                  </TableCell>
-
-                  {/* Created Date */}
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatDate(lead.createdAt)}
-                  </TableCell>
-
-                  {/* Actions Dropdown */}
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 text-muted-foreground">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => router.push(`/sales/leads/${lead.id}`)} className="cursor-pointer">
-                          <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
-                          View Workspace
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEditLead(lead)} className="cursor-pointer">
-                          <Edit className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onChangeStage(lead)} className="cursor-pointer">
-                          <ArrowRightLeft className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Change Stage
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onAssignLead(lead)} className="cursor-pointer">
-                          <UserCheck className="h-4 w-4 mr-2 text-muted-foreground" />
-                          Reassign Owner
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => onArchiveLead(lead)}
-                          className="cursor-pointer text-amber-600 dark:text-amber-400"
+                return (
+                  <TableRow key={lead.id} className="group hover:bg-muted/40 transition-colors">
+                    {/* Lead / Company */}
+                    <TableCell className="font-medium">
+                      <div className="space-y-0.5">
+                        <Link
+                          href={`/sales/leads/${lead.id}`}
+                          className="text-sm font-semibold hover:text-primary transition-colors line-clamp-1"
                         >
-                          <Archive className="h-4 w-4 mr-2" />
-                          Archive Lead
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+                          {lead.name}
+                        </Link>
+                        {lead.company && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
+                            <Building2 className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{lead.company}</span>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Contact Info */}
+                    <TableCell className="text-xs space-y-1">
+                      {lead.phone ? (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          <span>{lead.phone}</span>
+                        </div>
+                      ) : null}
+                      {lead.email ? (
+                        <div className="flex items-center gap-1.5 text-muted-foreground truncate">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{lead.email}</span>
+                        </div>
+                      ) : null}
+                      {!lead.phone && !lead.email && <span className="text-muted-foreground/60">—</span>}
+                    </TableCell>
+
+                    {/* Source */}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {lead.source || "Direct"}
+                    </TableCell>
+
+                    {/* Priority */}
+                    <TableCell>
+                      {getPriorityBadge(lead.priority)}
+                    </TableCell>
+
+                    {/* Stage */}
+                    <TableCell>
+                      {lead.stage ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border/60 bg-muted/30">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: lead.stage.color }}
+                          />
+                          <span className="truncate">{lead.stage.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Owner */}
+                    <TableCell className="text-xs">
+                      {lead.owner ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center text-[10px]">
+                            {lead.owner.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-foreground truncate">{lead.owner.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground/70 italic">Unassigned</span>
+                      )}
+                    </TableCell>
+
+                    {/* Created Date */}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatDate(lead.createdAt)}
+                    </TableCell>
+
+                    {/* Actions Dropdown */}
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 text-muted-foreground">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => router.push(`/sales/leads/${lead.id}`)} className="cursor-pointer">
+                            <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
+                            View Workspace
+                          </DropdownMenuItem>
+
+                          {canUserEdit ? (
+                            <>
+                              <DropdownMenuItem onClick={() => onEditLead(lead)} className="cursor-pointer">
+                                <Edit className="h-4 w-4 mr-2 text-muted-foreground" />
+                                Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onChangeStage(lead)} className="cursor-pointer">
+                                <ArrowRightLeft className="h-4 w-4 mr-2 text-muted-foreground" />
+                                Change Stage
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onAssignLead(lead)} className="cursor-pointer">
+                                <UserCheck className="h-4 w-4 mr-2 text-muted-foreground" />
+                                Reassign Owner
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => onArchiveLead(lead)}
+                                className="cursor-pointer text-amber-600 dark:text-amber-400"
+                              >
+                                <Archive className="h-4 w-4 mr-2" />
+                                Archive Lead
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <DropdownMenuItem disabled className="text-xs text-muted-foreground italic">
+                              <Lock className="h-3.5 w-3.5 mr-2" />
+                              View Only (Not Owner/Partner)
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

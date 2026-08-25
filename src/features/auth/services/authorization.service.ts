@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { or, eq, exists, and, inArray } from "drizzle-orm";
+import { or, eq, exists, and } from "drizzle-orm";
 import { db } from "@/db";
 import { AppError } from "@/lib/errors/AppError";
 import { logAuthzFailure } from "@/lib/logger";
@@ -111,25 +111,39 @@ export const checkAnyPermission = async (
 };
 
 /**
- * Generates a Drizzle ORM filter condition for Lead visibility based on the user's role and team.
- * - 'super_admin' and 'all' visibility see all records (returns undefined).
- * - 'team' visibility filters leads owned by any member of the user's assigned team.
- * - 'own' visibility filters leads owned, created, or partnered by the user.
+ * Generates a Drizzle ORM filter condition for Lead visibility based strictly on user role:
+ * - Admin (super_admin): Sees ALL leads across the company.
+ * - Manager (sales_manager): Sees leads in Manager's team (teamId) + own/created/partnered.
+ * - Other members (inside_sales, field_sales, etc.): Sees ONLY their OWN leads (owner/creator) & co-partnered leads.
  */
 export const getLeadVisibilityFilter = (
   userId: string,
   roleCode: string,
-  dataVisibility?: string,
+  _dataVisibility?: string,
   teamId?: number | null
 ) => {
-  if (roleCode === "super_admin" || dataVisibility === "all") {
+  // 1. Super Admin sees all leads
+  if (roleCode === "super_admin") {
     return undefined;
   }
 
-  if (dataVisibility === "team" && teamId) {
+  // 2. Sales Manager sees team leads (owned by members of their team OR owned/created/partnered by manager)
+  if (roleCode === "sales_manager" && teamId) {
     return or(
       eq(leads.ownerId, userId),
       eq(leads.createdById, userId),
+      exists(
+        db
+          .select()
+          .from(leadPartners)
+          .where(
+            and(
+              eq(leadPartners.leadId, leads.id),
+              eq(leadPartners.partnerId, userId),
+              eq(leadPartners.status, "active")
+            )
+          )
+      ),
       exists(
         db
           .select()
@@ -144,6 +158,7 @@ export const getLeadVisibilityFilter = (
     );
   }
 
+  // 3. Other team members (inside_sales, field_sales, etc.): ONLY own & partnered leads
   return or(
     eq(leads.ownerId, userId),
     eq(leads.createdById, userId),
@@ -164,16 +179,18 @@ export const getLeadVisibilityFilter = (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Lead.
+ * BUSINESS RULE ENFORCED:
+ * - VIEW: Admin sees all; Manager sees team + own/partnered; Members see own + partnered.
+ * - EDIT / MUTATION (edit, delete, assign): Admin, Manager, and Members can ONLY edit leads
+ *   where they are the Owner, Creator, or an active Partner!
  */
 export const checkLeadAccess = async (
   leadId: string,
   action: "view" | "create" | "edit" | "delete" | "assign" | "export"
 ): Promise<AuthenticatedUserPayload> => {
-  const user = await checkPermission(`leads:${action === "delete" || action === "assign" ? "edit" : action === "export" ? "view" : action}`);
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
-  }
+  const user = await checkPermission(
+    `leads:${action === "delete" || action === "assign" ? "edit" : action === "export" ? "view" : action}`
+  );
 
   const lead = await db
     .select({
@@ -192,7 +209,7 @@ export const checkLeadAccess = async (
   const isOwner = lead.ownerId === user.id;
   const isCreator = lead.createdById === user.id;
 
-  const isPartner = await db
+  const partnerRecord = await db
     .select()
     .from(leadPartners)
     .where(
@@ -204,9 +221,47 @@ export const checkLeadAccess = async (
     )
     .get();
 
-  if (!isOwner && !isCreator && !isPartner) {
+  const isDirectlyRelated = isOwner || isCreator || Boolean(partnerRecord);
+
+  // VIEW Action Checks
+  if (action === "view" || action === "export") {
+    if (user.role.code === "super_admin") {
+      return user; // SuperAdmin views all
+    }
+
+    if (user.role.code === "sales_manager" && user.teamId) {
+      if (isDirectlyRelated) return user;
+
+      const isTeamLead = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.id, lead.ownerId),
+            eq(users.teamId, user.teamId)
+          )
+        )
+        .get();
+
+      if (isTeamLead) return user;
+    }
+
+    if (isDirectlyRelated) {
+      return user;
+    }
+
     throw new AppError(
       "Access denied. You do not have visibility permissions for this lead.",
+      403,
+      "FORBIDDEN"
+    );
+  }
+
+  // MUTATION Actions (edit, delete, assign)
+  // Enforce strict rule: Admin, Manager, and Reps can ONLY edit leads they own or co-partner on!
+  if (!isDirectlyRelated) {
+    throw new AppError(
+      "Access denied. You can only edit, reassign, or archive leads that you own or co-partner on.",
       403,
       "FORBIDDEN"
     );
@@ -251,7 +306,7 @@ export const checkCustomerAccess = async (
       await checkLeadAccess(customer.leadId, "view");
       return user;
     } catch (_e) {
-      // Ignored: falls through to access denied error
+      // Ignored
     }
   }
 

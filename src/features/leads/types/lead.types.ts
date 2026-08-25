@@ -70,6 +70,7 @@ export interface LeadItem {
   stage?: LeadStageItem | null;
   owner?: UserSummary | null;
   createdBy?: UserSummary | null;
+  partners?: LeadPartnerItem[];
 }
 
 export interface LeadStageHistoryItem {

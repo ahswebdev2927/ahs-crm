@@ -17,6 +17,7 @@ export default function LeadDetailPage() {
   const [lead, setLead] = React.useState<LeadDetail | null>(null);
   const [stages, setStages] = React.useState<LeadStageItem[]>([]);
   const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([]);
+  const [currentUserId, setCurrentUserId] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -24,6 +25,18 @@ export default function LeadDetailPage() {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = React.useState<boolean>(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState<boolean>(false);
   const [isStageDialogOpen, setIsStageDialogOpen] = React.useState<boolean>(false);
+
+  // Fetch session user
+  React.useEffect(() => {
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.user?.id) {
+          setCurrentUserId(data.data.user.id);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchLeadDetails = React.useCallback(async () => {
     if (!leadId) return;
@@ -109,6 +122,7 @@ export default function LeadDetailPage() {
 
       <LeadDetailWorkspace
         lead={lead}
+        currentUserId={currentUserId}
         onEditLead={() => setIsEditDrawerOpen(true)}
         onAssignLead={() => setIsAssignDialogOpen(true)}
         onChangeStage={() => setIsStageDialogOpen(true)}
@@ -119,6 +133,7 @@ export default function LeadDetailPage() {
         open={isEditDrawerOpen}
         onOpenChange={setIsEditDrawerOpen}
         leadToEdit={lead}
+        currentUserId={currentUserId}
         stages={stages}
         teamUsers={teamUsers}
         onSuccess={fetchLeadDetails}

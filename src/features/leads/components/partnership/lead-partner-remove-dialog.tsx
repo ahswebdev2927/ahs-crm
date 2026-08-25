@@ -57,7 +57,7 @@ export function LeadPartnerRemoveDialog({
       });
 
       const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!res.ok || (json.status !== true && json.success !== true)) {
         throw new Error(json.message || "Failed to remove lead partner.");
       }
 

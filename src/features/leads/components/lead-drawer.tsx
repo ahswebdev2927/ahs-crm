@@ -43,6 +43,7 @@ import {
   Plus,
   CalendarDays,
   FileText,
+  Lock,
 } from "lucide-react";
 import { createLeadSchema, updateLeadSchema } from "../schemas/lead.schema";
 import type { LeadItem, LeadDetail, LeadStageItem, UserSummary } from "../types/lead.types";
@@ -51,6 +52,7 @@ interface LeadDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadToEdit?: LeadDetail | LeadItem | null;
+  currentUserId?: string;
   stages: LeadStageItem[];
   teamUsers: UserSummary[];
   onSuccess: () => void;
@@ -60,6 +62,7 @@ export function LeadDrawer({
   open,
   onOpenChange,
   leadToEdit,
+  currentUserId,
   stages,
   teamUsers,
   onSuccess,
@@ -70,6 +73,18 @@ export function LeadDrawer({
 
   // Quick activity note state
   const [activityNote, setActivityNote] = React.useState("");
+
+  // Edit Permission Rule: User can edit ONLY if creating new lead OR if user is lead owner, creator, or partner!
+  const canUserEdit = React.useMemo(() => {
+    if (!leadToEdit || !currentUserId) return true;
+    const isOwner = leadToEdit.ownerId === currentUserId;
+    const isCreator = leadToEdit.createdById === currentUserId;
+    const isPartner =
+      "partners" in leadToEdit &&
+      Array.isArray((leadToEdit as LeadDetail).partners) &&
+      (leadToEdit as LeadDetail).partners.some((p) => p.partnerId === currentUserId);
+    return isOwner || isCreator || isPartner;
+  }, [leadToEdit, currentUserId]);
 
   const form = useForm<any>({
     resolver: zodResolver(isEditing ? updateLeadSchema : createLeadSchema) as any,
@@ -122,6 +137,11 @@ export function LeadDrawer({
   }, [open, leadToEdit, stages, form]);
 
   const handleSubmit = async (values: any) => {
+    if (!canUserEdit) {
+      setErrorMsg("Access denied. You can only edit leads that you own or co-partner on.");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMsg(null);
 
@@ -152,7 +172,7 @@ export function LeadDrawer({
 
   // Stage change directly from right sidebar
   const handleSidebarStageChange = async (targetStageId: number) => {
-    if (!leadToEdit) return;
+    if (!leadToEdit || !canUserEdit) return;
     try {
       const res = await fetch(`/api/leads/${leadToEdit.id}/stage`, {
         method: "POST",
@@ -168,7 +188,7 @@ export function LeadDrawer({
 
   // Owner change directly from right sidebar
   const handleSidebarOwnerChange = async (targetOwnerId: string) => {
-    if (!leadToEdit) return;
+    if (!leadToEdit || !canUserEdit) return;
     try {
       const res = await fetch(`/api/leads/${leadToEdit.id}/assign`, {
         method: "POST",
@@ -184,6 +204,7 @@ export function LeadDrawer({
 
   // Mark Lost helper
   const handleMarkLost = async () => {
+    if (!canUserEdit) return;
     const lostStage = stages.find((s) => s.code === "lost" || s.name.toLowerCase() === "lost");
     if (lostStage && leadToEdit) {
       await handleSidebarStageChange(lostStage.id);
@@ -224,6 +245,11 @@ export function LeadDrawer({
                 <SheetTitle className="text-xl font-bold tracking-tight text-foreground uppercase">
                   {leadToEdit ? leadToEdit.name : "Create New Lead"}
                 </SheetTitle>
+                {!canUserEdit && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground border-border bg-muted/30">
+                    <Lock className="h-3 w-3 mr-1" /> View Only
+                  </Badge>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -238,7 +264,7 @@ export function LeadDrawer({
             </div>
           </div>
 
-          {/* Action Header Buttons (Standard shadcn variants) */}
+          {/* Action Header Buttons */}
           <div className="flex items-center gap-2 shrink-0">
             <Button
               type="button"
@@ -255,6 +281,7 @@ export function LeadDrawer({
               type="button"
               variant="outline"
               size="sm"
+              disabled={!canUserEdit}
               className="h-9 text-xs text-destructive hover:bg-destructive/10"
               onClick={handleMarkLost}
             >
@@ -266,6 +293,7 @@ export function LeadDrawer({
               type="button"
               variant="default"
               size="sm"
+              disabled={!canUserEdit}
               className="h-9 text-xs font-semibold"
               onClick={() => alert("Lead conversion available in Phase 17 (Customers)")}
             >
@@ -286,7 +314,14 @@ export function LeadDrawer({
                   
                   {/* CARD 1: LEAD DETAILS FORM */}
                   <div className="bg-card border border-border rounded-2xl p-5 md:p-6 shadow-xs space-y-4">
-                    <h2 className="text-base font-bold text-foreground tracking-tight">Lead Details</h2>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-base font-bold text-foreground tracking-tight">Lead Details</h2>
+                      {!canUserEdit && (
+                        <span className="text-xs text-muted-foreground italic flex items-center gap-1">
+                          <Lock className="h-3 w-3" /> Editing restricted to Lead Owner or Partners
+                        </span>
+                      )}
+                    </div>
 
                     {errorMsg && (
                       <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs text-destructive">
@@ -303,7 +338,7 @@ export function LeadDrawer({
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-muted-foreground">Contact Name *</FormLabel>
                             <FormControl>
-                              <Input className="h-10 bg-background" placeholder="Full Name" {...field} value={field.value || ""} />
+                              <Input disabled={!canUserEdit} className="h-10 bg-background" placeholder="Full Name" {...field} value={field.value || ""} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -319,7 +354,7 @@ export function LeadDrawer({
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground">Company</FormLabel>
                               <FormControl>
-                                <Input className="h-10 bg-background" placeholder="Company Name" {...field} value={field.value || ""} />
+                                <Input disabled={!canUserEdit} className="h-10 bg-background" placeholder="Company Name" {...field} value={field.value || ""} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -333,7 +368,7 @@ export function LeadDrawer({
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground">Phone</FormLabel>
                               <FormControl>
-                                <Input className="h-10 bg-background" placeholder="Phone Number" {...field} value={field.value || ""} />
+                                <Input disabled={!canUserEdit} className="h-10 bg-background" placeholder="Phone Number" {...field} value={field.value || ""} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -350,7 +385,7 @@ export function LeadDrawer({
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground">Email</FormLabel>
                               <FormControl>
-                                <Input className="h-10 bg-background" placeholder="sample@email.com" {...field} value={field.value || ""} />
+                                <Input disabled={!canUserEdit} className="h-10 bg-background" placeholder="sample@email.com" {...field} value={field.value || ""} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -363,7 +398,7 @@ export function LeadDrawer({
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground">Source</FormLabel>
-                              <Select value={field.value || "Inside Sales"} onValueChange={(v) => field.onChange(v || "Inside Sales")}>
+                              <Select disabled={!canUserEdit} value={field.value || "Inside Sales"} onValueChange={(v) => field.onChange(v || "Inside Sales")}>
                                 <FormControl>
                                   <SelectTrigger className="h-10 bg-background">
                                     <SelectValue placeholder="Select source" />
@@ -392,7 +427,7 @@ export function LeadDrawer({
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground">Priority</FormLabel>
-                              <Select value={field.value || "medium"} onValueChange={(v) => field.onChange(v || "medium")}>
+                              <Select disabled={!canUserEdit} value={field.value || "medium"} onValueChange={(v) => field.onChange(v || "medium")}>
                                 <FormControl>
                                   <SelectTrigger className="h-10 bg-background">
                                     <SelectValue placeholder="Select priority" />
@@ -417,7 +452,7 @@ export function LeadDrawer({
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground">Requirements Summary</FormLabel>
                               <FormControl>
-                                <Input className="h-10 bg-background" placeholder="Product/service requirements" {...field} value={field.value || ""} />
+                                <Input disabled={!canUserEdit} className="h-10 bg-background" placeholder="Product/service requirements" {...field} value={field.value || ""} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -434,6 +469,7 @@ export function LeadDrawer({
                             <FormLabel className="text-xs font-medium text-muted-foreground">Notes</FormLabel>
                             <FormControl>
                               <Textarea
+                                disabled={!canUserEdit}
                                 className="bg-background min-h-20"
                                 placeholder="Additional details or customer notes..."
                                 {...field}
@@ -446,18 +482,20 @@ export function LeadDrawer({
                       />
                     </div>
 
-                    {/* Card Save Action (Default shadcn primary button) */}
-                    <div className="flex justify-end pt-2">
-                      <Button
-                        type="submit"
-                        variant="default"
-                        disabled={isSubmitting}
-                        className="font-semibold text-xs px-5 h-9"
-                      >
-                        {isSubmitting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                        Save Changes
-                      </Button>
-                    </div>
+                    {/* Card Save Action */}
+                    {canUserEdit && (
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          type="submit"
+                          variant="default"
+                          disabled={isSubmitting}
+                          className="font-semibold text-xs px-5 h-9"
+                        >
+                          {isSubmitting && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                          Save Changes
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {/* CARD 2: MEETINGS & SITE VISITS */}
@@ -530,6 +568,7 @@ export function LeadDrawer({
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground">Stage</label>
                       <Select
+                        disabled={!canUserEdit}
                         value={form.watch("stageId")?.toString() || ""}
                         onValueChange={(val) => {
                           if (val) {
@@ -561,6 +600,7 @@ export function LeadDrawer({
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-muted-foreground">Assigned To</label>
                       <Select
+                        disabled={!canUserEdit}
                         value={form.watch("ownerId") || ""}
                         onValueChange={(val) => {
                           if (val) {

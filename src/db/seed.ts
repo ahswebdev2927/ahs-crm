@@ -1,14 +1,18 @@
 import "dotenv/config";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners } from "./schema";
+import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions } from "./schema";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
   console.log("Seeding database...");
 
-  // 1. Clean existing tables in correct order to avoid foreign key violations
+  // Turn off foreign keys temporarily for clean re-seeding
+  await db.run(sql`PRAGMA foreign_keys = OFF;`);
+
   console.log("Clearing existing tables...");
+  await db.delete(sessions);
+  await db.delete(userPermissions);
   await db.delete(leadPartners);
   await db.delete(leadStageHistory);
   await db.delete(leads);
@@ -204,7 +208,7 @@ async function main() {
       departmentId: 1, // Sales
       teamId: 1, // Sales Team Alpha
       managerId: "user-manager", // Managed by Marcus Vance
-      dataVisibility: "team" as const,
+      dataVisibility: "own" as const,
       status: "active" as const,
     },
     {

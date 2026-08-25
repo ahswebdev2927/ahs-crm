@@ -18,6 +18,7 @@ export default function LeadsPage() {
   const [stages, setStages] = React.useState<LeadStageItem[]>([]);
   const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([]);
   const [currentUserRole, setCurrentUserRole] = React.useState<string>("");
+  const [currentUserId, setCurrentUserId] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
   // Filter state
@@ -46,13 +47,18 @@ export default function LeadsPage() {
 
   const [isStageManagerOpen, setIsStageManagerOpen] = React.useState<boolean>(false);
 
-  // Fetch Session user role
+  // Fetch Session user info
   React.useEffect(() => {
     fetch("/api/auth/session")
       .then((res) => res.json())
       .then((data) => {
-        if (data?.data?.user?.role?.code) {
-          setCurrentUserRole(data.data.user.role.code);
+        if (data?.data?.user) {
+          if (data.data.user.role?.code) {
+            setCurrentUserRole(data.data.user.role.code);
+          }
+          if (data.data.user.id) {
+            setCurrentUserId(data.data.user.id);
+          }
         }
       })
       .catch(() => {});
@@ -229,6 +235,7 @@ export default function LeadsPage() {
       <LeadTable
         leads={leads}
         isLoading={isLoading}
+        currentUserId={currentUserId}
         pagination={pagination}
         onPageChange={(p) => setPage(p)}
         onEditLead={handleEditLead}
@@ -242,6 +249,7 @@ export default function LeadsPage() {
         open={isLeadDrawerOpen}
         onOpenChange={setIsLeadDrawerOpen}
         leadToEdit={leadToEdit}
+        currentUserId={currentUserId}
         stages={stages}
         teamUsers={teamUsers}
         onSuccess={fetchLeads}

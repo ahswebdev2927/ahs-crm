@@ -65,8 +65,9 @@ export function LeadPartnerAddDialog({
       try {
         const res = await fetch("/api/team?limit=100");
         const json = await res.json();
-        if (json.success && Array.isArray(json.data?.users)) {
-          const activeUsers: TeamMemberOption[] = json.data.users
+        const rawUsers = Array.isArray(json.data?.items) ? json.data.items : Array.isArray(json.data?.users) ? json.data.users : [];
+        if (rawUsers.length > 0) {
+          const activeUsers: TeamMemberOption[] = rawUsers
             .filter((u: any) => u.status === "active")
             .map((u: any) => ({
               id: u.id,
@@ -121,7 +122,7 @@ export function LeadPartnerAddDialog({
       });
 
       const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!res.ok || (json.status !== true && json.success !== true)) {
         throw new Error(json.message || "Failed to add lead partner.");
       }
 
