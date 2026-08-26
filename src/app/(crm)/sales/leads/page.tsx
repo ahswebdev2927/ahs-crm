@@ -168,7 +168,7 @@ export default function LeadsPage() {
     currentUserRole === "super_admin" || currentUserRole === "sales_manager";
 
   return (
-    <div className="flex-1 space-y-6 p-6 max-w-[1600px] mx-auto">
+    <div className="flex-1 space-y-4 sm:space-y-5 p-4 sm:p-5 xl:p-6 max-w-[1536px] mx-auto">
       <PageHeader
         title="Leads Database"
         description="Capture, qualify, and track prospective sales deals across the pipeline."

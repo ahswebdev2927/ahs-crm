@@ -17,7 +17,7 @@ export function Topbar({ onToggleMobileSidebar, onToggleSidebar }: TopbarProps) 
   }
 
   return (
-    <header className="sticky top-0 z-30 flex md:grid md:grid-cols-3 h-16 w-full items-center justify-between border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur-md dark:border-input/10 select-none">
+    <header className="sticky top-0 z-30 flex md:grid md:grid-cols-3 h-14 md:h-15 w-full items-center justify-between border-b border-border bg-background/80 px-4 md:px-5 backdrop-blur-md dark:border-input/10 select-none">
       {/* Left Area: Toggles */}
       <div className="flex items-center gap-3 justify-start min-w-0">
         {/* Mobile menu trigger */}

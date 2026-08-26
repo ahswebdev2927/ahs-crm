@@ -110,7 +110,7 @@ export function TeamMemberDialog({
     watch,
     formState: { errors, isSubmitting },
   } = useForm<any>({
-    resolver: zodResolver(isEditing ? updateUserSchema : createUserSchema) as any,
+    resolver: zodResolver((isEditing ? updateUserSchema : createUserSchema) as any),
     defaultValues: {
       name: "",
       email: "",

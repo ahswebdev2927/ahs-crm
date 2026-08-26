@@ -28,16 +28,16 @@ export function PageHeader({
     <div
       data-slot="page-header"
       className={cn(
-        "flex flex-col gap-4 border-b border-border bg-background/50 px-6 py-5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-input/10 shrink-0",
+        "flex flex-col gap-3 border-b border-border bg-background/50 px-4 py-3 sm:px-5 sm:py-3.5 xl:px-6 xl:py-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-input/10 shrink-0",
         className
       )}
     >
-      <div className="flex flex-col gap-1.5 min-w-0">
+      <div className="flex flex-col gap-1 min-w-0">
         {/* Breadcrumbs */}
         {breadcrumbs && breadcrumbs.length > 0 && (
           <nav
             aria-label="Breadcrumb"
-            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground select-none mb-1"
+            className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-muted-foreground select-none mb-0.5"
           >
             {breadcrumbs.map((item, idx) => {
               const isLast = idx === breadcrumbs.length - 1
@@ -63,11 +63,11 @@ export function PageHeader({
         )}
 
         {/* Title & Description */}
-        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl truncate">
+        <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl xl:text-2xl truncate">
           {title}
         </h1>
         {description && (
-          <p className="text-sm text-muted-foreground leading-normal max-w-2xl">
+          <p className="text-xs sm:text-sm text-muted-foreground leading-normal max-w-2xl">
             {description}
           </p>
         )}

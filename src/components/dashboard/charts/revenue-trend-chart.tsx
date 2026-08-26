@@ -89,7 +89,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
         </div>
 
         {/* Chart Controls & Date Range Picker */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Preset Buttons */}
           <div className="inline-flex rounded-md bg-muted p-0.5 text-xs">
             {(["7d", "30d", "this_month", "3m", "6m", "12m"] as const).map((p) => {
@@ -108,7 +108,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                   key={p}
                   type="button"
                   onClick={() => handlePresetSelect(p)}
-                  className={`rounded-sm px-2 py-1 text-xs font-medium transition-all ${
+                  className={`rounded-sm px-1.5 py-0.5 text-[11px] sm:text-xs font-medium transition-all ${
                     isSelected
                       ? "bg-background text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"

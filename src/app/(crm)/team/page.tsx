@@ -237,7 +237,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen">
+    <div className="flex-1 flex flex-col">
       <PageHeader
         title="Team Directory"
         description="Manage staff members, Sales department roles, data access levels, and credentials."
@@ -256,7 +256,7 @@ export default function TeamPage() {
         }
       />
 
-      <div className="max-w-7xl w-full mx-auto p-6 space-y-4 flex-1">
+      <div className="max-w-[1536px] w-full mx-auto p-4 sm:p-5 xl:p-6 space-y-4 flex-1">
         {/* Filter & Search Controls Bar */}
         <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row items-center gap-3">
           {/* Search Input */}

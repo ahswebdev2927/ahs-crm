@@ -108,7 +108,7 @@ export default function LeadDetailPage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6 max-w-[1600px] mx-auto">
+    <div className="flex-1 space-y-4 sm:space-y-5 p-4 sm:p-5 xl:p-6 max-w-[1536px] mx-auto">
       <PageHeader
         title={`Lead: ${lead.name}`}
         description="Comprehensive deal workspace, stage timeline, contact details, and audit history."

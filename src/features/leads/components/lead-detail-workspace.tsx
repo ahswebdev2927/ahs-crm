@@ -77,15 +77,15 @@ export function LeadDetailWorkspace({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4 sm:space-y-5 pb-8">
       {/* Top Header Navigation */}
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-b border-border pb-5">
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between border-b border-border pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Link href="/sales/leads" className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{lead.name}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{lead.name}</h1>
             {!canUserEdit && (
               <Badge variant="outline" className="text-xs text-muted-foreground ml-2">
                 <Lock className="h-3 w-3 mr-1" /> View Only
@@ -93,7 +93,7 @@ export function LeadDetailWorkspace({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground ml-10">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground ml-10">
             {lead.company && (
               <div className="flex items-center gap-1">
                 <Building2 className="h-3.5 w-3.5" />
@@ -114,21 +114,21 @@ export function LeadDetailWorkspace({
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {canUserEdit ? (
             <>
-              <Button variant="outline" size="sm" onClick={onEditLead} className="h-9 text-xs">
+              <Button variant="outline" size="sm" onClick={onEditLead} className="h-8 text-xs">
                 <Edit className="h-3.5 w-3.5 mr-1.5" />
                 Edit Lead
               </Button>
-              <Button variant="outline" size="sm" onClick={onChangeStage} className="h-9 text-xs">
+              <Button variant="outline" size="sm" onClick={onChangeStage} className="h-8 text-xs">
                 <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
                 Change Stage
               </Button>
-              <Button size="sm" onClick={onAssignLead} className="h-9 text-xs">
+              <Button size="sm" onClick={onAssignLead} className="h-8 text-xs">
                 <UserCheck className="h-3.5 w-3.5 mr-1.5" />
                 Reassign Owner
               </Button>
             </>
           ) : (
-            <div className="text-xs text-muted-foreground italic flex items-center gap-1 border border-border px-3 py-1.5 rounded-lg bg-muted/20">
+            <div className="text-xs text-muted-foreground italic flex items-center gap-1 border border-border px-3 py-1 rounded-lg bg-muted/20">
               <Lock className="h-3.5 w-3.5" /> Read-Only View (Owned by {lead.owner ? lead.owner.name : "another user"})
             </div>
           )}
@@ -136,9 +136,9 @@ export function LeadDetailWorkspace({
       </div>
 
       {/* Main Workspace Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
         {/* Left 2 Columns: Main Tabs Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-5">
           {/* Key Stage & Priority Header Card */}
           <Card className="border border-border shadow-xs bg-card">
             <CardContent className="p-5 flex flex-wrap items-center justify-between gap-4">

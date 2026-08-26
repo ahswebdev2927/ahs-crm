@@ -90,7 +90,7 @@ export function LeadDrawer({
   }, [leadToEdit, currentUserId]);
 
   const form = useForm<any>({
-    resolver: zodResolver(isEditing ? updateLeadSchema : createLeadSchema) as any,
+    resolver: zodResolver((isEditing ? updateLeadSchema : createLeadSchema) as any),
     defaultValues: {
       name: "",
       company: "",

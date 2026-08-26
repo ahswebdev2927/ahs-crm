@@ -89,7 +89,7 @@ export function DataTable<T>({
                   <TableHead
                     key={col.key || idx}
                     className={cn(
-                      "h-10 text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none py-3 px-6",
+                      "h-9 sm:h-10 text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none py-2.5 px-4 sm:px-5 xl:px-6",
                       alignClass,
                       col.className
                     )}
@@ -142,7 +142,7 @@ export function DataTable<T>({
                       <TableCell
                         key={col.key || colIdx}
                         className={cn(
-                          "py-3.5 px-6 text-sm text-foreground",
+                          "py-2.5 sm:py-3 px-4 sm:px-5 xl:px-6 text-xs sm:text-sm text-foreground",
                           alignClass,
                           col.className
                         )}

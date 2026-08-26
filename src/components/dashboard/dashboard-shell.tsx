@@ -93,12 +93,12 @@ export function DashboardShell() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 space-y-4 sm:space-y-5 p-4 sm:p-5 xl:p-6 max-w-[1536px] mx-auto">
       <PageHeader
         title={getScopeTitle()}
         description={getScopeDescription()}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <DashboardScopeSwitcher
               allowedScopes={allowedScopes}
               activeScope={activeScope}
@@ -107,7 +107,7 @@ export function DashboardShell() {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value as DashboardDateRange)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs font-medium shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+              className="h-9 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="today">Today</option>
               <option value="7d">Last 7 Days</option>
@@ -133,33 +133,33 @@ export function DashboardShell() {
       ) : !data ? null : (
         <>
           {/* KPI Cards Grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
             {data.kpis.map((kpi) => (
               <DashboardKpiCard key={kpi.id} metric={kpi} />
             ))}
           </div>
 
           {/* Row 1: Revenue Trend (2 cols) & Lead Funnel (1 col) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-3">
             <RevenueTrendChart data={data.revenueTrend} />
             <LeadConversionChart data={data.leadConversion} />
           </div>
 
           {/* Row 2: Pipeline Distribution (1 col) & Lead Source Breakdown (2 cols) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-3">
             <PipelineDistributionChart data={data.pipelineDistribution} />
             <LeadSourceChart data={data.leadSources} />
           </div>
 
           {/* Row 3: Customer Growth (1 col) & Payment Collections (1 col) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-2">
             <CustomerGrowthChart data={data.customerGrowth} />
             <PaymentCollectionChart data={data.paymentCollections} />
           </div>
 
           {/* Row 4: Team Sales Performance Table (Team & Business Scopes) */}
           {activeScope !== "personal" && data.teamPerformance && (
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-4 lg:gap-5">
               <TeamPerformanceTable data={data.teamPerformance} />
             </div>
           )}

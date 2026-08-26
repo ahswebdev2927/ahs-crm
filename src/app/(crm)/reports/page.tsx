@@ -25,7 +25,7 @@ export default function ReportsPage() {
         }
       />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-[1536px] mx-auto p-4 sm:p-5 xl:p-6">
         <Card className="border-border dark:border-input/10 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Analytical Insights (Restricted)</CardTitle>

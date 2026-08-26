@@ -32,18 +32,18 @@ export function Sidebar({ collapsed, setCollapsed, className }: SidebarProps) {
     <aside
       className={cn(
         "relative hidden md:flex flex-col border-r border-border bg-background transition-all duration-300 ease-in-out shrink-0 select-none dark:border-input/10",
-        collapsed ? "w-[72px]" : "w-64",
+        collapsed ? "w-[68px]" : "w-60 xl:w-64",
         className
       )}
     >
       {/* Brand logo container */}
-      <div className="flex h-16 items-center justify-between px-5 border-b border-border/60 dark:border-input/5">
+      <div className="flex h-14 md:h-15 items-center justify-between px-4 xl:px-5 border-b border-border/60 dark:border-input/5">
         <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black tracking-tighter">
+          <div className="flex h-8 w-8 xl:h-9 xl:w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black tracking-tighter text-sm xl:text-base">
             A
           </div>
           {!collapsed && (
-            <span className="font-extrabold text-sm tracking-widest text-foreground uppercase animate-in fade-in duration-300">
+            <span className="font-extrabold text-xs xl:text-sm tracking-widest text-foreground uppercase animate-in fade-in duration-300">
               AHS <span className="font-light text-muted-foreground">CRM</span>
             </span>
           )}
@@ -51,30 +51,30 @@ export function Sidebar({ collapsed, setCollapsed, className }: SidebarProps) {
       </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto py-5 px-3 space-y-5 no-scrollbar">
+      <div className="flex-1 overflow-y-auto py-3.5 px-2.5 space-y-4 no-scrollbar">
         {filteredNavGroups.map((group, groupIdx) => (
-          <div key={groupIdx} className="space-y-1.5">
+          <div key={groupIdx} className="space-y-1">
             {/* Group Name eyebrow */}
             {group.groupName && !collapsed && (
-              <h4 className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none select-none animate-in fade-in duration-300">
+              <h4 className="px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none select-none animate-in fade-in duration-300 mb-1">
                 {group.groupName}
               </h4>
             )}
             {group.groupName && collapsed && (
-              <div className="h-px bg-border/40 mx-2.5 my-3 dark:bg-input/5" />
+              <div className="h-px bg-border/40 mx-2 my-2 dark:bg-input/5" />
             )}
 
             {/* Group items */}
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               {group.items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
                 const itemEl = (
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all group/item select-none cursor-pointer duration-150 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs xl:text-sm font-medium transition-all group/item select-none cursor-pointer duration-150 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
                       isActive
-                        ? "bg-accent/60 text-foreground border-l-2 border-primary rounded-l-none pl-2.5"
+                        ? "bg-accent/60 text-foreground border-l-2 border-primary rounded-l-none pl-2"
                         : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                     )}
                   >
@@ -107,8 +107,6 @@ export function Sidebar({ collapsed, setCollapsed, className }: SidebarProps) {
           </div>
         ))}
       </div>
-
-
     </aside>
   )
 }
