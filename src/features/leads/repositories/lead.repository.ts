@@ -17,6 +17,10 @@ import type {
   CreateLeadStageInput,
   LeadPriority,
   LeadStatus,
+  PipelineBoardData,
+  PipelineStageColumn,
+  MoveLeadStageInput,
+  ReorderStageLeadsInput,
 } from "../types/lead.types";
 
 /**
@@ -404,3 +408,188 @@ export const updateLeadStageOrders = async (
 
   return await findLeadStages();
 };
+
+export const findPipelineBoardData = async (
+  visibilityFilter: any,
+  params: LeadQueryInput
+): Promise<PipelineBoardData> => {
+  const stages = await db.select().from(leadStages).orderBy(asc(leadStages.order));
+
+  const conditions: any[] = [];
+
+  if (visibilityFilter) {
+    conditions.push(visibilityFilter);
+  }
+
+  conditions.push(eq(leads.status, (params.status as LeadStatus) || "active"));
+
+  if (params.priority) {
+    conditions.push(eq(leads.priority, params.priority as LeadPriority));
+  }
+
+  if (params.source) {
+    conditions.push(eq(leads.source, params.source));
+  }
+
+  if (params.ownerId) {
+    conditions.push(eq(leads.ownerId, params.ownerId));
+  }
+
+  if (params.search && params.search.trim() !== "") {
+    const searchPattern = `%${params.search.trim()}%`;
+    conditions.push(
+      or(
+        like(leads.name, searchPattern),
+        like(leads.company, searchPattern),
+        like(leads.phone, searchPattern),
+        like(leads.email, searchPattern)
+      )
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const rows = await db
+    .select({
+      lead: leads,
+      stage: leadStages,
+      owner: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(leads)
+    .leftJoin(leadStages, eq(leads.stageId, leadStages.id))
+    .leftJoin(users, eq(leads.ownerId, users.id))
+    .where(whereClause)
+    .orderBy(asc(leads.stageId), asc(leads.position), desc(leads.createdAt));
+
+  const leadItems: LeadItem[] = rows.map((r) => ({
+    ...r.lead,
+    priority: r.lead.priority as LeadPriority,
+    status: r.lead.status as LeadStatus,
+    stage: r.stage ? { ...r.stage } : null,
+    owner: r.owner && r.owner.id ? { ...r.owner } : null,
+    createdBy: null,
+  }));
+
+  const leadsByStageMap = new Map<number, LeadItem[]>();
+  for (const item of leadItems) {
+    const stageLeads = leadsByStageMap.get(item.stageId) || [];
+    stageLeads.push(item);
+    leadsByStageMap.set(item.stageId, stageLeads);
+  }
+
+  const stageColumns: PipelineStageColumn[] = stages.map((s) => {
+    const stageLeads = leadsByStageMap.get(s.id) || [];
+    return {
+      ...s,
+      leads: stageLeads,
+      totalCount: stageLeads.length,
+    };
+  });
+
+  return {
+    stages: stageColumns,
+    totalLeads: leadItems.length,
+  };
+};
+
+export const updateLeadStageAndPositionInRepo = async (
+  id: string,
+  fromStageId: number,
+  toStageId: number,
+  newPosition: number,
+  changedById: string,
+  reason?: string | null
+): Promise<LeadDetail> => {
+  const now = new Date();
+  const historyId = crypto.randomUUID();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(leads)
+      .set({
+        stageId: toStageId,
+        position: newPosition,
+        updatedAt: now,
+      })
+      .where(eq(leads.id, id));
+
+    if (fromStageId !== toStageId) {
+      await tx.insert(leadStageHistory).values({
+        id: historyId,
+        leadId: id,
+        fromStageId,
+        toStageId,
+        changedById,
+        reason: reason ?? null,
+        createdAt: now,
+      });
+    }
+
+    const targetStageLeads = await tx
+      .select({ id: leads.id, position: leads.position })
+      .from(leads)
+      .where(and(eq(leads.stageId, toStageId), eq(leads.status, "active")))
+      .orderBy(asc(leads.position), desc(leads.createdAt));
+
+    let pos = 0;
+    for (const lead of targetStageLeads) {
+      if (lead.position !== pos) {
+        await tx
+          .update(leads)
+          .set({ position: pos, updatedAt: now })
+          .where(eq(leads.id, lead.id));
+      }
+      pos++;
+    }
+
+    if (fromStageId !== toStageId) {
+      const sourceStageLeads = await tx
+        .select({ id: leads.id, position: leads.position })
+        .from(leads)
+        .where(and(eq(leads.stageId, fromStageId), eq(leads.status, "active")))
+        .orderBy(asc(leads.position), desc(leads.createdAt));
+
+      let srcPos = 0;
+      for (const lead of sourceStageLeads) {
+        if (lead.position !== srcPos) {
+          await tx
+            .update(leads)
+            .set({ position: srcPos, updatedAt: now })
+            .where(eq(leads.id, lead.id));
+        }
+        srcPos++;
+      }
+    }
+  });
+
+  const updated = await findLeadById(id);
+  if (!updated) {
+    throw new Error("Failed to retrieve lead record after stage & position update.");
+  }
+
+  return updated;
+};
+
+export const updateLeadPositionsInStage = async (
+  stageId: number,
+  leadOrders: Array<{ leadId: string; position: number }>
+): Promise<void> => {
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    for (const item of leadOrders) {
+      await tx
+        .update(leads)
+        .set({
+          position: item.position,
+          updatedAt: now,
+        })
+        .where(and(eq(leads.id, item.leadId), eq(leads.stageId, stageId)));
+    }
+  });
+};
+

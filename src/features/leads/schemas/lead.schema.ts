@@ -76,6 +76,24 @@ export const leadQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
 });
 
+export const moveLeadStageSchema = z.object({
+  leadId: z.string().trim().min(1, "Lead ID is required."),
+  fromStageId: z.number().int().positive("Source stage is required."),
+  toStageId: z.number().int().positive("Destination stage is required."),
+  newPosition: z.number().int().nonnegative("New position must be non-negative.").default(0),
+  reason: z.string().trim().nullable().optional(),
+});
+
+export const reorderStageLeadsSchema = z.object({
+  stageId: z.number().int().positive("Stage ID is required."),
+  leadOrders: z.array(
+    z.object({
+      leadId: z.string().trim().min(1, "Lead ID is required."),
+      position: z.number().int().nonnegative("Position must be non-negative."),
+    })
+  ).min(1, "At least one lead order must be provided."),
+});
+
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
@@ -83,3 +101,5 @@ export type UpdateLeadStageInput = z.infer<typeof updateLeadStageSchema>;
 export type CreateLeadStageInput = z.infer<typeof createLeadStageSchema>;
 export type ReorderLeadStagesInput = z.infer<typeof reorderLeadStagesSchema>;
 export type LeadQueryInput = z.infer<typeof leadQuerySchema>;
+export type MoveLeadStageInput = z.infer<typeof moveLeadStageSchema>;
+export type ReorderStageLeadsInput = z.infer<typeof reorderStageLeadsSchema>;

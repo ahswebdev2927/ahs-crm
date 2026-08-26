@@ -27,6 +27,7 @@ export const leads = sqliteTable('leads', {
   ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
   createdById: text('created_by_id').notNull().references(() => users.id),
   stageId: integer('stage_id').notNull().references(() => leadStages.id),
+  position: integer('position').notNull().default(0),
   status: text('status', { enum: ['active', 'archived', 'deleted'] }).notNull().default('active'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
@@ -35,6 +36,7 @@ export const leads = sqliteTable('leads', {
   index('leads_owner_id_idx').on(t.ownerId),
   index('leads_stage_id_idx').on(t.stageId),
   index('leads_status_idx').on(t.status),
+  index('leads_stage_position_idx').on(t.stageId, t.position),
 ]);
 
 export const leadStageHistory = sqliteTable('lead_stage_history', {

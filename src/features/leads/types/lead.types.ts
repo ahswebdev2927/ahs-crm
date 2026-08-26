@@ -6,6 +6,8 @@ import type {
   CreateLeadStageInput,
   ReorderLeadStagesInput,
   LeadQueryInput,
+  MoveLeadStageInput,
+  ReorderStageLeadsInput,
 } from "../schemas/lead.schema";
 import type {
   AddLeadPartnerInput,
@@ -23,6 +25,8 @@ export type {
   CreateLeadStageInput,
   ReorderLeadStagesInput,
   LeadQueryInput,
+  MoveLeadStageInput,
+  ReorderStageLeadsInput,
   AddLeadPartnerInput,
   UpdateLeadPartnerInput,
   RemoveLeadPartnerInput,
@@ -63,6 +67,7 @@ export interface LeadItem {
   ownerId: string | null;
   createdById: string;
   stageId: number;
+  position: number;
   status: LeadStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -71,6 +76,16 @@ export interface LeadItem {
   owner?: UserSummary | null;
   createdBy?: UserSummary | null;
   partners?: LeadPartnerItem[];
+}
+
+export interface PipelineStageColumn extends LeadStageItem {
+  leads: LeadItem[];
+  totalCount: number;
+}
+
+export interface PipelineBoardData {
+  stages: PipelineStageColumn[];
+  totalLeads: number;
 }
 
 export interface LeadStageHistoryItem {

@@ -16,6 +16,9 @@ import {
   getLeadStageById,
   createLeadStageRecord,
   updateLeadStageOrders as repoUpdateLeadStageOrders,
+  findPipelineBoardData,
+  updateLeadStageAndPositionInRepo,
+  updateLeadPositionsInStage,
 } from "../repositories/lead.repository";
 import {
   createLeadSchema,
@@ -25,6 +28,8 @@ import {
   createLeadStageSchema,
   reorderLeadStagesSchema,
   leadQuerySchema,
+  moveLeadStageSchema,
+  reorderStageLeadsSchema,
 } from "../schemas/lead.schema";
 import type {
   LeadListResponse,
@@ -38,6 +43,9 @@ import type {
   CreateLeadStageInput,
   ReorderLeadStagesInput,
   LeadQueryInput,
+  PipelineBoardData,
+  MoveLeadStageInput,
+  ReorderStageLeadsInput,
 } from "../types/lead.types";
 
 /**
@@ -253,3 +261,66 @@ export const reorderLeadStages = async (
   const validated = reorderLeadStagesSchema.parse(input);
   return await repoUpdateLeadStageOrders(validated);
 };
+
+export const getPipelineBoard = async (
+  user: AuthenticatedUserPayload,
+  params: LeadQueryInput
+): Promise<PipelineBoardData> => {
+  await checkPermission("leads:view");
+
+  const validatedParams = leadQuerySchema.parse(params);
+
+  const visibilityFilter = getLeadVisibilityFilter(
+    user.id,
+    user.role.code,
+    user.dataVisibility,
+    user.teamId
+  );
+
+  return await findPipelineBoardData(visibilityFilter, validatedParams);
+};
+
+export const moveLeadStage = async (
+  user: AuthenticatedUserPayload,
+  input: MoveLeadStageInput
+): Promise<LeadDetail> => {
+  const validated = moveLeadStageSchema.parse(input);
+
+  await checkLeadAccess(validated.leadId, "edit");
+
+  const existing = await findLeadById(validated.leadId);
+  if (!existing) {
+    throw new AppError("Lead not found.", 404, "NOT_FOUND");
+  }
+
+  const targetStage = await getLeadStageById(validated.toStageId);
+  if (!targetStage) {
+    throw new AppError(`Destination stage (ID: ${validated.toStageId}) does not exist.`, 400, "VALIDATION_ERROR");
+  }
+
+  return await updateLeadStageAndPositionInRepo(
+    validated.leadId,
+    validated.fromStageId,
+    validated.toStageId,
+    validated.newPosition,
+    user.id,
+    validated.reason ?? "Moved via Sales Pipeline Kanban"
+  );
+};
+
+export const reorderStageLeads = async (
+  user: AuthenticatedUserPayload,
+  input: ReorderStageLeadsInput
+): Promise<void> => {
+  await checkPermission("leads:edit");
+
+  const validated = reorderStageLeadsSchema.parse(input);
+
+  const stage = await getLeadStageById(validated.stageId);
+  if (!stage) {
+    throw new AppError(`Stage (ID: ${validated.stageId}) does not exist.`, 400, "VALIDATION_ERROR");
+  }
+
+  await updateLeadPositionsInStage(validated.stageId, validated.leadOrders);
+};
+
