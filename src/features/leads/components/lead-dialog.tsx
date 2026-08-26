@@ -55,7 +55,7 @@ export function LeadDialog({
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const form = useForm<any>({
-    resolver: zodResolver(isEditing ? updateLeadSchema : createLeadSchema) as any,
+    resolver: zodResolver((isEditing ? updateLeadSchema : createLeadSchema) as any),
     defaultValues: {
       name: "",
       company: "",

@@ -274,10 +274,11 @@ export const getPipelineBoard = async (
 
   const validatedParams = leadQuerySchema.parse(params);
 
+  // In Sales Pipeline Kanban board, strictly show only own, created, or partnered leads for the logged-in user
   const visibilityFilter = getLeadVisibilityFilter(
     user.id,
     user.role.code,
-    user.dataVisibility,
+    "own",
     user.teamId
   );
 

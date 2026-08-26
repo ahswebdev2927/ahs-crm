@@ -5,7 +5,7 @@ import { requireAuth } from "@/features/auth/services/authorization.service";
 import { addLeadActivity } from "@/features/leads/services/lead.service";
 
 export const POST = withErrorHandling(
-  async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  (async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const user = await requireAuth();
     const { id } = await params;
     const body = await request.json();
@@ -17,5 +17,5 @@ export const POST = withErrorHandling(
       message: "Lead activity logged successfully.",
       data: activity,
     });
-  }
+  }) as any
 );

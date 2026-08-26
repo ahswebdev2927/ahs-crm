@@ -13,5 +13,6 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   return successResponse({
     statusCode: 200,
     message: "Stage leads reordered successfully.",
+    data: null,
   });
 });

@@ -253,16 +253,18 @@ export const checkLeadAccess = async (
     if (user.role.code === "sales_manager" && user.teamId) {
       if (isDirectlyRelated) return user;
 
-      const isTeamLead = await db
-        .select()
-        .from(users)
-        .where(
-          and(
-            eq(users.id, lead.ownerId),
-            eq(users.teamId, user.teamId)
-          )
-        )
-        .get();
+      const isTeamLead = lead.ownerId
+        ? await db
+            .select()
+            .from(users)
+            .where(
+              and(
+                eq(users.id, lead.ownerId),
+                eq(users.teamId, user.teamId)
+              )
+            )
+            .get()
+        : null;
 
       if (isTeamLead) return user;
     }
