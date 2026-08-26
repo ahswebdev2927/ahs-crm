@@ -2,18 +2,17 @@
 
 import * as React from "react";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { Plus, Settings2 } from "lucide-react";
 import { LeadFilters } from "@/features/leads/components/lead-filters";
 import { LeadTable } from "@/features/leads/components/lead-table";
 import { LeadDrawer } from "@/features/leads/components/lead-drawer";
 import { LeadAssignDialog } from "@/features/leads/components/lead-assign-dialog";
 import { LeadStageDialog } from "@/features/leads/components/lead-stage-dialog";
 import { LeadStageManagerDialog } from "@/features/leads/components/lead-stage-manager-dialog";
+import { Button } from "@/components/ui/button";
+import { Plus, Settings2 } from "lucide-react";
 import type { LeadItem, LeadStageItem, UserSummary } from "@/features/leads/types/lead.types";
 
 export default function LeadsPage() {
-  // Data state
   const [leads, setLeads] = React.useState<LeadItem[]>([]);
   const [stages, setStages] = React.useState<LeadStageItem[]>([]);
   const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([]);
@@ -21,13 +20,14 @@ export default function LeadsPage() {
   const [currentUserId, setCurrentUserId] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
-  // Filter state
+  // Filter & Pagination state
   const [search, setSearch] = React.useState<string>("");
   const [selectedStageId, setSelectedStageId] = React.useState<string>("all");
   const [selectedPriority, setSelectedPriority] = React.useState<string>("all");
   const [selectedSource, setSelectedSource] = React.useState<string>("all");
   const [selectedStatus, setSelectedStatus] = React.useState<string>("active");
   const [page, setPage] = React.useState<number>(1);
+  const [limit, setLimit] = React.useState<number>(10);
   const [pagination, setPagination] = React.useState({
     total: 0,
     page: 1,
@@ -97,7 +97,7 @@ export default function LeadsPage() {
       if (selectedSource !== "all") query.set("source", selectedSource);
       if (selectedStatus) query.set("status", selectedStatus);
       query.set("page", page.toString());
-      query.set("limit", "10");
+      query.set("limit", limit.toString());
 
       const res = await fetch(`/api/leads?${query.toString()}`);
       const data = await res.json();
@@ -112,7 +112,7 @@ export default function LeadsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, selectedStageId, selectedPriority, selectedSource, selectedStatus, page]);
+  }, [search, selectedStageId, selectedPriority, selectedSource, selectedStatus, page, limit]);
 
   React.useEffect(() => {
     fetchStages();
@@ -123,7 +123,7 @@ export default function LeadsPage() {
     fetchLeads();
   }, [fetchLeads]);
 
-  // Handlers for modal & drawer triggers
+  // Handlers for Drawer & Modals
   const handleCreateLead = () => {
     setLeadToEdit(null);
     setIsLeadDrawerOpen(true);
@@ -146,11 +146,8 @@ export default function LeadsPage() {
 
   const handleArchiveLead = async (lead: LeadItem) => {
     if (!confirm(`Are you sure you want to archive lead "${lead.name}"?`)) return;
-
     try {
-      const res = await fetch(`/api/leads/${lead.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
       if (res.ok) {
         fetchLeads();
       }
@@ -164,6 +161,7 @@ export default function LeadsPage() {
     setSelectedSource("all");
     setSelectedStatus("active");
     setPage(1);
+    setLimit(10);
   };
 
   const isManagerOrAdmin =
@@ -238,6 +236,10 @@ export default function LeadsPage() {
         currentUserId={currentUserId}
         pagination={pagination}
         onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
         onEditLead={handleEditLead}
         onAssignLead={handleAssignLead}
         onChangeStage={handleChangeStage}
@@ -273,16 +275,18 @@ export default function LeadsPage() {
         onSuccess={fetchLeads}
       />
 
-      {/* Stage Manager Dialog (Admin / Manager) */}
-      <LeadStageManagerDialog
-        open={isStageManagerOpen}
-        onOpenChange={setIsStageManagerOpen}
-        stages={stages}
-        onSuccess={() => {
-          fetchStages();
-          fetchLeads();
-        }}
-      />
+      {/* Stage Manager Dialog (Admin / Manager only) */}
+      {isManagerOrAdmin && (
+        <LeadStageManagerDialog
+          open={isStageManagerOpen}
+          onOpenChange={setIsStageManagerOpen}
+          stages={stages}
+          onSuccess={() => {
+            fetchStages();
+            fetchLeads();
+          }}
+        />
+      )}
     </div>
   );
 }

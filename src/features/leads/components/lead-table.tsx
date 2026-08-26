@@ -21,6 +21,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   MoreHorizontal,
   Eye,
   Edit,
@@ -48,6 +55,7 @@ interface LeadTableProps {
     totalPages: number;
   };
   onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
   onEditLead: (lead: LeadItem) => void;
   onAssignLead: (lead: LeadItem) => void;
   onChangeStage: (lead: LeadItem) => void;
@@ -60,6 +68,7 @@ export function LeadTable({
   currentUserId,
   pagination,
   onPageChange,
+  onLimitChange,
   onEditLead,
   onAssignLead,
   onChangeStage,
@@ -275,9 +284,9 @@ export function LeadTable({
         </Table>
       </div>
 
-      {/* Pagination Footer */}
-      {!isLoading && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+      {/* Pagination Footer with Per Page Limit Selector */}
+      {!isLoading && pagination.total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
           <div>
             Showing <span className="font-semibold text-foreground">{(pagination.page - 1) * pagination.limit + 1}</span> to{" "}
             <span className="font-semibold text-foreground">
@@ -285,30 +294,56 @@ export function LeadTable({
             </span>{" "}
             of <span className="font-semibold text-foreground">{pagination.total}</span> leads
           </div>
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-              className="h-8 text-xs px-2.5"
-            >
-              <ChevronLeft className="h-3.5 w-3.5 mr-1" />
-              Previous
-            </Button>
-            <span className="px-2 text-xs font-medium text-foreground">
-              Page {pagination.page} of {pagination.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(pagination.page + 1)}
-              disabled={pagination.page >= pagination.totalPages}
-              className="h-8 text-xs px-2.5"
-            >
-              Next
-              <ChevronRight className="h-3.5 w-3.5 ml-1" />
-            </Button>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Limit Selector Dropdown (10, 25, 50, 75, 100) */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">Show</span>
+              <Select
+                value={pagination.limit.toString()}
+                onValueChange={(val) => onLimitChange(Number(val))}
+              >
+                <SelectTrigger className="h-8 w-[110px] text-xs bg-background">
+                  <SelectValue placeholder="10 / page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / page</SelectItem>
+                  <SelectItem value="25">25 / page</SelectItem>
+                  <SelectItem value="50">50 / page</SelectItem>
+                  <SelectItem value="75">75 / page</SelectItem>
+                  <SelectItem value="100">100 / page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Pagination Controls */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="h-8 text-xs px-2.5"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                  Previous
+                </Button>
+                <span className="px-2 text-xs font-medium text-foreground">
+                  Page {pagination.page} of {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="h-8 text-xs px-2.5"
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
