@@ -8,6 +8,7 @@ import type {
   LeadQueryInput,
   MoveLeadStageInput,
   ReorderStageLeadsInput,
+  CreateLeadActivityInput,
 } from "../schemas/lead.schema";
 import type {
   AddLeadPartnerInput,
@@ -27,6 +28,7 @@ export type {
   LeadQueryInput,
   MoveLeadStageInput,
   ReorderStageLeadsInput,
+  CreateLeadActivityInput,
   AddLeadPartnerInput,
   UpdateLeadPartnerInput,
   RemoveLeadPartnerInput,
@@ -127,9 +129,44 @@ export interface LeadPartnershipSummary {
   historicalPartners: LeadPartnerItem[];
 }
 
+export type LeadActivityType = "note" | "call" | "email" | "meeting";
+
+export interface LeadActivityItem {
+  id: string;
+  leadId: string;
+  type: LeadActivityType;
+  content: string;
+  createdById: string;
+  createdAt: Date;
+  createdBy?: UserSummary | null;
+}
+
+export type LeadTimelineItem =
+  | {
+      id: string;
+      kind: "activity";
+      type: LeadActivityType;
+      title: string;
+      content: string;
+      createdBy: UserSummary | null;
+      createdAt: Date;
+    }
+  | {
+      id: string;
+      kind: "stage_change";
+      type: "stage_change";
+      title: string;
+      content: string;
+      fromStage?: LeadStageItem | null;
+      toStage?: LeadStageItem | null;
+      createdBy: UserSummary | null;
+      createdAt: Date;
+    };
+
 export interface LeadDetail extends LeadItem {
   stageHistory: LeadStageHistoryItem[];
   partners: LeadPartnerItem[];
+  activities?: LeadActivityItem[];
   partnershipSummary?: LeadPartnershipSummary;
 }
 

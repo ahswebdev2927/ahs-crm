@@ -35,7 +35,7 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        "flex h-full min-w-[280px] w-80 max-w-full flex-col rounded-lg border border-border/60 bg-zinc-50/50 p-3 shadow-2xs transition-colors dark:border-input/10 dark:bg-zinc-950/20",
+        "flex h-full shrink-0 min-h-0 min-w-[280px] w-80 max-w-full flex-col rounded-lg border border-border/60 bg-zinc-50/50 p-3 shadow-2xs transition-colors dark:border-input/10 dark:bg-zinc-950/20",
         isOver && "border-primary/50 bg-primary/5 ring-1 ring-primary/20",
         className
       )}
@@ -45,7 +45,7 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 flex flex-col gap-2.5 overflow-y-auto min-h-[120px] p-0.5",
+          "flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto p-0.5",
           contentClassName
         )}
       >

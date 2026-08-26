@@ -70,6 +70,18 @@ export const leadPartners = sqliteTable('lead_partners', {
   index('lead_partners_status_idx').on(t.status),
 ]);
 
+export const leadActivities = sqliteTable('lead_activities', {
+  id: text('id').primaryKey(), // UUID
+  leadId: text('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  type: text('type', { enum: ['note', 'call', 'email', 'meeting'] }).notNull().default('note'),
+  content: text('content').notNull(),
+  createdById: text('created_by_id').notNull().references(() => users.id),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (t) => [
+  index('lead_activities_lead_id_idx').on(t.leadId),
+  index('lead_activities_created_by_idx').on(t.createdById),
+]);
+
 // Relational Definitions
 export const leadStagesRelations = relations(leadStages, ({ many }) => ({
   leads: many(leads),
@@ -92,6 +104,18 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   }),
   stageHistory: many(leadStageHistory),
   partners: many(leadPartners),
+  activities: many(leadActivities),
+}));
+
+export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
+  lead: one(leads, {
+    fields: [leadActivities.leadId],
+    references: [leads.id],
+  }),
+  createdBy: one(users, {
+    fields: [leadActivities.createdById],
+    references: [users.id],
+  }),
 }));
 
 export const leadStageHistoryRelations = relations(leadStageHistory, ({ one }) => ({

@@ -2,45 +2,151 @@
 
 import * as React from "react"
 import { PageHeader } from "@/components/shared/page-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Filter } from "lucide-react"
+import { Plus, Settings2 } from "lucide-react"
+import { PipelineBoard } from "@/features/pipeline/components/pipeline-board"
+import { LeadDrawer } from "@/features/leads/components/lead-drawer"
+import { LeadStageManagerDialog } from "@/features/leads/components/lead-stage-manager-dialog"
+import type { LeadItem, LeadStageItem, UserSummary } from "@/features/leads/types/lead.types"
 
 export default function PipelinePage() {
+  const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([])
+  const [stages, setStages] = React.useState<LeadStageItem[]>([])
+  const [currentUserRole, setCurrentUserRole] = React.useState<string>("")
+  const [currentUserId, setCurrentUserId] = React.useState<string>("")
+  
+  // Slide-Over Drawer state
+  const [isLeadDrawerOpen, setIsLeadDrawerOpen] = React.useState(false)
+  const [leadToEdit, setLeadToEdit] = React.useState<LeadItem | null>(null)
+  const [defaultStageId, setDefaultStageId] = React.useState<number | undefined>(undefined)
+
+  const [isStageManagerOpen, setIsStageManagerOpen] = React.useState(false)
+  const [refreshKey, setRefreshKey] = React.useState(0)
+
+  // Fetch session role and user ID
+  React.useEffect(() => {
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.user) {
+          if (data.data.user.role?.code) {
+            setCurrentUserRole(data.data.user.role.code)
+          }
+          if (data.data.user.id) {
+            setCurrentUserId(data.data.user.id)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Fetch stages for lead drawer & stage manager
+  const fetchStages = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/leads/stages")
+      const data = await res.json()
+      if (res.ok && data?.data?.stages) {
+        setStages(data.data.stages)
+      }
+    } catch (_err) {}
+  }, [])
+
+  // Fetch team members
+  const fetchTeamUsers = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/team?limit=100")
+      const data = await res.json()
+      if (res.ok && data?.data?.items) {
+        setTeamUsers(data.data.items)
+      }
+    } catch (_err) {}
+  }, [])
+
+  React.useEffect(() => {
+    fetchStages()
+    fetchTeamUsers()
+  }, [fetchStages, fetchTeamUsers])
+
+  const handleCreateLead = (stageId?: number) => {
+    setLeadToEdit(null)
+    setDefaultStageId(stageId)
+    setIsLeadDrawerOpen(true)
+  }
+
+  const handleEditLead = (lead: LeadItem) => {
+    setLeadToEdit(lead)
+    setDefaultStageId(undefined)
+    setIsLeadDrawerOpen(true)
+  }
+
+  const isManagerOrAdmin =
+    currentUserRole === "super_admin" || currentUserRole === "sales_manager"
+
   return (
-    <div className="flex-1">
+    <div className="flex-1 flex flex-col h-full min-h-0 space-y-4 p-4 md:p-6 w-full max-w-full overflow-hidden">
       <PageHeader
         title="Sales Pipeline"
-        description="Monitor lead stages and deal flow statuses dynamically."
+        description="Visual deal flow and stage transitions with drag-and-drop Kanban management."
         breadcrumbs={[
           { label: "CRM", href: "/dashboard" },
           { label: "Sales", href: "/sales/leads" },
-          { label: "Pipeline" }
+          { label: "Pipeline" },
         ]}
         actions={
-          <Button size="sm" variant="outline">
-            <Filter className="h-4 w-4 mr-1.5" />
-            <span>Filter Pipeline</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {isManagerOrAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsStageManagerOpen(true)}
+                className="h-9 text-xs"
+              >
+                <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                Manage Stages
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => handleCreateLead()}
+              className="h-9 text-xs"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              <span>Create Lead</span>
+            </Button>
+          </div>
         }
       />
 
-      <div className="max-w-7xl mx-auto p-6">
-        <Card className="border-border dark:border-input/10 shadow-xs">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Deals Kanban View</CardTitle>
-            <CardDescription>
-              Drag-and-drop pipeline interface. Logic will be built in Phase 13 (Pipeline + Kanban) using @dnd-kit.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-96 flex items-center justify-center border-t border-border/50 dark:border-input/5 bg-zinc-50/20 dark:bg-zinc-950/10">
-            <div className="text-center text-muted-foreground">
-              <p className="text-sm font-semibold">Kanban Board Container</p>
-              <p className="text-xs max-w-sm mt-1">Columns representing stages like New, Contacted, Qualified, Proposal, Negotiation, Won, and Lost will reside here.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Main Interactive Kanban Pipeline Board */}
+      <PipelineBoard
+        key={refreshKey}
+        teamUsers={teamUsers}
+        onEditLead={handleEditLead}
+        onCreateLead={handleCreateLead}
+      />
+
+      {/* Global Lead Creation / Edit Slide-Over Drawer */}
+      <LeadDrawer
+        open={isLeadDrawerOpen}
+        onOpenChange={setIsLeadDrawerOpen}
+        leadToEdit={leadToEdit}
+        defaultStageId={defaultStageId}
+        currentUserId={currentUserId}
+        stages={stages}
+        teamUsers={teamUsers}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
+      />
+
+      {/* Stage Manager Dialog for Admins & Managers */}
+      <LeadStageManagerDialog
+        open={isStageManagerOpen}
+        onOpenChange={setIsStageManagerOpen}
+        stages={stages}
+        onSuccess={() => {
+          fetchStages()
+          setRefreshKey((prev) => prev + 1)
+        }}
+      />
     </div>
   )
 }

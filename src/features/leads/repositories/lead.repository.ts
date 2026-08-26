@@ -5,6 +5,7 @@ import {
   leadStages,
   leadStageHistory,
   leadPartners,
+  leadActivities,
   users,
 } from "@/db/schema";
 import type {
@@ -21,6 +22,8 @@ import type {
   PipelineStageColumn,
   MoveLeadStageInput,
   ReorderStageLeadsInput,
+  LeadActivityType,
+  LeadActivityItem,
 } from "../types/lead.types";
 
 /**
@@ -218,6 +221,8 @@ export const findLeadById = async (id: string): Promise<LeadDetail | null> => {
     partner: p.partnerUser && p.partnerUser.id ? p.partnerUser : null,
   }));
 
+  const activities = await findLeadActivitiesByLeadId(id);
+
   return {
     ...leadRow.lead,
     priority: leadRow.lead.priority as LeadPriority,
@@ -227,7 +232,65 @@ export const findLeadById = async (id: string): Promise<LeadDetail | null> => {
     createdBy: createdByInfo,
     stageHistory,
     partners,
+    activities,
   };
+};
+
+export const createLeadActivityRecord = async (
+  leadId: string,
+  createdById: string,
+  type: LeadActivityType,
+  content: string
+): Promise<LeadActivityItem> => {
+  const id = crypto.randomUUID();
+  const now = new Date();
+
+  await db.insert(leadActivities).values({
+    id,
+    leadId,
+    type,
+    content,
+    createdById,
+    createdAt: now,
+  });
+
+  const user = await db
+    .select({ id: users.id, name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, createdById))
+    .get();
+
+  return {
+    id,
+    leadId,
+    type,
+    content,
+    createdById,
+    createdAt: now,
+    createdBy: user ?? null,
+  };
+};
+
+export const findLeadActivitiesByLeadId = async (leadId: string): Promise<LeadActivityItem[]> => {
+  const rows = await db
+    .select({
+      activity: leadActivities,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(leadActivities)
+    .leftJoin(users, eq(leadActivities.createdById, users.id))
+    .where(eq(leadActivities.leadId, leadId))
+    .orderBy(desc(leadActivities.createdAt));
+
+  return rows.map((r) => ({
+    ...r.activity,
+    type: r.activity.type as LeadActivityType,
+    createdBy: r.user && r.user.id ? r.user : null,
+  }));
 };
 
 export const createLeadRecord = async (

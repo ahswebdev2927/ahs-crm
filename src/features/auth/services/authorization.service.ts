@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { or, eq, exists, and } from "drizzle-orm";
+import { or, eq, exists, and, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { AppError } from "@/lib/errors/AppError";
 import { logAuthzFailure } from "@/lib/logger";
@@ -119,16 +119,36 @@ export const checkAnyPermission = async (
 export const getLeadVisibilityFilter = (
   userId: string,
   roleCode: string,
-  _dataVisibility?: string,
+  dataVisibility?: string,
   teamId?: number | null
 ) => {
-  // 1. Super Admin sees all leads
-  if (roleCode === "super_admin") {
+  // 1. If dataVisibility is 'own', 'shared', or 'partnered', restrict strictly to own & partnered leads
+  if (dataVisibility === "own" || dataVisibility === "shared" || dataVisibility === "partnered") {
+    return or(
+      eq(leads.ownerId, userId),
+      eq(leads.createdById, userId),
+      exists(
+        db
+          .select()
+          .from(leadPartners)
+          .where(
+            and(
+              eq(leadPartners.leadId, leads.id),
+              eq(leadPartners.partnerId, userId),
+              eq(leadPartners.status, "active")
+            )
+          )
+      )
+    );
+  }
+
+  // 2. Super Admin with 'all' visibility sees all leads
+  if (roleCode === "super_admin" && (dataVisibility === "all" || !dataVisibility)) {
     return undefined;
   }
 
-  // 2. Sales Manager sees team leads (owned by members of their team OR owned/created/partnered by manager)
-  if (roleCode === "sales_manager" && teamId) {
+  // 3. Sales Manager with 'team' visibility sees team leads + own/created/partnered
+  if (roleCode === "sales_manager" && (dataVisibility === "team" || !dataVisibility) && teamId) {
     return or(
       eq(leads.ownerId, userId),
       eq(leads.createdById, userId),
@@ -150,7 +170,8 @@ export const getLeadVisibilityFilter = (
           .from(users)
           .where(
             and(
-              eq(users.id, leads.ownerId),
+              isNotNull(leads.ownerId),
+              eq(users.id, leads.ownerId!),
               eq(users.teamId, teamId)
             )
           )
@@ -158,7 +179,7 @@ export const getLeadVisibilityFilter = (
     );
   }
 
-  // 3. Other team members (inside_sales, field_sales, etc.): ONLY own & partnered leads
+  // 4. Default fallback: ONLY own & partnered/shared leads
   return or(
     eq(leads.ownerId, userId),
     eq(leads.createdById, userId),

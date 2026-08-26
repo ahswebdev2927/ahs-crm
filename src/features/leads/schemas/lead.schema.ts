@@ -94,6 +94,13 @@ export const reorderStageLeadsSchema = z.object({
   ).min(1, "At least one lead order must be provided."),
 });
 
+export const leadActivityTypeEnum = z.enum(["note", "call", "email", "meeting"]);
+
+export const createLeadActivitySchema = z.object({
+  type: leadActivityTypeEnum.default("note"),
+  content: z.string().trim().min(1, "Activity content cannot be empty."),
+});
+
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
@@ -103,3 +110,4 @@ export type ReorderLeadStagesInput = z.infer<typeof reorderLeadStagesSchema>;
 export type LeadQueryInput = z.infer<typeof leadQuerySchema>;
 export type MoveLeadStageInput = z.infer<typeof moveLeadStageSchema>;
 export type ReorderStageLeadsInput = z.infer<typeof reorderStageLeadsSchema>;
+export type CreateLeadActivityInput = z.infer<typeof createLeadActivitySchema>;

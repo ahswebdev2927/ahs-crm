@@ -19,6 +19,7 @@ import {
   findPipelineBoardData,
   updateLeadStageAndPositionInRepo,
   updateLeadPositionsInStage,
+  createLeadActivityRecord,
 } from "../repositories/lead.repository";
 import {
   createLeadSchema,
@@ -30,6 +31,7 @@ import {
   leadQuerySchema,
   moveLeadStageSchema,
   reorderStageLeadsSchema,
+  createLeadActivitySchema,
 } from "../schemas/lead.schema";
 import type {
   LeadListResponse,
@@ -46,6 +48,8 @@ import type {
   PipelineBoardData,
   MoveLeadStageInput,
   ReorderStageLeadsInput,
+  LeadActivityItem,
+  CreateLeadActivityInput,
 } from "../types/lead.types";
 
 /**
@@ -322,5 +326,15 @@ export const reorderStageLeads = async (
   }
 
   await updateLeadPositionsInStage(validated.stageId, validated.leadOrders);
+};
+
+export const addLeadActivity = async (
+  user: AuthenticatedUserPayload,
+  leadId: string,
+  input: CreateLeadActivityInput
+): Promise<LeadActivityItem> => {
+  await checkLeadAccess(leadId, "view");
+  const validated = createLeadActivitySchema.parse(input);
+  return await createLeadActivityRecord(leadId, user.id, validated.type, validated.content);
 };
 

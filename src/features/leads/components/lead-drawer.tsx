@@ -47,11 +47,13 @@ import {
 } from "lucide-react";
 import { createLeadSchema, updateLeadSchema } from "../schemas/lead.schema";
 import type { LeadItem, LeadDetail, LeadStageItem, UserSummary } from "../types/lead.types";
+import { LeadActivityTimeline } from "./lead-activity-timeline";
 
 interface LeadDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadToEdit?: LeadDetail | LeadItem | null;
+  defaultStageId?: number;
   currentUserId?: string;
   stages: LeadStageItem[];
   teamUsers: UserSummary[];
@@ -62,6 +64,7 @@ export function LeadDrawer({
   open,
   onOpenChange,
   leadToEdit,
+  defaultStageId,
   currentUserId,
   stages,
   teamUsers,
@@ -127,14 +130,14 @@ export function LeadDrawer({
           email: "",
           source: "Inside Sales",
           priority: "medium",
-          stageId: stages[0]?.id ?? 1,
+          stageId: defaultStageId ?? stages[0]?.id ?? 1,
           ownerId: "",
           requirements: "",
           notes: "",
         });
       }
     }
-  }, [open, leadToEdit, stages, form]);
+  }, [open, leadToEdit, defaultStageId, stages, form]);
 
   const handleSubmit = async (values: any) => {
     if (!canUserEdit) {
@@ -657,57 +660,15 @@ export function LeadDrawer({
                   </div>
 
                   {/* CARD 2: ACTIVITY TIMELINE */}
-                  <div className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-4">
-                    <h3 className="text-base font-bold text-foreground">Activity Timeline</h3>
-
-                    {/* Add Quick Note box */}
-                    <div className="space-y-2 bg-muted/40 p-3 rounded-xl border border-border">
-                      <Textarea
-                        placeholder="Log a quick sales note..."
-                        className="bg-background text-xs min-h-16"
-                        value={activityNote}
-                        onChange={(e) => setActivityNote(e.target.value)}
-                      />
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="default"
-                          size="sm"
-                          className="h-7 text-[11px] px-3"
-                          onClick={() => {
-                            if (activityNote.trim()) {
-                              setActivityNote("");
-                              alert("Activity note logged!");
-                            }
-                          }}
-                        >
-                          Add Note
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Timeline Feed */}
-                    <div className="space-y-3 pt-1">
-                      {detailedLead && detailedLead.stageHistory && detailedLead.stageHistory.length > 0 ? (
-                        detailedLead.stageHistory.map((hist) => (
-                          <div key={hist.id} className="flex items-start gap-2.5 text-xs p-2.5 bg-muted/30 rounded-lg border border-border">
-                            <History className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                            <div className="space-y-0.5 flex-1">
-                              <div className="font-semibold text-foreground">
-                                Stage Changed → <span className="text-primary font-bold">{hist.toStage?.name}</span>
-                              </div>
-                              {hist.reason && <p className="text-muted-foreground italic">&quot;{hist.reason}&quot;</p>}
-                              <div className="text-[10px] text-muted-foreground">{formatDate(hist.createdAt)}</div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-muted-foreground text-center py-4 italic">
-                          Initial lead creation logged. Stage changes will record automatically here.
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {leadToEdit && (
+                    <LeadActivityTimeline
+                      leadId={leadToEdit.id}
+                      activities={detailedLead?.activities || []}
+                      stageHistory={detailedLead?.stageHistory || []}
+                      canUserEdit={canUserEdit}
+                      onActivityAdded={onSuccess}
+                    />
+                  )}
 
                 </div>
 

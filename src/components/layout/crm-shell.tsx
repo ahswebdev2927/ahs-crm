@@ -114,7 +114,7 @@ export function CrmShell({ children }: { children: React.ReactNode }) {
           />
 
           {/* Page Body Viewport */}
-          <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-zinc-50/40 dark:bg-zinc-950/20">
+          <main className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950/20">
             {children}
           </main>
         </div>

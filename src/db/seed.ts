@@ -241,67 +241,206 @@ async function main() {
   ];
   await db.insert(leadStages).values(leadStageRecords);
 
-  // 8. Seed Sample Leads
-  console.log("Seeding sample leads...");
+  // 8. Seed Sample Leads (3 leads per user across all 4 system users)
+  console.log("Seeding sample leads (3 per user)...");
   const sampleLeads = [
+    // --- Super Admin Leads (Alex Thorne - user-admin) ---
     {
-      id: "lead-001",
+      id: "lead-admin-001",
+      name: "Enterprise Operations Center Upgrade",
+      company: "Apex Global Holdings",
+      phone: "+1 555-0101",
+      email: "ops@apexholdings.com",
+      source: "Website",
+      requirements: "Complete enterprise facility HVAC automation and IoT monitoring system.",
+      notes: "High-priority strategic lead created by Super Admin.",
+      priority: "high" as const,
+      ownerId: "user-admin",
+      createdById: "user-admin",
+      stageId: 1, // New Lead
+      position: 0,
+      status: "active" as const,
+    },
+    {
+      id: "lead-admin-002",
+      name: "Global Logistics Hub Maintenance",
+      company: "TransGlobal Freight Corp",
+      phone: "+1 555-0102",
+      email: "facilities@transglobal.com",
+      source: "Referral",
+      requirements: "Annual preventive maintenance contract across 4 regional fulfillment centers.",
+      notes: "Budget approved by board of directors.",
+      priority: "critical" as const,
+      ownerId: "user-admin",
+      createdById: "user-admin",
+      stageId: 3, // Qualified
+      position: 0,
+      status: "active" as const,
+    },
+    {
+      id: "lead-admin-003",
+      name: "Metro Tower Energy Optimization",
+      company: "Metro Commercial Properties",
+      phone: "+1 555-0103",
+      email: "energy@metrotower.com",
+      source: "Campaign",
+      requirements: "Chiller retrofitting and smart thermostat network installation.",
+      notes: "Contract signed and converted successfully.",
+      priority: "medium" as const,
+      ownerId: "user-admin",
+      createdById: "user-admin",
+      stageId: 7, // Won
+      position: 0,
+      status: "active" as const,
+    },
+
+    // --- Sales Manager Leads (Marcus Vance - user-manager) ---
+    {
+      id: "lead-mgr-001",
+      name: "Green Valley Tech Park Contract",
+      company: "Green Valley Real Estate",
+      phone: "+1 555-0177",
+      email: "info@greenvalleytp.com",
+      source: "Inside Sales",
+      requirements: "Comprehensive quarterly HVAC & plumbing maintenance contract.",
+      notes: "Negotiating discount structure for 3-year contract term.",
+      priority: "high" as const,
+      ownerId: "user-manager",
+      createdById: "user-inside",
+      stageId: 6, // Negotiation
+      position: 0,
+      status: "active" as const,
+    },
+    {
+      id: "lead-mgr-002",
+      name: "Horizon Data Center Cooling Upgrade",
+      company: "Horizon Infrastructure Inc",
+      phone: "+1 555-0202",
+      email: "tech@horizoninfra.com",
+      source: "Referral",
+      requirements: "Precision liquid cooling units and redundant backup generators.",
+      notes: "Technical evaluation meeting scheduled with field engineer.",
+      priority: "critical" as const,
+      ownerId: "user-manager",
+      createdById: "user-manager",
+      stageId: 4, // Meeting Scheduled
+      position: 0,
+      status: "active" as const,
+    },
+    {
+      id: "lead-mgr-003",
+      name: "Beacon Health Campus Audit",
+      company: "Beacon Healthcare System",
+      phone: "+1 555-0203",
+      email: "procurement@beaconhealth.org",
+      source: "Website",
+      requirements: "Hospital cleanroom air filtration compliance audit and filter replacement.",
+      notes: "First phone call completed, waiting for hospital board decision.",
+      priority: "low" as const,
+      ownerId: "user-manager",
+      createdById: "user-manager",
+      stageId: 2, // Contacted
+      position: 0,
+      status: "active" as const,
+    },
+
+    // --- Inside Sales Leads (Sarah Jenkins - user-inside) ---
+    {
+      id: "lead-ins-001",
       name: "Acme Logistics Expansion",
       company: "Acme Logistics Ltd",
       phone: "+1 555-0192",
       email: "contact@acmelogistics.com",
       source: "Website",
-      requirements: "Requires commercial HVAC maintenance and air duct sanitization across 3 warehouses.",
+      requirements: "Commercial HVAC maintenance and air duct sanitization across 3 warehouses.",
       notes: "Initial inquiry received from web form.",
       priority: "high" as const,
       ownerId: "user-inside",
       createdById: "user-inside",
       stageId: 1, // New Lead
+      position: 1,
       status: "active" as const,
     },
     {
-      id: "lead-002",
-      name: "Apex Tower Facility Retrofit",
-      company: "Apex Properties",
-      phone: "+1 555-0143",
-      email: "facilities@apexprop.com",
-      source: "Referral",
-      requirements: "Complete building chillers replacement and ongoing monthly service plan.",
-      notes: "Site visit requested by VP of Facilities.",
-      priority: "critical" as const,
-      ownerId: "user-field",
-      createdById: "user-field",
-      stageId: 3, // Qualified
-      status: "active" as const,
-    },
-    {
-      id: "lead-003",
+      id: "lead-ins-002",
       name: "Starlight Retail Outlet Inspection",
       company: "Starlight Retail Group",
       phone: "+1 555-0188",
       email: "procurement@starlight.com",
       source: "Campaign",
       requirements: "Annual fire safety and electrical audit across 5 store locations.",
-      notes: "Proposal draft ready for client review.",
+      notes: "Proposal draft sent for executive review.",
       priority: "medium" as const,
       ownerId: "user-inside",
       createdById: "user-inside",
       stageId: 5, // Proposal Sent
+      position: 0,
       status: "active" as const,
     },
     {
-      id: "lead-004",
-      name: "Green Valley Tech Park Contract",
-      company: "Green Valley Real Estate",
-      phone: "+1 555-0177",
-      email: "info@greenvalleytp.com",
+      id: "lead-ins-003",
+      name: "Pinnacle Commercial Plaza HVAC",
+      company: "Pinnacle Development Co",
+      phone: "+1 555-0303",
+      email: "pinnacle@pinnacledev.com",
       source: "Inside Sales",
-      requirements: "Comprehensive quarterly HVAC & plumbing contract.",
-      notes: "Negotiating discount structure for multi-year contract term.",
-      priority: "high" as const,
-      ownerId: "user-manager",
+      requirements: "Rooftop HVAC replacements and smart thermostat integration.",
+      notes: "Initial phone outreach completed, awaiting technical specs.",
+      priority: "medium" as const,
+      ownerId: "user-inside",
       createdById: "user-inside",
-      stageId: 6, // Negotiation
+      stageId: 2, // Contacted
+      position: 1,
+      status: "active" as const,
+    },
+
+    // --- Field Sales Leads (David Miller - user-field) ---
+    {
+      id: "lead-fld-001",
+      name: "Apex Tower Facility Retrofit",
+      company: "Apex Properties",
+      phone: "+1 555-0143",
+      email: "facilities@apexprop.com",
+      source: "Referral",
+      requirements: "Complete building chillers replacement and ongoing monthly service plan.",
+      notes: "Site visit conducted by Field Agent David Miller.",
+      priority: "critical" as const,
+      ownerId: "user-field",
+      createdById: "user-field",
+      stageId: 3, // Qualified
+      position: 1,
+      status: "active" as const,
+    },
+    {
+      id: "lead-fld-002",
+      name: "Vanguard Manufacturing Facility Audit",
+      company: "Vanguard Industrial Ltd",
+      phone: "+1 555-0402",
+      email: "plant@vanguardmfg.com",
+      source: "Field Sales",
+      requirements: "Heavy machinery ventilation upgrade and dust collection system.",
+      notes: "On-site inspection appointment confirmed for next Tuesday.",
+      priority: "high" as const,
+      ownerId: "user-field",
+      createdById: "user-field",
+      stageId: 4, // Meeting Scheduled
+      position: 1,
+      status: "active" as const,
+    },
+    {
+      id: "lead-fld-003",
+      name: "Summit Heights Apartments Service",
+      company: "Summit Residential Group",
+      phone: "+1 555-0403",
+      email: "manager@summitheights.com",
+      source: "Field Sales",
+      requirements: "Boiler replacement for 120-unit residential building complex.",
+      notes: "Prospect chose competing vendor due to budget constraints.",
+      priority: "low" as const,
+      ownerId: "user-field",
+      createdById: "user-field",
+      stageId: 8, // Lost
+      position: 0,
       status: "active" as const,
     },
   ];
@@ -312,24 +451,64 @@ async function main() {
   const sampleHistory = [
     {
       id: "history-001",
-      leadId: "lead-002",
+      leadId: "lead-fld-001",
       fromStageId: 1, // New Lead
       toStageId: 3,   // Qualified
       changedById: "user-field",
-      reason: "Verified requirements and budget during preliminary call.",
+      reason: "Verified requirements and budget during preliminary site visit.",
     },
     {
       id: "history-002",
-      leadId: "lead-003",
+      leadId: "lead-ins-002",
       fromStageId: 1, // New Lead
       toStageId: 5,   // Proposal Sent
       changedById: "user-inside",
-      reason: "Sent standard commercial proposal.",
+      reason: "Prepared and emailed standard commercial proposal.",
+    },
+    {
+      id: "history-003",
+      leadId: "lead-mgr-001",
+      fromStageId: 5, // Proposal Sent
+      toStageId: 6,   // Negotiation
+      changedById: "user-manager",
+      reason: "Prospect requested custom pricing terms for multi-year contract.",
+    },
+    {
+      id: "history-004",
+      leadId: "lead-admin-003",
+      fromStageId: 6, // Negotiation
+      toStageId: 7,   // Won
+      changedById: "user-admin",
+      reason: "Contract executed and initial deposit received.",
     },
   ];
   await db.insert(leadStageHistory).values(sampleHistory);
 
-  console.log("Database seeded successfully!");
+  // 10. Seed Sample Lead Partnerships
+  console.log("Seeding sample lead partnerships...");
+  const samplePartnerships = [
+    {
+      id: "partner-001",
+      leadId: "lead-mgr-001",
+      partnerId: "user-inside",
+      percentage: 30,
+      role: "collaborator" as const,
+      status: "active" as const,
+      addedById: "user-manager",
+    },
+    {
+      id: "partner-002",
+      leadId: "lead-fld-001",
+      partnerId: "user-inside",
+      percentage: 40,
+      role: "technical_sales" as const,
+      status: "active" as const,
+      addedById: "user-field",
+    },
+  ];
+  await db.insert(leadPartners).values(samplePartnerships);
+
+  console.log("Database seeded successfully with 12 sample leads (3 per user)!");
 }
 
 main()
