@@ -38,7 +38,7 @@ export function KanbanBoard({
   onDragCancel,
   activeId,
   renderDragOverlay,
-  className = "flex h-full w-full min-h-0 gap-3.5 overflow-x-auto overflow-y-hidden pb-2 pt-1",
+  className = "flex-1 min-h-0 min-w-0 w-full max-w-full flex items-stretch gap-3.5 overflow-x-auto overflow-y-hidden pb-2 pt-1",
   announcements,
 }: KanbanBoardProps) {
   // Configure sensors for Mouse/Pointer, Touch (mobile), and Keyboard accessibility

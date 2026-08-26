@@ -28,7 +28,7 @@ export function PageHeader({
     <div
       data-slot="page-header"
       className={cn(
-        "flex flex-col gap-4 border-b border-border bg-background/50 px-6 py-5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-input/10",
+        "flex flex-col gap-4 border-b border-border bg-background/50 px-6 py-5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-input/10 shrink-0",
         className
       )}
     >

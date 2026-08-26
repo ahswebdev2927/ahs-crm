@@ -83,7 +83,7 @@ export default function PipelinePage() {
     currentUserRole === "super_admin" || currentUserRole === "sales_manager"
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 space-y-4 p-4 md:p-6 w-full max-w-full overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 h-full gap-4 p-4 md:p-6 w-full max-w-full overflow-hidden">
       <PageHeader
         title="Sales Pipeline"
         description="Visual deal flow and stage transitions with drag-and-drop Kanban management."
@@ -125,28 +125,29 @@ export default function PipelinePage() {
         onCreateLead={handleCreateLead}
       />
 
-      {/* Global Lead Creation / Edit Slide-Over Drawer */}
-      <LeadDrawer
-        open={isLeadDrawerOpen}
-        onOpenChange={setIsLeadDrawerOpen}
-        leadToEdit={leadToEdit}
-        defaultStageId={defaultStageId}
-        currentUserId={currentUserId}
-        stages={stages}
-        teamUsers={teamUsers}
-        onSuccess={() => setRefreshKey((prev) => prev + 1)}
-      />
+      {/* Global Lead Creation / Edit Slide-Over Drawer & Stage Manager */}
+      <React.Fragment>
+        <LeadDrawer
+          open={isLeadDrawerOpen}
+          onOpenChange={setIsLeadDrawerOpen}
+          leadToEdit={leadToEdit}
+          defaultStageId={defaultStageId}
+          currentUserId={currentUserId}
+          stages={stages}
+          teamUsers={teamUsers}
+          onSuccess={() => setRefreshKey((prev) => prev + 1)}
+        />
 
-      {/* Stage Manager Dialog for Admins & Managers */}
-      <LeadStageManagerDialog
-        open={isStageManagerOpen}
-        onOpenChange={setIsStageManagerOpen}
-        stages={stages}
-        onSuccess={() => {
-          fetchStages()
-          setRefreshKey((prev) => prev + 1)
-        }}
-      />
+        <LeadStageManagerDialog
+          open={isStageManagerOpen}
+          onOpenChange={setIsStageManagerOpen}
+          stages={stages}
+          onSuccess={() => {
+            fetchStages()
+            setRefreshKey((prev) => prev + 1)
+          }}
+        />
+      </React.Fragment>
     </div>
   )
 }

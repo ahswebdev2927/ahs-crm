@@ -49,7 +49,7 @@ export function PipelineFilters({
   }
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between bg-card p-4 rounded-xl border border-border/60 shadow-2xs mb-4">
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between bg-card p-4 rounded-xl border border-border/60 shadow-2xs shrink-0">
       {/* Search Bar */}
       <div className="relative flex-1 min-w-[220px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

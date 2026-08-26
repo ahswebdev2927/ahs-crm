@@ -35,7 +35,7 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        "flex h-full shrink-0 min-h-0 min-w-[280px] w-80 max-w-full flex-col rounded-lg border border-border/60 bg-zinc-50/50 p-3 shadow-2xs transition-colors dark:border-input/10 dark:bg-zinc-950/20",
+        "w-80 shrink-0 min-h-0 flex flex-col rounded-lg border border-border/60 bg-zinc-50/50 p-3 shadow-2xs transition-colors dark:border-input/10 dark:bg-zinc-950/20",
         isOver && "border-primary/50 bg-primary/5 ring-1 ring-primary/20",
         className
       )}

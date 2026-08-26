@@ -283,7 +283,7 @@ export function PipelineBoard({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 space-y-4">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 h-full w-full max-w-full gap-4 overflow-hidden">
       {/* Filters */}
       <PipelineFilters
         filters={filters}
@@ -324,7 +324,7 @@ export function PipelineBoard({
         </div>
       ) : (
         /* Kanban Board Container */
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-zinc-100/40 dark:bg-zinc-900/20 p-2.5">
+        <div className="flex-1 min-h-0 min-w-0 w-full max-w-full flex flex-col overflow-hidden rounded-xl border border-border/60 bg-zinc-100/40 dark:bg-zinc-900/20 p-2.5">
           <KanbanBoard
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
@@ -374,31 +374,31 @@ export function PipelineBoard({
         </div>
       )}
 
-      {/* Quick Add Lead Dialog */}
-      <LeadDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        stages={leadStagesList}
-        teamUsers={teamUsers}
-        onSuccess={() => fetchBoardData(filters)}
-      />
+      {/* Dialog Portals Wrapped in Fragment */}
+      <React.Fragment>
+        <LeadDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          stages={leadStagesList}
+          teamUsers={teamUsers}
+          onSuccess={() => fetchBoardData(filters)}
+        />
 
-      {/* Edit Lead Dialog */}
-      <LeadDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        leadToEdit={selectedLeadForEdit}
-        stages={leadStagesList}
-        teamUsers={teamUsers}
-        onSuccess={() => fetchBoardData(filters)}
-      />
+        <LeadDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          leadToEdit={selectedLeadForEdit}
+          stages={leadStagesList}
+          teamUsers={teamUsers}
+          onSuccess={() => fetchBoardData(filters)}
+        />
 
-      {/* Stage History Dialog */}
-      <PipelineStageHistoryDialog
-        open={historyDialogOpen}
-        onOpenChange={setHistoryDialogOpen}
-        lead={selectedLeadForHistory}
-      />
+        <PipelineStageHistoryDialog
+          open={historyDialogOpen}
+          onOpenChange={setHistoryDialogOpen}
+          lead={selectedLeadForHistory}
+        />
+      </React.Fragment>
     </div>
   )
 }
