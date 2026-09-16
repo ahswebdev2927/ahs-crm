@@ -186,7 +186,7 @@ export default function FollowUpsPage() {
         }
       />
 
-      <div className="max-w-[1536px] mx-auto p-4 sm:p-5 xl:p-6 space-y-4 sm:space-y-6">
+      <div className="w-full p-4 sm:p-5 xl:p-6 space-y-4 sm:space-y-6">
         {/* KPI Summary Header */}
         <FollowUpStats
           metrics={metrics}

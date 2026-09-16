@@ -93,7 +93,7 @@ export function DashboardShell() {
   };
 
   return (
-    <div className="flex-1 space-y-4 sm:space-y-5 p-4 sm:p-5 xl:p-6 max-w-[1536px] mx-auto">
+    <div className="flex-1 space-y-4 sm:space-y-5 p-4 sm:p-5 xl:p-6 w-full">
       <PageHeader
         title={getScopeTitle()}
         description={getScopeDescription()}

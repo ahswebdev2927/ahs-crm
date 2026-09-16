@@ -256,7 +256,7 @@ export default function TeamPage() {
         }
       />
 
-      <div className="max-w-[1536px] w-full mx-auto p-4 sm:p-5 xl:p-6 space-y-4 flex-1">
+      <div className="w-full p-4 sm:p-5 xl:p-6 space-y-4 flex-1">
         {/* Filter & Search Controls Bar */}
         <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row items-center gap-3">
           {/* Search Input */}

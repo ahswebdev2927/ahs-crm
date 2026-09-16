@@ -83,7 +83,7 @@ export default function PipelinePage() {
     currentUserRole === "super_admin" || currentUserRole === "sales_manager"
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 min-w-0 h-full gap-3 md:gap-4 p-3 md:p-4 xl:p-5 w-full max-w-[1536px] mx-auto overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 h-full gap-3 md:gap-4 p-3 md:p-4 xl:p-5 w-full overflow-hidden">
       <PageHeader
         title="Sales Pipeline"
         description="Visual deal flow and stage transitions with drag-and-drop Kanban management."

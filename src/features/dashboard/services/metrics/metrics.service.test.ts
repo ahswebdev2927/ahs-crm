@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert";
 import { getPaymentMetrics } from "./payment-metrics.service";
 import { getLeadMetrics } from "./lead-metrics.service";
+import { getSalesMetrics } from "./sales-metrics.service";
+import { getActivityMetrics } from "./activity-metrics.service";
 import type { ResolvedDashboardScopeContext } from "../dashboard-authorization.service";
 
 describe("Dashboard Metric Providers Audit", () => {
@@ -11,6 +13,14 @@ describe("Dashboard Metric Providers Audit", () => {
     userRoleCode: "super_admin",
     teamId: null,
     dataVisibility: "all",
+  };
+
+  const mockPersonalContext: ResolvedDashboardScopeContext = {
+    scope: "personal",
+    userId: "user-1",
+    userRoleCode: "inside_sales",
+    teamId: 1,
+    dataVisibility: "own",
   };
 
   describe("Financial & Payment Collection Metrics", () => {
@@ -45,5 +55,33 @@ describe("Dashboard Metric Providers Audit", () => {
       assert.ok(metrics.conversionRate >= 0 && metrics.conversionRate <= 100);
       assert.ok(Array.isArray(metrics.leadConversion));
     });
+
+    it("handles personal scope lead metrics query cleanly", async () => {
+      const metrics = await getLeadMetrics(mockPersonalContext, "7d");
+      assert.ok(typeof metrics.totalLeads === "number");
+      assert.ok(Array.isArray(metrics.leadSources));
+    });
+  });
+
+  describe("Sales Pipeline & Team Performance Metrics", () => {
+    it("fetches pipeline distribution and team performance", async () => {
+      const metrics = await getSalesMetrics(mockContext, "30d");
+
+      assert.ok(Array.isArray(metrics.pipelineDistribution));
+      assert.ok(Array.isArray(metrics.teamPerformance));
+    });
+  });
+
+  describe("Activity & Follow-up Metrics", () => {
+    it("returns valid follow-up and appointment summaries", async () => {
+      const metrics = await getActivityMetrics(mockContext, "today");
+
+      assert.ok(typeof metrics.followups.today === "number");
+      assert.ok(typeof metrics.followups.overdue === "number");
+      assert.ok(typeof metrics.followups.upcoming === "number");
+      assert.ok(typeof metrics.followups.completed === "number");
+      assert.ok(Array.isArray(metrics.priorityItems));
+    });
   });
 });
+

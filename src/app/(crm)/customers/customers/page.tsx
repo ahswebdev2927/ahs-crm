@@ -25,7 +25,7 @@ export default function CustomersPage() {
         }
       />
 
-      <div className="max-w-[1536px] mx-auto p-4 sm:p-5 xl:p-6">
+      <div className="w-full p-4 sm:p-5 xl:p-6 space-y-4">
         <Card className="border-border dark:border-input/10 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Active Customers</CardTitle>
