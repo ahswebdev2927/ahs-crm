@@ -1,0 +1,11 @@
+{
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "driver": "SQLite",
+      "name": "AHS_CRM_Dev",
+      "group": "AHS_CRM",
+      "database": "${workspaceFolder:ahs-crm-web}/dev.db"
+    }
+  ]
+}

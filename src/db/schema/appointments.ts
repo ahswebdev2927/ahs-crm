@@ -29,21 +29,26 @@ export const followUps = sqliteTable('follow_ups', {
 
 export const appointments = sqliteTable('appointments', {
   id: text('id').primaryKey(), // UUID
-  leadId: text('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  leadId: text('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id').references(() => customers.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
   startTime: integer('start_time', { mode: 'timestamp_ms' }).notNull(),
   endTime: integer('end_time', { mode: 'timestamp_ms' }).notNull(),
   location: text('location'),
-  status: text('status', { enum: ['scheduled', 'completed', 'cancelled', 'no_show'] }).notNull().default('scheduled'),
+  status: text('status', { enum: ['scheduled', 'confirmed', 'in_progress', 'completed', 'rescheduled', 'cancelled', 'no_show'] }).notNull().default('scheduled'),
+  rescheduleReason: text('reschedule_reason'),
+  cancellationReason: text('cancellation_reason'),
   createdById: text('created_by_id').notNull().references(() => users.id),
   assignedToId: text('assigned_to_id').notNull().references(() => users.id),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('appointments_lead_id_idx').on(t.leadId),
+  index('appointments_customer_id_idx').on(t.customerId),
   index('appointments_assigned_to_id_idx').on(t.assignedToId),
   index('appointments_start_time_idx').on(t.startTime),
+  index('appointments_status_idx').on(t.status),
 ]);
 
 export const fieldVisits = sqliteTable('field_visits', {
@@ -92,6 +97,10 @@ export const appointmentsRelations = relations(appointments, ({ one, many }) => 
   lead: one(leads, {
     fields: [appointments.leadId],
     references: [leads.id],
+  }),
+  customer: one(customers, {
+    fields: [appointments.customerId],
+    references: [customers.id],
   }),
   createdBy: one(users, {
     fields: [appointments.createdById],
