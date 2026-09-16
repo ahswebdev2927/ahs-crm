@@ -421,8 +421,10 @@ export const checkFollowUpAccess = async (
   }
 
   try {
-    await checkLeadAccess(followUp.leadId, "view");
-    return user;
+    if (followUp.leadId) {
+      await checkLeadAccess(followUp.leadId, "view");
+      return user;
+    }
   } catch (_e) {
     // Ignored
   }
