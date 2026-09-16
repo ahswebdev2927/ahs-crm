@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import type { LeadDetail, LeadPriority } from "../types/lead.types";
 import { LeadPartnershipSection } from "./partnership/lead-partnership-section";
+import { LeadFollowUpsTab } from "@/features/followups/components/lead-followups-tab";
 
 interface LeadDetailWorkspaceProps {
   lead: LeadDetail;
@@ -268,17 +269,9 @@ export function LeadDetailWorkspace({
               </Card>
             </TabsContent>
 
-            {/* TAB 3: ACTIVITIES & NOTES */}
+            {/* TAB 3: ACTIVITIES & FOLLOW-UPS */}
             <TabsContent value="activities" className="pt-4">
-              <Card className="border-border shadow-xs">
-                <CardHeader>
-                  <CardTitle className="text-base font-semibold">Sales Activities & Logs</CardTitle>
-                  <CardDescription>Record interactions, follow-ups, and sales calls.</CardDescription>
-                </CardHeader>
-                <CardContent className="text-xs text-muted-foreground text-center py-8">
-                  Activity Timeline integration will connect with Phase 14 (Follow-ups) and Phase 22 (Activity Timeline).
-                </CardContent>
-              </Card>
+              <LeadFollowUpsTab leadId={lead.id} leadName={lead.name} canEdit={canUserEdit} />
             </TabsContent>
 
             {/* TAB 4: PARTNERS */}
