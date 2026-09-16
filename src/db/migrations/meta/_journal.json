@@ -43,6 +43,13 @@
       "when": 1787730024222,
       "tag": "0005_past_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789539304239,
+      "tag": "0006_white_blue_shield",
+      "breakpoints": true
     }
   ]
 }

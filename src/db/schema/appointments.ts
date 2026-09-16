@@ -3,14 +3,17 @@ import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { users } from "./users";
 import { leads } from "./leads";
+import { customers } from "./customers";
 
 export const followUps = sqliteTable('follow_ups', {
   id: text('id').primaryKey(), // UUID
-  leadId: text('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  leadId: text('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id').references(() => customers.id, { onDelete: 'cascade' }),
   scheduledAt: integer('scheduled_at', { mode: 'timestamp_ms' }).notNull(),
-  type: text('type').notNull().default('call'),
+  type: text('type', { enum: ['call', 'meeting', 'whatsapp', 'email', 'site_visit', 'other'] }).notNull().default('call'),
   notes: text('notes'),
-  status: text('status', { enum: ['pending', 'completed', 'cancelled', 'no_show'] }).notNull().default('pending'),
+  outcome: text('outcome'),
+  status: text('status', { enum: ['scheduled', 'completed', 'rescheduled', 'cancelled', 'missed'] }).notNull().default('scheduled'),
   completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
   createdById: text('created_by_id').notNull().references(() => users.id),
   assignedToId: text('assigned_to_id').notNull().references(() => users.id),
@@ -18,8 +21,10 @@ export const followUps = sqliteTable('follow_ups', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('follow_ups_lead_id_idx').on(t.leadId),
+  index('follow_ups_customer_id_idx').on(t.customerId),
   index('follow_ups_assigned_to_id_idx').on(t.assignedToId),
   index('follow_ups_scheduled_at_idx').on(t.scheduledAt),
+  index('follow_ups_status_idx').on(t.status),
 ]);
 
 export const appointments = sqliteTable('appointments', {
@@ -66,6 +71,10 @@ export const followUpsRelations = relations(followUps, ({ one }) => ({
   lead: one(leads, {
     fields: [followUps.leadId],
     references: [leads.id],
+  }),
+  customer: one(customers, {
+    fields: [followUps.customerId],
+    references: [customers.id],
   }),
   createdBy: one(users, {
     fields: [followUps.createdById],
