@@ -374,8 +374,10 @@ export const checkAppointmentAccess = async (
   }
 
   try {
-    await checkLeadAccess(appointment.leadId, "view");
-    return user;
+    if (appointment.leadId) {
+      await checkLeadAccess(appointment.leadId, "view");
+      return user;
+    }
   } catch (_e) {
     // Ignored
   }
