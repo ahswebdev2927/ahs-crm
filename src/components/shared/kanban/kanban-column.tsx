@@ -44,6 +44,7 @@ export function KanbanColumn({
 
       <div
         ref={setNodeRef}
+        data-kanban-column-body="true"
         className={cn(
           "flex-1 min-h-0 flex flex-col gap-2.5 overflow-y-auto p-0.5",
           contentClassName

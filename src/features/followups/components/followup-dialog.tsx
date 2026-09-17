@@ -182,7 +182,7 @@ export function FollowUpDialog({
                 <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> Select Lead <span className="text-destructive">*</span>
               </label>
               <Select value={selectedLeadId} onValueChange={(val) => val && setSelectedLeadId(val)}>
-                <SelectTrigger className="text-xs">
+                <SelectTrigger className="w-full text-xs h-9">
                   <SelectValue placeholder="Choose lead..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
@@ -200,7 +200,7 @@ export function FollowUpDialog({
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">Communication Type</label>
             <Select value={type} onValueChange={(val) => val && setType(val as FollowUpType)}>
-              <SelectTrigger className="text-xs">
+              <SelectTrigger className="w-full text-xs h-9">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -250,7 +250,7 @@ export function FollowUpDialog({
                 <User className="h-3.5 w-3.5 text-muted-foreground" /> Assigned Representative
               </label>
               <Select value={assignedToId} onValueChange={(val) => val && setAssignedToId(val)}>
-                <SelectTrigger className="text-xs">
+                <SelectTrigger className="w-full text-xs h-9">
                   <SelectValue placeholder="Select assigned user" />
                 </SelectTrigger>
                 <SelectContent>

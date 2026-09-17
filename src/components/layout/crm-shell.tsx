@@ -116,8 +116,7 @@ export function CrmShell({ children }: { children: React.ReactNode }) {
           {/* Page Body Viewport */}
           <main
             className={cn(
-              "flex-1 flex flex-col min-h-0 min-w-0 w-full max-w-full bg-zinc-50/40 dark:bg-zinc-950/20",
-              pathname.startsWith("/sales/pipeline") ? "overflow-hidden" : "overflow-y-auto"
+              "flex-1 flex flex-col min-h-0 min-w-0 w-full max-w-full bg-zinc-50/40 dark:bg-zinc-950/20 overflow-x-hidden overflow-y-auto"
             )}
           >
             {children}

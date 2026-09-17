@@ -168,7 +168,7 @@ export function LogCallDialog({
                 <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> Select Lead <span className="text-destructive">*</span>
               </label>
               <Select value={selectedLeadId} onValueChange={(val) => val && setSelectedLeadId(val)}>
-                <SelectTrigger className="text-xs">
+                <SelectTrigger className="w-full text-xs h-9">
                   <SelectValue placeholder="Choose lead..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">

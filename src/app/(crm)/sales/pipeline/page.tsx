@@ -83,7 +83,7 @@ export default function PipelinePage() {
     currentUserRole === "super_admin" || currentUserRole === "sales_manager"
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 min-w-0 h-full gap-3 md:gap-4 p-3 md:p-4 xl:p-5 w-full overflow-hidden">
+    <div className="flex flex-col min-w-0 w-full max-w-full p-3 sm:p-4 lg:p-5 gap-3 md:gap-4 overflow-x-hidden">
       <PageHeader
         title="Sales Pipeline"
         description="Visual deal flow and stage transitions with drag-and-drop Kanban management."
@@ -117,13 +117,15 @@ export default function PipelinePage() {
         }
       />
 
-      {/* Main Interactive Kanban Pipeline Board */}
-      <PipelineBoard
-        key={refreshKey}
-        teamUsers={teamUsers}
-        onEditLead={handleEditLead}
-        onCreateLead={handleCreateLead}
-      />
+      {/* Main Interactive Kanban Pipeline Sticky Workspace Container */}
+      <div className="sticky top-0 z-10 flex flex-col h-[calc(100vh-4rem-1.5rem)] sm:h-[calc(100vh-4rem-2rem)] lg:h-[calc(100vh-4rem-2.5rem)] shrink-0 min-w-0 w-full max-w-full overflow-x-hidden bg-zinc-50/40 dark:bg-zinc-950/20 pt-1 pb-1">
+        <PipelineBoard
+          key={refreshKey}
+          teamUsers={teamUsers}
+          onEditLead={handleEditLead}
+          onCreateLead={handleCreateLead}
+        />
+      </div>
 
       {/* Global Lead Creation / Edit Slide-Over Drawer & Stage Manager */}
       <React.Fragment>
