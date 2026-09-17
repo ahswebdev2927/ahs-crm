@@ -138,9 +138,28 @@ export function PipelineBoard({
       )
     }
 
-    if (!sourceStage || !destStage || sourceStage.id === destStage.id) return
+    if (!sourceStage || !destStage) return
 
-    // Optimistically move card to destination column
+    // Same-stage reordering
+    if (sourceStage.id === destStage.id) {
+      const oldIndex = sourceStage.leads.findIndex((l) => l.id === activeLeadId)
+      const newIndex = sourceStage.leads.findIndex((l) => l.id === overId)
+
+      if (oldIndex >= 0 && newIndex >= 0 && oldIndex !== newIndex) {
+        setStages((prevStages) =>
+          prevStages.map((stage) => {
+            if (stage.id === sourceStage.id) {
+              const reordered = arrayMove(stage.leads, oldIndex, newIndex)
+              return { ...stage, leads: reordered }
+            }
+            return stage
+          })
+        )
+      }
+      return
+    }
+
+    // Cross-stage movement
     setStages((prevStages) => {
       return prevStages.map((stage) => {
         if (stage.id === sourceStage.id) {
@@ -178,7 +197,6 @@ export function PipelineBoard({
     }
 
     const activeLeadId = String(active.id)
-    const overId = String(over.id)
 
     // Find original stage from snapshot
     const originalStage = snapshotRef.current.find((s) =>
@@ -194,18 +212,16 @@ export function PipelineBoard({
 
     // Same stage reorder
     if (originalStage.id === currentStage.id) {
-      const oldIndex = originalStage.leads.findIndex((l) => l.id === activeLeadId)
-      const newIndex = currentStage.leads.findIndex((l) => l.id === activeLeadId)
+      const oldOrderIds = originalStage.leads.map((l) => l.id)
+      const newOrderIds = currentStage.leads.map((l) => l.id)
 
-      if (oldIndex !== newIndex && newIndex >= 0) {
-        const reorderedLeads = arrayMove(currentStage.leads, oldIndex, newIndex)
-        setStages((prev) =>
-          prev.map((s) => (s.id === currentStage.id ? { ...s, leads: reorderedLeads } : s))
-        )
+      const hasOrderChanged =
+        oldOrderIds.length !== newOrderIds.length ||
+        oldOrderIds.some((id, idx) => id !== newOrderIds[idx])
 
-        // API call to persist same-stage reorder
+      if (hasOrderChanged) {
         try {
-          const leadOrders = reorderedLeads.map((lead, idx) => ({
+          const leadOrders = currentStage.leads.map((lead, idx) => ({
             leadId: lead.id,
             position: idx,
           }))
@@ -219,13 +235,18 @@ export function PipelineBoard({
             }),
           })
 
-          if (!res.ok) {
-            throw new Error("Failed to persist reorder.")
+          const data = await res.json()
+
+          if (!res.ok || (!data.status && !data.success)) {
+            throw new Error(data.message || "Failed to persist reorder.")
           }
-        } catch (err) {
+
+          // Update snapshot reference to current state after successful persist
+          snapshotRef.current = structuredClone(stages)
+        } catch (err: any) {
           // Rollback on failure
           setStages(snapshotRef.current)
-          setError("Failed to save lead order. Changes were rolled back.")
+          setError(err.message || "Failed to save lead order. Changes were rolled back.")
         }
       }
       return
@@ -252,6 +273,9 @@ export function PipelineBoard({
       if (!res.ok || (!data.status && !data.success)) {
         throw new Error(data.message || "Failed to update lead stage.")
       }
+
+      // Update snapshot reference after successful move
+      snapshotRef.current = structuredClone(stages)
     } catch (err: any) {
       // Rollback optimistic update
       setStages(snapshotRef.current)
