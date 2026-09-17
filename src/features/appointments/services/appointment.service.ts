@@ -180,13 +180,17 @@ export const updateAppointment = async (
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
 
-  const validatedInput = updateAppointmentSchema.parse(input);
-
   const existing = await findAppointmentById(id);
   if (!existing) {
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
+  if (!isCreatorOrAssignee) {
+    throw new AppError("Only the appointment creator or assigned representative can edit appointment details.", 403, "FORBIDDEN");
+  }
+
+  const validatedInput = updateAppointmentSchema.parse(input);
   const updated = await updateAppointmentRecord(id, validatedInput);
 
   // If assignee changed, notify the new assignee
@@ -216,13 +220,17 @@ export const updateAppointmentStatus = async (
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
 
-  const validatedInput = updateAppointmentStatusSchema.parse(input);
-
   const existing = await findAppointmentById(id);
   if (!existing) {
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
+  if (!isCreatorOrAssignee) {
+    throw new AppError("Only the appointment creator or assigned representative can update appointment status.", 403, "FORBIDDEN");
+  }
+
+  const validatedInput = updateAppointmentStatusSchema.parse(input);
   const updated = await updateAppointmentStatusRecord(id, validatedInput.status, {
     notes: validatedInput.notes,
   });
@@ -246,13 +254,17 @@ export const rescheduleAppointment = async (
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
 
-  const validatedInput = rescheduleAppointmentSchema.parse(input);
-
   const existing = await findAppointmentById(id);
   if (!existing) {
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
+  if (!isCreatorOrAssignee) {
+    throw new AppError("Only the appointment creator or assigned representative can reschedule appointments.", 403, "FORBIDDEN");
+  }
+
+  const validatedInput = rescheduleAppointmentSchema.parse(input);
   const updated = await updateAppointmentStatusRecord(id, "rescheduled", {
     startTime: validatedInput.startTime,
     endTime: validatedInput.endTime,
@@ -296,13 +308,17 @@ export const cancelAppointment = async (
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
 
-  const validatedInput = cancelAppointmentSchema.parse(input);
-
   const existing = await findAppointmentById(id);
   if (!existing) {
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
+  if (!isCreatorOrAssignee) {
+    throw new AppError("Only the appointment creator or assigned representative can cancel appointments.", 403, "FORBIDDEN");
+  }
+
+  const validatedInput = cancelAppointmentSchema.parse(input);
   const updated = await updateAppointmentStatusRecord(id, "cancelled", {
     cancellationReason: validatedInput.cancellationReason,
   });

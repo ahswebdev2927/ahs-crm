@@ -28,6 +28,7 @@ import {
 import type { LeadDetail, LeadPriority } from "../types/lead.types";
 import { LeadPartnershipSection } from "./partnership/lead-partnership-section";
 import { LeadFollowUpsTab } from "@/features/followups/components/lead-followups-tab";
+import { LeadAppointmentsTab } from "@/features/appointments/components/lead-appointments-tab";
 
 interface LeadDetailWorkspaceProps {
   lead: LeadDetail;
@@ -174,10 +175,11 @@ export function LeadDetailWorkspace({
 
           {/* Workspace Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid grid-cols-4 w-full bg-muted/40 p-1 border border-border rounded-xl">
+            <TabsList className="grid grid-cols-5 w-full bg-muted/40 p-1 border border-border rounded-xl">
               <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
               <TabsTrigger value="history" className="text-xs">Stage History ({lead.stageHistory.length})</TabsTrigger>
-              <TabsTrigger value="activities" className="text-xs">Notes & Activities</TabsTrigger>
+              <TabsTrigger value="activities" className="text-xs">Follow-ups</TabsTrigger>
+              <TabsTrigger value="appointments" className="text-xs">Appointments</TabsTrigger>
               <TabsTrigger value="partners" className="text-xs">Partners ({lead.partners.length})</TabsTrigger>
             </TabsList>
 
@@ -274,7 +276,12 @@ export function LeadDetailWorkspace({
               <LeadFollowUpsTab leadId={lead.id} leadName={lead.name} canEdit={canUserEdit} />
             </TabsContent>
 
-            {/* TAB 4: PARTNERS */}
+            {/* TAB 4: APPOINTMENTS */}
+            <TabsContent value="appointments" className="pt-4">
+              <LeadAppointmentsTab leadId={lead.id} leadName={lead.name} fieldSalesUsers={[]} />
+            </TabsContent>
+
+            {/* TAB 5: PARTNERS */}
             <TabsContent value="partners" className="pt-4">
               <LeadPartnershipSection leadId={lead.id} leadOwner={lead.owner} />
             </TabsContent>

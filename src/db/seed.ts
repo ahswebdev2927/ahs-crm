@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions } from "./schema";
+import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions, appointments, followUps, customers, services } from "./schema";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
@@ -11,6 +11,10 @@ async function main() {
   await db.run(sql`PRAGMA foreign_keys = OFF;`);
 
   console.log("Clearing existing tables...");
+  await db.delete(appointments);
+  await db.delete(followUps);
+  await db.delete(customers);
+  await db.delete(services);
   await db.delete(sessions);
   await db.delete(userPermissions);
   await db.delete(leadPartners);
@@ -508,7 +512,156 @@ async function main() {
   ];
   await db.insert(leadPartners).values(samplePartnerships);
 
-  console.log("Database seeded successfully with 12 sample leads (3 per user)!");
+  // 11. Seed Sample Customers
+  console.log("Seeding sample customers...");
+  const sampleCustomers = [
+    {
+      id: "cust-001",
+      leadId: "lead-admin-003",
+      name: "Metro Commercial Properties",
+      company: "Metro Commercial Properties",
+      phone: "+1 555-0103",
+      email: "energy@metrotower.com",
+      address: "500 Metro Boulevard, Suite 1200",
+      status: "active" as const,
+      ownerId: "user-admin",
+    },
+    {
+      id: "cust-002",
+      name: "Apex Global Holdings",
+      company: "Apex Global Holdings",
+      phone: "+1 555-0101",
+      email: "ops@apexholdings.com",
+      address: "100 Corporate Parkway",
+      status: "active" as const,
+      ownerId: "user-manager",
+    },
+  ];
+  await db.insert(customers).values(sampleCustomers);
+
+  // 12. Seed Sample Appointments
+  console.log("Seeding sample appointments...");
+  const now = new Date();
+
+  // Today 10am - 11am
+  const today10am = new Date(now);
+  today10am.setHours(10, 0, 0, 0);
+  const today11am = new Date(now);
+  today11am.setHours(11, 0, 0, 0);
+
+  // Tomorrow 2pm - 3:30pm
+  const tomorrow2pm = new Date(now);
+  tomorrow2pm.setDate(tomorrow2pm.getDate() + 1);
+  tomorrow2pm.setHours(14, 0, 0, 0);
+  const tomorrow330pm = new Date(now);
+  tomorrow330pm.setDate(tomorrow330pm.getDate() + 1);
+  tomorrow330pm.setHours(15, 30, 0, 0);
+
+  // In 3 days 11am - 12pm
+  const in3days11am = new Date(now);
+  in3days11am.setDate(in3days11am.getDate() + 3);
+  in3days11am.setHours(11, 0, 0, 0);
+  const in3days12pm = new Date(now);
+  in3days12pm.setDate(in3days12pm.getDate() + 3);
+  in3days12pm.setHours(12, 0, 0, 0);
+
+  // Yesterday 9am - 10am (completed)
+  const yesterday9am = new Date(now);
+  yesterday9am.setDate(yesterday9am.getDate() - 1);
+  yesterday9am.setHours(9, 0, 0, 0);
+  const yesterday10am = new Date(now);
+  yesterday10am.setDate(yesterday10am.getDate() - 1);
+  yesterday10am.setHours(10, 0, 0, 0);
+
+  const sampleAppointments = [
+    {
+      id: "appt-001",
+      leadId: "lead-fld-002",
+      title: "Vanguard Facility On-Site Assessment",
+      description: "Inspect heavy machinery ventilation upgrade and measure industrial ducting capacity.",
+      startTime: tomorrow2pm,
+      endTime: tomorrow330pm,
+      location: "Building 4, Industrial Zone East",
+      status: "confirmed" as const,
+      createdById: "user-inside",
+      assignedToId: "user-field",
+    },
+    {
+      id: "appt-002",
+      leadId: "lead-mgr-002",
+      title: "Data Center Liquid Cooling Technical Review",
+      description: "Review precision liquid cooling units & backup generator specs with facility engineers.",
+      startTime: today10am,
+      endTime: today11am,
+      location: "Horizon Data Hub, Tech Corridor",
+      status: "scheduled" as const,
+      createdById: "user-manager",
+      assignedToId: "user-field",
+    },
+    {
+      id: "appt-003",
+      leadId: "lead-fld-001",
+      title: "Apex Tower Final HVAC Retrofit Sign-off",
+      description: "Final site review before commercial proposal issuance.",
+      startTime: in3days11am,
+      endTime: in3days12pm,
+      location: "Apex Tower, 12th Floor",
+      status: "scheduled" as const,
+      createdById: "user-field",
+      assignedToId: "user-field",
+    },
+    {
+      id: "appt-004",
+      customerId: "cust-001",
+      title: "Metro Tower Quarterly Service Inspection",
+      description: "Routine quarterly chiller retrofitting verification and thermostat calibration.",
+      startTime: yesterday9am,
+      endTime: yesterday10am,
+      location: "500 Metro Boulevard",
+      status: "completed" as const,
+      createdById: "user-admin",
+      assignedToId: "user-field",
+    },
+  ];
+  await db.insert(appointments).values(sampleAppointments);
+
+  // 13. Seed Sample Follow-ups
+  console.log("Seeding sample follow-ups...");
+  const sampleFollowUps = [
+    {
+      id: "followup-001",
+      leadId: "lead-ins-001",
+      scheduledAt: tomorrow2pm,
+      type: "call" as const,
+      notes: "Call client to confirm warehouse floor plans and technical requirement document.",
+      status: "scheduled" as const,
+      createdById: "user-inside",
+      assignedToId: "user-inside",
+    },
+    {
+      id: "followup-002",
+      leadId: "lead-mgr-001",
+      scheduledAt: today10am,
+      type: "meeting" as const,
+      notes: "Negotiation follow-up call regarding multi-year contract discount structure.",
+      status: "scheduled" as const,
+      createdById: "user-manager",
+      assignedToId: "user-manager",
+    },
+    {
+      id: "followup-003",
+      leadId: "lead-ins-002",
+      scheduledAt: in3days11am,
+      type: "email" as const,
+      notes: "Send updated proposal revisions per client procurement feedback.",
+      status: "scheduled" as const,
+      createdById: "user-inside",
+      assignedToId: "user-inside",
+    },
+  ];
+  await db.insert(followUps).values(sampleFollowUps);
+
+  console.log("Database seeded successfully with users, teams, leads, customers, appointments, and follow-ups!");
 }
 
 main()

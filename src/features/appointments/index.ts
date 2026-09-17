@@ -1,12 +1,12 @@
 export * from "./schemas/appointment.schema";
 export * from "./types/appointment.types";
 export * from "./utils/calendar-adapter";
-export {
-  findAppointments,
-  findAppointmentById,
-  createAppointmentRecord,
-  updateAppointmentRecord,
-  updateAppointmentStatusRecord,
-  getAppointmentMetrics,
-} from "./repositories/appointment.repository";
-export * from "./services/appointment.service";
+export * from "./components/appointment-stats";
+export * from "./components/appointment-filters";
+export * from "./components/appointment-table";
+export * from "./components/appointment-calendar-view";
+export * from "./components/appointment-dialog";
+export * from "./components/appointment-detail-dialog";
+export * from "./components/reschedule-appointment-dialog";
+export * from "./components/cancel-appointment-dialog";
+export * from "./components/lead-appointments-tab";
