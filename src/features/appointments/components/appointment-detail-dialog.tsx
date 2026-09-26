@@ -167,69 +167,87 @@ export function AppointmentDetailDialog({
 
           {/* Quick Actions Footer */}
           <div className="pt-3 border-t border-border/60">
-            {canEditStatus ? (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {appointment.status === "scheduled" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onStatusChange(appointment, "confirmed")}
-                      className="h-8 text-xs text-emerald-600 border-emerald-300"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                      Confirm
-                    </Button>
-                  )}
-                  {appointment.status !== "completed" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onStatusChange(appointment, "completed")}
-                      className="h-8 text-xs text-emerald-700 border-emerald-400"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                      Complete
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onReschedule(appointment)}
-                    className="h-8 text-xs"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5 mr-1 text-purple-500" />
-                    Reschedule
-                  </Button>
-                </div>
+            {(() => {
+              const isInsideTeam = user ? user.roleCode !== "field_sales" : false;
+              const isAssigneeOrCreator = user ? (user.id === appointment.createdById || user.id === appointment.assignedToId) : false;
+              const canEditDetails = isInsideTeam || (user ? user.id === appointment.createdById : false);
+              const canCancel = isInsideTeam || (user ? user.id === appointment.createdById : false);
+              const canFieldActions = isInsideTeam || isAssigneeOrCreator;
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onEdit(appointment)}
-                    className="h-8 text-xs"
-                  >
-                    Edit
-                  </Button>
-                  {appointment.status !== "cancelled" && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => onCancel(appointment)}
-                      className="h-8 text-xs"
-                    >
-                      <XCircle className="h-3.5 w-3.5 mr-1" />
-                      Cancel
-                    </Button>
-                  )}
+              if (!canFieldActions && !canEditDetails && !canCancel) {
+                return (
+                  <div className="p-2.5 rounded-md bg-muted/60 text-muted-foreground text-xs text-center border border-border italic">
+                    View Only Mode
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {canFieldActions && (
+                      <>
+                        {appointment.status === "scheduled" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onStatusChange(appointment, "confirmed")}
+                            className="h-8 text-xs text-emerald-600 border-emerald-300"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                            Confirm
+                          </Button>
+                        )}
+                        {appointment.status !== "completed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onStatusChange(appointment, "completed")}
+                            className="h-8 text-xs text-emerald-700 border-emerald-400"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                            Complete
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onReschedule(appointment)}
+                          className="h-8 text-xs"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 mr-1 text-purple-500" />
+                          Reschedule
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {canEditDetails && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onEdit(appointment)}
+                        className="h-8 text-xs"
+                      >
+                        Edit
+                      </Button>
+                    )}
+                    {canCancel && appointment.status !== "cancelled" && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => onCancel(appointment)}
+                        className="h-8 text-xs"
+                      >
+                        <XCircle className="h-3.5 w-3.5 mr-1" />
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="p-2.5 rounded-md bg-muted/60 text-muted-foreground text-xs text-center border border-border italic">
-                View Only Mode — Status updates and edits are restricted to creator ({appointment.createdBy.name}) or assignee ({appointment.assignedTo.name}).
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </DialogContent>

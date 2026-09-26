@@ -145,8 +145,8 @@ export function DashboardShell() {
             <LeadConversionChart data={data.leadConversion} />
           </div>
 
-          {/* Row 2: Pipeline Distribution (1 col) & Lead Source Breakdown (2 cols) */}
-          <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-3">
+          {/* Row 2: Pipeline Distribution (1/2 col) & Lead Source Breakdown (1/2 col) */}
+          <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-2">
             <PipelineDistributionChart data={data.pipelineDistribution} />
             <LeadSourceChart data={data.leadSources} />
           </div>

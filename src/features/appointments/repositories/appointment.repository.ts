@@ -276,9 +276,32 @@ export async function updateAppointmentStatusRecord(
 }
 
 export async function getAppointmentMetrics(
-  visibilityFilter: SQL | undefined
+  visibilityFilter: SQL | undefined,
+  params?: AppointmentQueryInput
 ): Promise<AppointmentMetrics> {
-  const whereClause = and(...[visibilityFilter].filter(Boolean));
+  const conditions: (SQL | undefined)[] = [visibilityFilter];
+
+  if (params?.leadId) {
+    conditions.push(eq(appointments.leadId, params.leadId));
+  }
+
+  if (params?.customerId) {
+    conditions.push(eq(appointments.customerId, params.customerId));
+  }
+
+  if (params?.assignedToId) {
+    conditions.push(eq(appointments.assignedToId, params.assignedToId));
+  }
+
+  if (params?.startDate) {
+    conditions.push(gte(appointments.startTime, new Date(params.startDate)));
+  }
+
+  if (params?.endDate) {
+    conditions.push(lte(appointments.startTime, new Date(params.endDate)));
+  }
+
+  const whereClause = and(...conditions.filter(Boolean));
 
   const rows = await db
     .select({
@@ -286,6 +309,8 @@ export async function getAppointmentMetrics(
       count: count(),
     })
     .from(appointments)
+    .leftJoin(leads, eq(appointments.leadId, leads.id))
+    .leftJoin(customers, eq(appointments.customerId, customers.id))
     .where(whereClause)
     .groupBy(appointments.status);
 

@@ -13,6 +13,7 @@ const COLORS = ["#3b82f6", "#10b981", "#6366f1", "#f59e0b", "#ec4899", "#8b5cf6"
 
 export function PipelineDistributionChart({ data }: PipelineDistributionChartProps) {
   const hasData = data && data.length > 0 && data.some((d) => d.count > 0);
+  const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
     <Card className="col-span-full lg:col-span-1">
@@ -49,6 +50,11 @@ export function PipelineDistributionChart({ data }: PipelineDistributionChartPro
                   ))}
                 </Pie>
                 <Tooltip
+                  formatter={(value: any) => {
+                    const countVal = Number(value) || 0;
+                    const pct = totalCount > 0 ? Math.round((countVal / totalCount) * 100) : 0;
+                    return [`${countVal} leads (${pct}%)`, "Count & Share"];
+                  }}
                   contentStyle={{
                     backgroundColor: "var(--background)",
                     borderColor: "var(--border)",

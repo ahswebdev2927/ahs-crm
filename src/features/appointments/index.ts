@@ -9,4 +9,5 @@ export * from "./components/appointment-dialog";
 export * from "./components/appointment-detail-dialog";
 export * from "./components/reschedule-appointment-dialog";
 export * from "./components/cancel-appointment-dialog";
+export * from "./components/field-awareness-dialog";
 export * from "./components/lead-appointments-tab";

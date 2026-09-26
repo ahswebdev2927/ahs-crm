@@ -159,55 +159,73 @@ export function AppointmentTable({
                         View Details
                       </DropdownMenuItem>
 
-                      {canEditStatus ? (
-                        <>
-                          <DropdownMenuItem onClick={() => onEdit(apt)}>
-                            <Calendar className="h-3.5 w-3.5 mr-2 text-slate-500" />
-                            Edit Details
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                      {(() => {
+                        const isInsideTeam = user ? user.roleCode !== "field_sales" : false;
+                        const isAssigneeOrCreator = user ? (user.id === apt.createdById || user.id === apt.assignedToId) : false;
+                        const canEditDetails = isInsideTeam || (user ? user.id === apt.createdById : false);
+                        const canCancel = isInsideTeam || (user ? user.id === apt.createdById : false);
+                        const canFieldActions = isInsideTeam || isAssigneeOrCreator;
 
-                          {apt.status === "scheduled" && (
-                            <DropdownMenuItem onClick={() => onStatusChange(apt, "confirmed")}>
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                              Mark Confirmed
-                            </DropdownMenuItem>
-                          )}
+                        if (!canFieldActions && !canEditDetails && !canCancel) {
+                          return (
+                            <>
+                              <DropdownMenuSeparator />
+                              <div className="px-2 py-1.5 text-[10px] text-muted-foreground italic">
+                                View Only Mode
+                              </div>
+                            </>
+                          );
+                        }
 
-                          {(apt.status === "scheduled" || apt.status === "confirmed") && (
-                            <DropdownMenuItem onClick={() => onStatusChange(apt, "in_progress")}>
-                              <Clock className="h-3.5 w-3.5 mr-2 text-amber-500" />
-                              Mark In Progress
-                            </DropdownMenuItem>
-                          )}
+                        return (
+                          <>
+                            {canEditDetails && (
+                              <DropdownMenuItem onClick={() => onEdit(apt)}>
+                                <Calendar className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                                Edit Details
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
 
-                          {apt.status !== "completed" && apt.status !== "cancelled" && (
-                            <DropdownMenuItem onClick={() => onStatusChange(apt, "completed")}>
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-600" />
-                              Mark Completed
-                            </DropdownMenuItem>
-                          )}
+                            {canFieldActions && (
+                              <>
+                                {apt.status === "scheduled" && (
+                                  <DropdownMenuItem onClick={() => onStatusChange(apt, "confirmed")}>
+                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                                    Mark Confirmed
+                                  </DropdownMenuItem>
+                                )}
 
-                          <DropdownMenuItem onClick={() => onReschedule(apt)}>
-                            <RefreshCw className="h-3.5 w-3.5 mr-2 text-purple-500" />
-                            Reschedule
-                          </DropdownMenuItem>
+                                {(apt.status === "scheduled" || apt.status === "confirmed") && (
+                                  <DropdownMenuItem onClick={() => onStatusChange(apt, "in_progress")}>
+                                    <Clock className="h-3.5 w-3.5 mr-2 text-amber-500" />
+                                    Mark In Progress
+                                  </DropdownMenuItem>
+                                )}
 
-                          {apt.status !== "cancelled" && (
-                            <DropdownMenuItem onClick={() => onCancel(apt)} className="text-rose-600 dark:text-rose-400">
-                              <XCircle className="h-3.5 w-3.5 mr-2" />
-                              Cancel Appointment
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <DropdownMenuSeparator />
-                          <div className="px-2 py-1.5 text-[10px] text-muted-foreground italic">
-                            View Only (Status updates restricted to creator or assignee)
-                          </div>
-                        </>
-                      )}
+                                {apt.status !== "completed" && apt.status !== "cancelled" && (
+                                  <DropdownMenuItem onClick={() => onStatusChange(apt, "completed")}>
+                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                                    Mark Completed
+                                  </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuItem onClick={() => onReschedule(apt)}>
+                                  <RefreshCw className="h-3.5 w-3.5 mr-2 text-purple-500" />
+                                  Reschedule
+                                </DropdownMenuItem>
+                              </>
+                            )}
+
+                            {canCancel && apt.status !== "cancelled" && (
+                              <DropdownMenuItem onClick={() => onCancel(apt)} className="text-rose-600 dark:text-rose-400">
+                                <XCircle className="h-3.5 w-3.5 mr-2" />
+                                Cancel Appointment
+                              </DropdownMenuItem>
+                            )}
+                          </>
+                        );
+                      })()}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

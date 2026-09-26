@@ -13,9 +13,10 @@ const SOURCE_COLORS = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#06b6d4", "#
 
 export function LeadSourceChart({ data }: LeadSourceChartProps) {
   const hasData = data && data.length > 0 && data.some((d) => d.count > 0);
+  const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
-    <Card className="col-span-full lg:col-span-2">
+    <Card className="col-span-full lg:col-span-1">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Lead Source Breakdown</CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
@@ -38,9 +39,9 @@ export function LeadSourceChart({ data }: LeadSourceChartProps) {
                   data={data}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={3}
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={4}
                   dataKey="count"
                   nameKey="source"
                 >
@@ -49,7 +50,11 @@ export function LeadSourceChart({ data }: LeadSourceChartProps) {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: any) => [`${value} leads`, "Count"]}
+                  formatter={(value: any, _name: any, entry: any) => {
+                    const countVal = Number(value) || 0;
+                    const pct = entry?.payload?.percentage ?? (totalCount > 0 ? Math.round((countVal / totalCount) * 100) : 0);
+                    return [`${countVal} leads (${pct}%)`, "Count & Share"];
+                  }}
                   contentStyle={{
                     backgroundColor: "var(--background)",
                     borderColor: "var(--border)",

@@ -4,6 +4,7 @@ import * as React from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Calendar as CalendarIcon } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 import {
   AppointmentStats,
   AppointmentFilters,
@@ -13,6 +14,7 @@ import {
   AppointmentDetailDialog,
   RescheduleAppointmentDialog,
   CancelAppointmentDialog,
+  FieldAwarenessDialog,
   type MainViewMode,
   type CalendarSubView,
   type AppointmentItem,
@@ -159,7 +161,31 @@ export default function AppointmentsPage() {
     await fetchData();
   };
 
-  const handleStatusChange = async (apt: AppointmentItem, newStatus: AppointmentStatus) => {
+  const { user } = useAuth();
+
+  // Field Awareness Confirmation State
+  const [awarenessOpen, setAwarenessOpen] = React.useState(false);
+  const [awarenessActionTitle, setAwarenessActionTitle] = React.useState("");
+  const [awarenessAppointment, setAwarenessAppointment] = React.useState<AppointmentItem | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<(() => Promise<void>) | null>(null);
+
+  const triggerFieldActionWithAwareness = (
+    apt: AppointmentItem,
+    actionTitle: string,
+    actionFn: () => Promise<void>
+  ) => {
+    const isInsideTeam = user ? user.roleCode !== "field_sales" : false;
+    if (isInsideTeam) {
+      setAwarenessAppointment(apt);
+      setAwarenessActionTitle(actionTitle);
+      setPendingAction(() => actionFn);
+      setAwarenessOpen(true);
+    } else {
+      actionFn();
+    }
+  };
+
+  const executeStatusChange = async (apt: AppointmentItem, newStatus: AppointmentStatus) => {
     const res = await fetch(`/api/appointments/${apt.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -170,7 +196,17 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleRescheduleSubmit = async (
+  const handleStatusChange = (apt: AppointmentItem, newStatus: AppointmentStatus) => {
+    const isFieldMemberOption = newStatus === "in_progress" || newStatus === "completed";
+    if (isFieldMemberOption) {
+      const actionTitle = newStatus === "in_progress" ? "Mark In Progress" : "Mark Completed";
+      triggerFieldActionWithAwareness(apt, actionTitle, () => executeStatusChange(apt, newStatus));
+    } else {
+      executeStatusChange(apt, newStatus);
+    }
+  };
+
+  const executeReschedule = async (
     id: string,
     newStartTime: number,
     newEndTime: number,
@@ -188,6 +224,20 @@ export default function AppointmentsPage() {
     });
     if (!res.ok) throw new Error("Failed to reschedule appointment");
     await fetchData();
+  };
+
+  const handleRescheduleSubmit = async (
+    id: string,
+    newStartTime: number,
+    newEndTime: number,
+    reason: string
+  ) => {
+    const apt = items.find((i) => i.id === id) || selectedAppointment;
+    if (apt) {
+      triggerFieldActionWithAwareness(apt, "Reschedule Appointment", () => executeReschedule(id, newStartTime, newEndTime, reason));
+    } else {
+      await executeReschedule(id, newStartTime, newEndTime, reason);
+    }
   };
 
   const handleCancelSubmit = async (id: string, reason: string) => {
@@ -334,6 +384,19 @@ export default function AppointmentsPage() {
         onOpenChange={setIsCancelOpen}
         appointment={selectedAppointment}
         onSubmit={handleCancelSubmit}
+      />
+
+      <FieldAwarenessDialog
+        open={awarenessOpen}
+        onOpenChange={setAwarenessOpen}
+        actionTitle={awarenessActionTitle}
+        appointmentTitle={awarenessAppointment?.title}
+        assignedToName={awarenessAppointment?.assignedTo?.name}
+        onConfirm={async () => {
+          if (pendingAction) {
+            await pendingAction();
+          }
+        }}
       />
     </div>
   );

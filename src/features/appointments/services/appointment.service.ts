@@ -100,7 +100,7 @@ export const getAppointments = async (
   );
 
   const { items, total } = await findAppointments(visibilityFilter, validatedParams);
-  const metrics = await getAppointmentMetrics(visibilityFilter);
+  const metrics = await getAppointmentMetrics(visibilityFilter, validatedParams);
 
   const limit = validatedParams.limit ?? 10;
   const page = validatedParams.page ?? 1;
@@ -185,9 +185,10 @@ export const updateAppointment = async (
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isInsideTeam = user.role.code !== "field_sales";
   const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
-  if (!isCreatorOrAssignee) {
-    throw new AppError("Only the appointment creator or assigned representative can edit appointment details.", 403, "FORBIDDEN");
+  if (!isInsideTeam && !isCreatorOrAssignee) {
+    throw new AppError("Only Inside team members, the appointment creator, or assigned representative can edit appointment details.", 403, "FORBIDDEN");
   }
 
   const validatedInput = updateAppointmentSchema.parse(input);
@@ -225,9 +226,10 @@ export const updateAppointmentStatus = async (
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isInsideTeam = user.role.code !== "field_sales";
   const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
-  if (!isCreatorOrAssignee) {
-    throw new AppError("Only the appointment creator or assigned representative can update appointment status.", 403, "FORBIDDEN");
+  if (!isInsideTeam && !isCreatorOrAssignee) {
+    throw new AppError("Only Inside team members, the appointment creator, or assigned representative can update appointment status.", 403, "FORBIDDEN");
   }
 
   const validatedInput = updateAppointmentStatusSchema.parse(input);
@@ -259,9 +261,10 @@ export const rescheduleAppointment = async (
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isInsideTeam = user.role.code !== "field_sales";
   const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
-  if (!isCreatorOrAssignee) {
-    throw new AppError("Only the appointment creator or assigned representative can reschedule appointments.", 403, "FORBIDDEN");
+  if (!isInsideTeam && !isCreatorOrAssignee) {
+    throw new AppError("Only Inside team members, the appointment creator, or assigned representative can reschedule appointments.", 403, "FORBIDDEN");
   }
 
   const validatedInput = rescheduleAppointmentSchema.parse(input);
@@ -313,9 +316,10 @@ export const cancelAppointment = async (
     throw new AppError("Appointment not found", 404, "NOT_FOUND");
   }
 
+  const isInsideTeam = user.role.code !== "field_sales";
   const isCreatorOrAssignee = user.id === existing.createdById || user.id === existing.assignedToId;
-  if (!isCreatorOrAssignee) {
-    throw new AppError("Only the appointment creator or assigned representative can cancel appointments.", 403, "FORBIDDEN");
+  if (!isInsideTeam && !isCreatorOrAssignee) {
+    throw new AppError("Only Inside team members, the appointment creator, or assigned representative can cancel appointments.", 403, "FORBIDDEN");
   }
 
   const validatedInput = cancelAppointmentSchema.parse(input);
