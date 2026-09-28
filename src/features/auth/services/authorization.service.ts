@@ -458,6 +458,7 @@ export const checkFieldVisitAccess = async (
       assignedToId: fieldVisits.assignedToId,
       createdById: fieldVisits.createdById,
       leadId: fieldVisits.leadId,
+      customerId: fieldVisits.customerId,
     })
     .from(fieldVisits)
     .where(eq(fieldVisits.id, fieldVisitId))
@@ -471,11 +472,13 @@ export const checkFieldVisitAccess = async (
     return user;
   }
 
-  try {
-    await checkLeadAccess(visit.leadId, "view");
-    return user;
-  } catch (_e) {
-    // Ignored
+  if (visit.leadId) {
+    try {
+      await checkLeadAccess(visit.leadId, "view");
+      return user;
+    } catch (_e) {
+      // Ignored
+    }
   }
 
   throw new AppError(

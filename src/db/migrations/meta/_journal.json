@@ -57,6 +57,13 @@
       "when": 1789557698474,
       "tag": "0007_overconfident_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790577192731,
+      "tag": "0008_heavy_psynapse",
+      "breakpoints": true
     }
   ]
 }

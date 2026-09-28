@@ -53,12 +53,17 @@ export const appointments = sqliteTable('appointments', {
 
 export const fieldVisits = sqliteTable('field_visits', {
   id: text('id').primaryKey(), // UUID
-  leadId: text('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  leadId: text('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id').references(() => customers.id, { onDelete: 'cascade' }),
   appointmentId: text('appointment_id').references(() => appointments.id, { onDelete: 'set null' }),
   visitDate: integer('visit_date', { mode: 'timestamp_ms' }).notNull(),
   purpose: text('purpose').notNull(),
+  summary: text('summary'),
   outcome: text('outcome'),
   feedback: text('feedback'),
+  requirements: text('requirements'),
+  nextAction: text('next_action', { enum: ['follow_up', 'proposal', 'second_visit', 'negotiation', 'won', 'lost'] }),
+  nextActionDate: integer('next_action_date', { mode: 'timestamp_ms' }),
   expenses: integer('expenses').notNull().default(0),
   status: text('status', { enum: ['scheduled', 'completed', 'cancelled'] }).notNull().default('scheduled'),
   createdById: text('created_by_id').notNull().references(() => users.id),
@@ -67,8 +72,11 @@ export const fieldVisits = sqliteTable('field_visits', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('field_visits_lead_id_idx').on(t.leadId),
+  index('field_visits_customer_id_idx').on(t.customerId),
   index('field_visits_appointment_id_idx').on(t.appointmentId),
   index('field_visits_assigned_to_id_idx').on(t.assignedToId),
+  index('field_visits_status_idx').on(t.status),
+  index('field_visits_visit_date_idx').on(t.visitDate),
 ]);
 
 // Relational Definitions
@@ -119,6 +127,10 @@ export const fieldVisitsRelations = relations(fieldVisits, ({ one }) => ({
   lead: one(leads, {
     fields: [fieldVisits.leadId],
     references: [leads.id],
+  }),
+  customer: one(customers, {
+    fields: [fieldVisits.customerId],
+    references: [customers.id],
   }),
   appointment: one(appointments, {
     fields: [fieldVisits.appointmentId],

@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions, appointments, followUps, customers, services } from "./schema";
+import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions, appointments, followUps, fieldVisits, customers, services } from "./schema";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
@@ -11,6 +11,7 @@ async function main() {
   await db.run(sql`PRAGMA foreign_keys = OFF;`);
 
   console.log("Clearing existing tables...");
+  await db.delete(fieldVisits);
   await db.delete(appointments);
   await db.delete(followUps);
   await db.delete(customers);
@@ -661,7 +662,64 @@ async function main() {
   ];
   await db.insert(followUps).values(sampleFollowUps);
 
-  console.log("Database seeded successfully with users, teams, leads, customers, appointments, and follow-ups!");
+  // 14. Seed Sample Field Visits
+  console.log("Seeding sample field visits...");
+  const sampleFieldVisits = [
+    {
+      id: "visit-001",
+      leadId: "lead-fld-002",
+      appointmentId: "appt-001",
+      visitDate: tomorrow2pm,
+      purpose: "Inspect heavy machinery ventilation upgrade and measure industrial ducting capacity.",
+      summary: "Preliminary site inspection planned with facility supervisor.",
+      outcome: null,
+      feedback: null,
+      requirements: "Heavy-duty exhaust fans, 4000 CFM ductwork, and custom mounting brackets.",
+      nextAction: "proposal" as const,
+      nextActionDate: in3days11am,
+      expenses: 1500, // $15.00
+      status: "scheduled" as const,
+      createdById: "user-inside",
+      assignedToId: "user-field",
+    },
+    {
+      id: "visit-002",
+      leadId: "lead-mgr-002",
+      appointmentId: "appt-002",
+      visitDate: today10am,
+      purpose: "Technical review of precision liquid cooling & backup generators.",
+      summary: "Field visit in progress to evaluate server rack spatial constraints.",
+      outcome: "Interested",
+      feedback: "Client requested detailed quote for dual redundant cooling system.",
+      requirements: "30KW in-row precision cooling with N+1 redundancy.",
+      nextAction: "proposal" as const,
+      nextActionDate: tomorrow2pm,
+      expenses: 2500, // $25.00
+      status: "scheduled" as const,
+      createdById: "user-manager",
+      assignedToId: "user-field",
+    },
+    {
+      id: "visit-003",
+      customerId: "cust-001",
+      appointmentId: "appt-004",
+      visitDate: yesterday9am,
+      purpose: "Quarterly chiller retrofitting verification and thermostat calibration.",
+      summary: "Completed quarterly site inspection and routine maintenance audit.",
+      outcome: "Satisfied",
+      feedback: "All chillers operating within normal parameters. Filter replaced.",
+      requirements: "Annual service agreement renewal coming up in 3 months.",
+      nextAction: "follow_up" as const,
+      nextActionDate: in3days11am,
+      expenses: 1200, // $12.00
+      status: "completed" as const,
+      createdById: "user-admin",
+      assignedToId: "user-field",
+    },
+  ];
+  await db.insert(fieldVisits).values(sampleFieldVisits);
+
+  console.log("Database seeded successfully with users, teams, leads, customers, appointments, follow-ups, and field visits!");
 }
 
 main()
