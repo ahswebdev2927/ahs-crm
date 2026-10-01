@@ -3,12 +3,14 @@ import { db } from "@/db";
 import { notifications, leadActivities } from "@/db/schema";
 import {
   checkPermission,
+  checkAppointmentAccess,
   getLeadVisibilityFilter,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
   findAppointments,
   findAppointmentById,
+  findAppointmentWithFieldVisit,
   createAppointmentRecord,
   updateAppointmentRecord,
   updateAppointmentStatusRecord,
@@ -32,7 +34,7 @@ import type {
   CancelAppointmentInput,
   AppointmentQueryInput,
 } from "../schemas/appointment.schema";
-import type { AppointmentItem, AppointmentListResponse, FieldSalesUser, CalendarEvent } from "../types/appointment.types";
+import type { AppointmentItem, AppointmentWithVisit, AppointmentListResponse, FieldSalesUser, CalendarEvent } from "../types/appointment.types";
 import { adaptToCalendarEvents } from "../utils/calendar-adapter";
 
 /**
@@ -123,6 +125,7 @@ export const getAppointmentById = async (
   id: string
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:view");
+  await checkAppointmentAccess(id, "view");
 
   const appointment = await findAppointmentById(id);
   if (!appointment) {
@@ -130,6 +133,21 @@ export const getAppointmentById = async (
   }
 
   return appointment;
+};
+
+export const getAppointmentWithVisitById = async (
+  user: AuthenticatedUserPayload,
+  id: string
+): Promise<AppointmentWithVisit> => {
+  await checkPermission("leads:view");
+  await checkAppointmentAccess(id, "view");
+
+  const appointmentWithVisit = await findAppointmentWithFieldVisit(id);
+  if (!appointmentWithVisit) {
+    throw new AppError("Appointment record not found", 404, "NOT_FOUND");
+  }
+
+  return appointmentWithVisit;
 };
 
 export const createAppointment = async (

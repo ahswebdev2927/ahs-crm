@@ -1,4 +1,5 @@
 import type { AppointmentStatus } from "../schemas/appointment.schema";
+import type { FieldVisitItem } from "@/features/field-visits/types/field-visit.types";
 
 export interface UserSummary {
   id: string;
@@ -41,6 +42,10 @@ export interface AppointmentItem {
   customer: CustomerSummary | null;
   createdBy: UserSummary;
   assignedTo: UserSummary;
+}
+
+export interface AppointmentWithVisit extends AppointmentItem {
+  fieldVisit: FieldVisitItem | null;
 }
 
 export interface AppointmentMetrics {

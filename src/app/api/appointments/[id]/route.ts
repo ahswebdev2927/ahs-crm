@@ -4,15 +4,19 @@ import { successResponse } from "@/lib/api/response";
 import { requireAuth } from "@/features/auth/services/authorization.service";
 import {
   getAppointmentById,
+  getAppointmentWithVisitById,
   updateAppointment,
 } from "@/features/appointments/services/appointment.service";
 
-export const GET = withErrorHandling(async (_request: NextRequest, context) => {
+export const GET = withErrorHandling(async (request: NextRequest, context) => {
   const user = await requireAuth();
   const rawParams = await context?.params;
   const id = Array.isArray(rawParams?.id) ? rawParams.id[0] : rawParams?.id || "";
+  const withVisit = request.nextUrl.searchParams.get("withVisit") === "true";
 
-  const appointment = await getAppointmentById(user, id);
+  const appointment = withVisit
+    ? await getAppointmentWithVisitById(user, id)
+    : await getAppointmentById(user, id);
 
   return successResponse({
     statusCode: 200,

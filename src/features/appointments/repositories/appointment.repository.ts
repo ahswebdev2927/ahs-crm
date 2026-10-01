@@ -2,7 +2,8 @@ import { db } from "@/db";
 import { appointments, leads, customers, users, roles } from "@/db/schema";
 import { eq, and, or, gte, lte, like, count, desc, SQL } from "drizzle-orm";
 import type { AppointmentQueryInput, CreateAppointmentInput, UpdateAppointmentInput, AppointmentStatus } from "../schemas/appointment.schema";
-import type { AppointmentItem, AppointmentMetrics, FieldSalesUser } from "../types/appointment.types";
+import type { AppointmentItem, AppointmentWithVisit, AppointmentMetrics, FieldSalesUser } from "../types/appointment.types";
+import { findFieldVisitByAppointmentId } from "@/features/field-visits/repositories/field-visit.repository";
 import { alias } from "drizzle-orm/sqlite-core";
 
 const createdByUsers = alias(users, "createdByUsers");
@@ -375,3 +376,16 @@ export async function getFieldSalesUsers(): Promise<FieldSalesUser[]> {
     roleCode: r.roleCode,
   }));
 }
+
+export async function findAppointmentWithFieldVisit(id: string): Promise<AppointmentWithVisit | null> {
+  const appointment = await findAppointmentById(id);
+  if (!appointment) return null;
+
+  const fieldVisit = await findFieldVisitByAppointmentId(id);
+
+  return {
+    ...appointment,
+    fieldVisit,
+  };
+}
+

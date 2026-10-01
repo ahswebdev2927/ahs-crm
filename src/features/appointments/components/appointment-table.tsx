@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MapPin, User, MoreHorizontal, Calendar, Eye, RefreshCw, XCircle, CheckCircle2, Clock } from "lucide-react";
+import { MapPin, User, MoreHorizontal, Calendar, Eye, RefreshCw, XCircle, CheckCircle2, Clock, ExternalLink, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import type { AppointmentItem } from "../types/appointment.types";
 import type { AppointmentStatus } from "../schemas/appointment.schema";
@@ -56,6 +57,7 @@ export function AppointmentTable({
   onCancel,
 }: AppointmentTableProps) {
   const { user } = useAuth();
+  const router = useRouter();
 
   if (items.length === 0) {
     return (
@@ -105,7 +107,12 @@ export function AppointmentTable({
               <tr key={apt.id} className="hover:bg-muted/30 transition-colors">
                 {/* Title & Client */}
                 <td className="px-4 py-3">
-                  <div className="font-semibold text-foreground text-sm">{apt.title}</div>
+                  <Link
+                    href={`/sales/appointments/${apt.id}`}
+                    className="font-semibold text-foreground text-sm hover:text-primary transition-colors block"
+                  >
+                    {apt.title}
+                  </Link>
                   <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                     <User className="h-3 w-3" />
                     {clientLink ? (
@@ -149,85 +156,136 @@ export function AppointmentTable({
 
                 {/* Actions */}
                 <td className="px-4 py-3 text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => onView(apt)}>
-                        <Eye className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                        View Details
-                      </DropdownMenuItem>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {/* Inline Quick Action based on Field Agent Workflow Step */}
+                    {apt.status === "scheduled" && canEditStatus && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onStatusChange(apt, "confirmed")}
+                        className="h-7 text-[11px] px-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-300 dark:border-emerald-800"
+                        title="Confirm Appointment"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                        Confirm
+                      </Button>
+                    )}
 
-                      {(() => {
-                        const isInsideTeam = user ? user.roleCode !== "field_sales" : false;
-                        const isAssigneeOrCreator = user ? (user.id === apt.createdById || user.id === apt.assignedToId) : false;
-                        const canEditDetails = isInsideTeam || (user ? user.id === apt.createdById : false);
-                        const canCancel = isInsideTeam || (user ? user.id === apt.createdById : false);
-                        const canFieldActions = isInsideTeam || isAssigneeOrCreator;
+                    {apt.status === "confirmed" && canEditStatus && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onStatusChange(apt, "in_progress")}
+                        className="h-7 text-[11px] px-2 text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-300 dark:border-amber-800"
+                        title="Start Visit / Mark In Progress"
+                      >
+                        <Clock className="h-3 w-3 mr-1 text-amber-500" />
+                        Start Visit
+                      </Button>
+                    )}
 
-                        if (!canFieldActions && !canEditDetails && !canCancel) {
+                    {apt.status === "in_progress" && (
+                      <Button
+                        size="sm"
+                        onClick={() => router.push(`/sales/appointments/${apt.id}`)}
+                        className="h-7 text-[11px] px-2 bg-amber-500 hover:bg-amber-600 text-white shadow-2xs"
+                        title="Open Field Visit Report Generator"
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        Generate Report
+                      </Button>
+                    )}
+
+                    {apt.status === "completed" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => router.push(`/sales/appointments/${apt.id}`)}
+                        className="h-7 text-[11px] px-2 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        title="View Completed Report"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                        Report Completed
+                      </Button>
+                    )}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => router.push(`/sales/appointments/${apt.id}`)}>
+                          <ExternalLink className="h-3.5 w-3.5 mr-2 text-primary" />
+                          Open Workspace
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onView(apt)}>
+                          <Eye className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                          Quick View
+                        </DropdownMenuItem>
+
+                        {(() => {
+                          const isInsideTeam = user ? user.roleCode !== "field_sales" : false;
+                          const isAssigneeOrCreator = user ? (user.id === apt.createdById || user.id === apt.assignedToId) : false;
+                          const canEditDetails = isInsideTeam || (user ? user.id === apt.createdById : false);
+                          const canCancel = isInsideTeam || (user ? user.id === apt.createdById : false);
+                          const canFieldActions = isInsideTeam || isAssigneeOrCreator;
+
+                          if (!canFieldActions && !canEditDetails && !canCancel) {
+                            return null;
+                          }
+
                           return (
                             <>
+                              {canEditDetails && (
+                                <DropdownMenuItem onClick={() => onEdit(apt)}>
+                                  <Calendar className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
-                              <div className="px-2 py-1.5 text-[10px] text-muted-foreground italic">
-                                View Only Mode
-                              </div>
+
+                              {canFieldActions && (
+                                <>
+                                  {apt.status === "scheduled" && (
+                                    <DropdownMenuItem onClick={() => onStatusChange(apt, "confirmed")}>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                                      Mark Confirmed
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  {apt.status === "confirmed" && (
+                                    <DropdownMenuItem onClick={() => onStatusChange(apt, "in_progress")}>
+                                      <Clock className="h-3.5 w-3.5 mr-2 text-amber-500" />
+                                      Start Visit
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  {apt.status === "in_progress" && (
+                                    <DropdownMenuItem onClick={() => router.push(`/sales/appointments/${apt.id}`)}>
+                                      <FileText className="h-3.5 w-3.5 mr-2 text-amber-500" />
+                                      Generate Report
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  <DropdownMenuItem onClick={() => onReschedule(apt)}>
+                                    <RefreshCw className="h-3.5 w-3.5 mr-2 text-purple-500" />
+                                    Reschedule
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
+                              {canCancel && apt.status !== "cancelled" && (
+                                <DropdownMenuItem onClick={() => onCancel(apt)} className="text-rose-600 dark:text-rose-400">
+                                  <XCircle className="h-3.5 w-3.5 mr-2" />
+                                  Cancel Appointment
+                                </DropdownMenuItem>
+                              )}
                             </>
                           );
-                        }
-
-                        return (
-                          <>
-                            {canEditDetails && (
-                              <DropdownMenuItem onClick={() => onEdit(apt)}>
-                                <Calendar className="h-3.5 w-3.5 mr-2 text-slate-500" />
-                                Edit Details
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-
-                            {canFieldActions && (
-                              <>
-                                {apt.status === "scheduled" && (
-                                  <DropdownMenuItem onClick={() => onStatusChange(apt, "confirmed")}>
-                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                                    Mark Confirmed
-                                  </DropdownMenuItem>
-                                )}
-
-                                {(apt.status === "scheduled" || apt.status === "confirmed") && (
-                                  <DropdownMenuItem onClick={() => onStatusChange(apt, "in_progress")}>
-                                    <Clock className="h-3.5 w-3.5 mr-2 text-amber-500" />
-                                    Mark In Progress
-                                  </DropdownMenuItem>
-                                )}
-
-                                {apt.status !== "completed" && apt.status !== "cancelled" && (
-                                  <DropdownMenuItem onClick={() => onStatusChange(apt, "completed")}>
-                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-600" />
-                                    Mark Completed
-                                  </DropdownMenuItem>
-                                )}
-
-                                <DropdownMenuItem onClick={() => onReschedule(apt)}>
-                                  <RefreshCw className="h-3.5 w-3.5 mr-2 text-purple-500" />
-                                  Reschedule
-                                </DropdownMenuItem>
-                              </>
-                            )}
-
-                            {canCancel && apt.status !== "cancelled" && (
-                              <DropdownMenuItem onClick={() => onCancel(apt)} className="text-rose-600 dark:text-rose-400">
-                                <XCircle className="h-3.5 w-3.5 mr-2" />
-                                Cancel Appointment
-                              </DropdownMenuItem>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        })()}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </td>
               </tr>
             );

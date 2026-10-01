@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { fieldVisits, leads, customers, appointments, users } from "@/db/schema";
+import { fieldVisits, fieldVisitMedia, leads, customers, appointments, users } from "@/db/schema";
 import { eq, and, or, gte, lte, like, count, sum, desc, SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type {
@@ -10,12 +10,13 @@ import type {
   FieldVisitStatus,
   NextActionType,
 } from "../schemas/field-visit.schema";
-import type { FieldVisitItem, FieldVisitMetrics } from "../types/field-visit.types";
+import type { FieldVisitItem, FieldVisitMetrics, FieldVisitMediaItem } from "../types/field-visit.types";
 
 const createdByUsers = alias(users, "createdByUsers");
 const assignedToUsers = alias(users, "assignedToUsers");
+const mediaUploaderUsers = alias(users, "mediaUploaderUsers");
 
-function mapFieldVisitRow(row: any): FieldVisitItem {
+function mapFieldVisitRow(row: any, mediaItems: FieldVisitMediaItem[] = []): FieldVisitItem {
   return {
     id: row.fieldVisits.id,
     leadId: row.fieldVisits.leadId,
@@ -37,6 +38,7 @@ function mapFieldVisitRow(row: any): FieldVisitItem {
     assignedToId: row.fieldVisits.assignedToId,
     createdAt: new Date(row.fieldVisits.createdAt).getTime(),
     updatedAt: new Date(row.fieldVisits.updatedAt).getTime(),
+    media: mediaItems,
     lead: row.leads
       ? {
           id: row.leads.id,
@@ -81,6 +83,72 @@ function mapFieldVisitRow(row: any): FieldVisitItem {
         }
       : undefined,
   };
+}
+
+export async function findMediaByFieldVisitId(fieldVisitId: string): Promise<FieldVisitMediaItem[]> {
+  const rows = await db
+    .select({
+      fieldVisitMedia,
+      uploadedBy: {
+        id: mediaUploaderUsers.id,
+        name: mediaUploaderUsers.name,
+        email: mediaUploaderUsers.email,
+      },
+    })
+    .from(fieldVisitMedia)
+    .leftJoin(mediaUploaderUsers, eq(fieldVisitMedia.uploadedById, mediaUploaderUsers.id))
+    .where(eq(fieldVisitMedia.fieldVisitId, fieldVisitId))
+    .orderBy(desc(fieldVisitMedia.createdAt));
+
+  return rows.map((r) => ({
+    id: r.fieldVisitMedia.id,
+    fieldVisitId: r.fieldVisitMedia.fieldVisitId,
+    cloudinaryPublicId: r.fieldVisitMedia.cloudinaryPublicId,
+    cloudinaryUrl: r.fieldVisitMedia.cloudinaryUrl,
+    resourceType: r.fieldVisitMedia.resourceType as "image" | "document",
+    caption: r.fieldVisitMedia.caption,
+    uploadedById: r.fieldVisitMedia.uploadedById,
+    createdAt: new Date(r.fieldVisitMedia.createdAt).getTime(),
+    uploadedBy: r.uploadedBy ? {
+      id: r.uploadedBy.id,
+      name: r.uploadedBy.name,
+      email: r.uploadedBy.email,
+    } : undefined,
+  }));
+}
+
+export async function createFieldVisitMediaRecord(data: {
+  fieldVisitId: string;
+  cloudinaryPublicId: string;
+  cloudinaryUrl: string;
+  resourceType: "image" | "document";
+  caption?: string | null;
+  uploadedById: string;
+}): Promise<FieldVisitMediaItem> {
+  const id = crypto.randomUUID();
+  const now = new Date();
+
+  await db.insert(fieldVisitMedia).values({
+    id,
+    fieldVisitId: data.fieldVisitId,
+    cloudinaryPublicId: data.cloudinaryPublicId,
+    cloudinaryUrl: data.cloudinaryUrl,
+    resourceType: data.resourceType,
+    caption: data.caption ?? null,
+    uploadedById: data.uploadedById,
+    createdAt: now,
+  });
+
+  const mediaList = await findMediaByFieldVisitId(data.fieldVisitId);
+  const created = mediaList.find((m) => m.id === id);
+  if (!created) {
+    throw new Error("Failed to retrieve created field visit media record");
+  }
+  return created;
+}
+
+export async function deleteFieldVisitMediaRecord(id: string): Promise<void> {
+  await db.delete(fieldVisitMedia).where(eq(fieldVisitMedia.id, id));
 }
 
 export async function findFieldVisits(
@@ -197,7 +265,7 @@ export async function findFieldVisits(
     .offset(offset);
 
   return {
-    items: rows.map(mapFieldVisitRow),
+    items: rows.map((r) => mapFieldVisitRow(r)),
     total: totalCount,
   };
 }
@@ -250,17 +318,73 @@ export async function findFieldVisitById(id: string): Promise<FieldVisitItem | n
     .limit(1);
 
   if (rows.length === 0) return null;
-  return mapFieldVisitRow(rows[0]);
+
+  const media = await findMediaByFieldVisitId(id);
+  return mapFieldVisitRow(rows[0], media);
+}
+
+export async function findFieldVisitByAppointmentId(appointmentId: string): Promise<FieldVisitItem | null> {
+  const rows = await db
+    .select({
+      fieldVisits,
+      leads: {
+        id: leads.id,
+        name: leads.name,
+        company: leads.company,
+        phone: leads.phone,
+        email: leads.email,
+        requirements: leads.requirements,
+      },
+      customers: {
+        id: customers.id,
+        name: customers.name,
+        company: customers.company,
+        phone: customers.phone,
+        email: customers.email,
+        address: customers.address,
+      },
+      appointments: {
+        id: appointments.id,
+        title: appointments.title,
+        startTime: appointments.startTime,
+        endTime: appointments.endTime,
+        location: appointments.location,
+      },
+      createdByUsers: {
+        id: createdByUsers.id,
+        name: createdByUsers.name,
+        email: createdByUsers.email,
+      },
+      assignedToUsers: {
+        id: assignedToUsers.id,
+        name: assignedToUsers.name,
+        email: assignedToUsers.email,
+      },
+    })
+    .from(fieldVisits)
+    .leftJoin(leads, eq(fieldVisits.leadId, leads.id))
+    .leftJoin(customers, eq(fieldVisits.customerId, customers.id))
+    .leftJoin(appointments, eq(fieldVisits.appointmentId, appointments.id))
+    .innerJoin(createdByUsers, eq(fieldVisits.createdById, createdByUsers.id))
+    .innerJoin(assignedToUsers, eq(fieldVisits.assignedToId, assignedToUsers.id))
+    .where(eq(fieldVisits.appointmentId, appointmentId))
+    .limit(1);
+
+  if (rows.length === 0) return null;
+
+  const media = await findMediaByFieldVisitId(rows[0].fieldVisits.id);
+  return mapFieldVisitRow(rows[0], media);
 }
 
 export async function createFieldVisitRecord(
   data: CreateFieldVisitInput,
-  createdById: string
+  createdById: string,
+  executor: any = db
 ): Promise<FieldVisitItem> {
   const id = crypto.randomUUID();
   const now = new Date();
 
-  await db.insert(fieldVisits).values({
+  await executor.insert(fieldVisits).values({
     id,
     leadId: data.leadId || null,
     customerId: data.customerId || null,
@@ -288,7 +412,8 @@ export async function createFieldVisitRecord(
 
 export async function updateFieldVisitRecord(
   id: string,
-  data: UpdateFieldVisitInput
+  data: UpdateFieldVisitInput,
+  executor: any = db
 ): Promise<FieldVisitItem> {
   const now = new Date();
   const updateData: Record<string, any> = { updatedAt: now };
@@ -307,7 +432,7 @@ export async function updateFieldVisitRecord(
   if (data.expenses !== undefined) updateData.expenses = data.expenses;
   if (data.status !== undefined) updateData.status = data.status;
 
-  await db.update(fieldVisits).set(updateData).where(eq(fieldVisits.id, id));
+  await executor.update(fieldVisits).set(updateData).where(eq(fieldVisits.id, id));
 
   const updated = await findFieldVisitById(id);
   if (!updated) {
@@ -318,7 +443,8 @@ export async function updateFieldVisitRecord(
 
 export async function completeFieldVisitRecord(
   id: string,
-  data: CompleteFieldVisitInput
+  data: CompleteFieldVisitInput,
+  executor: any = db
 ): Promise<FieldVisitItem> {
   const now = new Date();
   const updateData: Record<string, any> = {
@@ -336,7 +462,7 @@ export async function completeFieldVisitRecord(
     updateData.nextActionDate = data.nextActionDate ? new Date(data.nextActionDate) : null;
   }
 
-  await db.update(fieldVisits).set(updateData).where(eq(fieldVisits.id, id));
+  await executor.update(fieldVisits).set(updateData).where(eq(fieldVisits.id, id));
 
   const updated = await findFieldVisitById(id);
   if (!updated) {

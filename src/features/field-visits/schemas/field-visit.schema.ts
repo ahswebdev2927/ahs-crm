@@ -76,3 +76,11 @@ export const fieldVisitQuerySchema = z.object({
 });
 
 export type FieldVisitQueryInput = z.infer<typeof fieldVisitQuerySchema>;
+
+export const startVisitSchema = z.object({
+  visitDate: z.number().int("Visit date must be a timestamp").optional(),
+  purpose: z.string().max(500).optional(),
+});
+
+export type StartVisitInput = z.infer<typeof startVisitSchema>;
+

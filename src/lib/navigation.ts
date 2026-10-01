@@ -4,6 +4,7 @@ import {
   Kanban,
   PhoneCall,
   Calendar,
+  MapPin,
   CheckSquare,
   Users,
   Briefcase,

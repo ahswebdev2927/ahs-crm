@@ -459,6 +459,7 @@ export const checkFieldVisitAccess = async (
       createdById: fieldVisits.createdById,
       leadId: fieldVisits.leadId,
       customerId: fieldVisits.customerId,
+      appointmentId: fieldVisits.appointmentId,
     })
     .from(fieldVisits)
     .where(eq(fieldVisits.id, fieldVisitId))
@@ -470,6 +471,15 @@ export const checkFieldVisitAccess = async (
 
   if (visit.assignedToId === user.id || visit.createdById === user.id) {
     return user;
+  }
+
+  if (visit.appointmentId) {
+    try {
+      await checkAppointmentAccess(visit.appointmentId, action);
+      return user;
+    } catch (_e) {
+      // Continue to check lead/customer
+    }
   }
 
   if (visit.leadId) {

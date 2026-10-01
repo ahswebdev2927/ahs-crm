@@ -55,7 +55,7 @@ export const fieldVisits = sqliteTable('field_visits', {
   id: text('id').primaryKey(), // UUID
   leadId: text('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
   customerId: text('customer_id').references(() => customers.id, { onDelete: 'cascade' }),
-  appointmentId: text('appointment_id').references(() => appointments.id, { onDelete: 'set null' }),
+  appointmentId: text('appointment_id').references(() => appointments.id, { onDelete: 'cascade' }).unique(),
   visitDate: integer('visit_date', { mode: 'timestamp_ms' }).notNull(),
   purpose: text('purpose').notNull(),
   summary: text('summary'),
@@ -77,6 +77,20 @@ export const fieldVisits = sqliteTable('field_visits', {
   index('field_visits_assigned_to_id_idx').on(t.assignedToId),
   index('field_visits_status_idx').on(t.status),
   index('field_visits_visit_date_idx').on(t.visitDate),
+]);
+
+export const fieldVisitMedia = sqliteTable('field_visit_media', {
+  id: text('id').primaryKey(), // UUID
+  fieldVisitId: text('field_visit_id').notNull().references(() => fieldVisits.id, { onDelete: 'cascade' }),
+  cloudinaryPublicId: text('cloudinary_public_id').notNull(),
+  cloudinaryUrl: text('cloudinary_url').notNull(),
+  resourceType: text('resource_type', { enum: ['image', 'document'] }).notNull().default('image'),
+  caption: text('caption'),
+  uploadedById: text('uploaded_by_id').notNull().references(() => users.id),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (t) => [
+  index('field_visit_media_visit_id_idx').on(t.fieldVisitId),
+  index('field_visit_media_uploaded_by_id_idx').on(t.uploadedById),
 ]);
 
 // Relational Definitions
@@ -101,7 +115,7 @@ export const followUpsRelations = relations(followUps, ({ one }) => ({
   }),
 }));
 
-export const appointmentsRelations = relations(appointments, ({ one, many }) => ({
+export const appointmentsRelations = relations(appointments, ({ one }) => ({
   lead: one(leads, {
     fields: [appointments.leadId],
     references: [leads.id],
@@ -120,10 +134,10 @@ export const appointmentsRelations = relations(appointments, ({ one, many }) => 
     references: [users.id],
     relationName: 'appointmentsAssignee',
   }),
-  fieldVisits: many(fieldVisits),
+  fieldVisit: one(fieldVisits),
 }));
 
-export const fieldVisitsRelations = relations(fieldVisits, ({ one }) => ({
+export const fieldVisitsRelations = relations(fieldVisits, ({ one, many }) => ({
   lead: one(leads, {
     fields: [fieldVisits.leadId],
     references: [leads.id],
@@ -145,5 +159,18 @@ export const fieldVisitsRelations = relations(fieldVisits, ({ one }) => ({
     fields: [fieldVisits.assignedToId],
     references: [users.id],
     relationName: 'fieldVisitsAssignee',
+  }),
+  media: many(fieldVisitMedia),
+}));
+
+export const fieldVisitMediaRelations = relations(fieldVisitMedia, ({ one }) => ({
+  fieldVisit: one(fieldVisits, {
+    fields: [fieldVisitMedia.fieldVisitId],
+    references: [fieldVisits.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [fieldVisitMedia.uploadedById],
+    references: [users.id],
+    relationName: 'fieldVisitMediaUploader',
   }),
 }));

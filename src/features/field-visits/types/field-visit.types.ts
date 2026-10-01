@@ -1,5 +1,21 @@
 import { FieldVisitStatus, NextActionType } from "../schemas/field-visit.schema";
 
+export interface FieldVisitMediaItem {
+  id: string;
+  fieldVisitId: string;
+  cloudinaryPublicId: string;
+  cloudinaryUrl: string;
+  resourceType: "image" | "document";
+  caption: string | null;
+  uploadedById: string;
+  createdAt: number;
+  uploadedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
 export interface FieldVisitItem {
   id: string;
   leadId: string | null;
@@ -19,6 +35,7 @@ export interface FieldVisitItem {
   assignedToId: string;
   createdAt: number;
   updatedAt: number;
+  media?: FieldVisitMediaItem[];
   lead?: {
     id: string;
     name: string;

@@ -11,3 +11,5 @@ export * from "./components/reschedule-appointment-dialog";
 export * from "./components/cancel-appointment-dialog";
 export * from "./components/field-awareness-dialog";
 export * from "./components/lead-appointments-tab";
+export * from "./components/appointment-field-visit-section";
+export * from "./components/appointment-workflow-stepper";

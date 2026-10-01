@@ -63,8 +63,18 @@ export function AppointmentDetailDialog({
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
-            <DialogTitle className="text-base font-semibold">{appointment.title}</DialogTitle>
-            {getAppointmentStatusBadge(appointment.status)}
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-base font-semibold">{appointment.title}</DialogTitle>
+              {getAppointmentStatusBadge(appointment.status)}
+            </div>
+            <Link
+              href={`/sales/appointments/${appointment.id}`}
+              className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline shrink-0"
+              onClick={() => onOpenChange(false)}
+            >
+              <span>Open Workspace</span>
+              <ExternalLink className="h-3 w-3" />
+            </Link>
           </div>
           <DialogDescription className="text-xs">
             Appointment Reference #{appointment.id.slice(0, 8)}
@@ -198,17 +208,31 @@ export function AppointmentDetailDialog({
                             Confirm
                           </Button>
                         )}
-                        {appointment.status !== "completed" && (
+
+                        {appointment.status === "confirmed" && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => onStatusChange(appointment, "completed")}
-                            className="h-8 text-xs text-emerald-700 border-emerald-400"
+                            onClick={() => onStatusChange(appointment, "in_progress")}
+                            className="h-8 text-xs text-amber-600 border-amber-300"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                            Complete
+                            <Clock className="h-3.5 w-3.5 mr-1" />
+                            Start Visit
                           </Button>
                         )}
+
+                        {appointment.status === "in_progress" && (
+                          <Link href={`/sales/appointments/${appointment.id}`}>
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white"
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1" />
+                              Generate Report
+                            </Button>
+                          </Link>
+                        )}
+
                         <Button
                           size="sm"
                           variant="outline"
