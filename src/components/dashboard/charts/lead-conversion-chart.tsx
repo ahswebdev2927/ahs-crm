@@ -42,6 +42,12 @@ export function LeadConversionChart({ data }: LeadConversionChartProps) {
                     borderRadius: "0.5rem",
                     fontSize: "0.75rem",
                   }}
+                  formatter={(value: unknown, _name: unknown, item: { payload?: DashboardLeadConversionStage }) => {
+                    const pct = item?.payload?.percentage;
+                    const countNum = typeof value === "number" ? value : Number(value) || 0;
+                    const label = `${countNum} ${countNum === 1 ? "lead" : "leads"}${pct !== undefined ? ` (${pct}%)` : ""}`;
+                    return [label, "Volume"];
+                  }}
                 />
                 <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} name="Lead Count" />
               </BarChart>

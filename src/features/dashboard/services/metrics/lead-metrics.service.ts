@@ -131,30 +131,58 @@ export const getLeadMetrics = async (
     }
 
     // 6. Build Conversion Funnel
+    // Simplified, dynamic 7-stage funnel:
+    // Total, New Leads, Contacted, Qualified, In-Progress (all intermediate stages), Won, Lost
     if (stages.length > 0) {
-      leadConversion = [
-        { stage: "Total Leads", count: totalCount, percentage: 100 },
-      ];
+      const getCountByCode = (code: string) =>
+        stages
+          .filter((s) => s.code.toLowerCase() === code)
+          .reduce((sum, s) => sum + (stageCountMap.get(s.id) ?? 0), 0);
 
-      for (const stage of stages) {
-        const c = stageCountMap.get(stage.id) ?? 0;
-        const pct = totalCount > 0 ? Math.round((c / totalCount) * 100) : 0;
-        leadConversion.push({
-          stage: stage.name,
-          count: c,
-          percentage: pct,
-        });
-      }
+      const newCount = getCountByCode("new");
+      const contactedCount = getCountByCode("contacted");
+      const qualifiedCount = getCountByCode("qualified");
+
+      const qualifiedStage = stages.find((s) => s.code.toLowerCase() === "qualified");
+      const qualifiedOrder = qualifiedStage?.order ?? 3;
+      const fixedCodes = new Set(["new", "contacted", "qualified", "won", "lost"]);
+
+      // Dynamically group all stages between Qualified and Won/Lost
+      const inProgressStages = stages.filter((s) => {
+        const code = s.code.toLowerCase();
+        if (fixedCodes.has(code)) return false;
+        return s.order > qualifiedOrder;
+      });
+
+      const inProgressCount = inProgressStages.reduce(
+        (sum, s) => sum + (stageCountMap.get(s.id) ?? 0),
+        0
+      );
+
+      const calcPct = (c: number) => (totalCount > 0 ? Math.round((c / totalCount) * 100) : 0);
+
+      leadConversion = [
+        { stage: "Total", count: totalCount, percentage: totalCount > 0 ? 100 : 0 },
+        { stage: "New Leads", count: newCount, percentage: calcPct(newCount) },
+        { stage: "Contacted", count: contactedCount, percentage: calcPct(contactedCount) },
+        { stage: "Qualified", count: qualifiedCount, percentage: calcPct(qualifiedCount) },
+        { stage: "In-Progress", count: inProgressCount, percentage: calcPct(inProgressCount) },
+        { stage: "Won", count: wonCount, percentage: calcPct(wonCount) },
+        { stage: "Lost", count: lostCount, percentage: calcPct(lostCount) },
+      ];
     } else {
       const conversionRateCalc = totalCount > 0 ? Math.round((wonCount / totalCount) * 100) : 0;
       leadConversion = [
-        { stage: "Total Leads", count: totalCount, percentage: 100 },
-        { stage: "Qualified", count: Math.round(totalCount * 0.6), percentage: totalCount > 0 ? 60 : 0 },
-        { stage: "Won Deals", count: wonCount, percentage: conversionRateCalc },
-        { stage: "Lost Deals", count: lostCount, percentage: totalCount > 0 ? Math.round((lostCount / totalCount) * 100) : 0 },
+        { stage: "Total", count: totalCount, percentage: totalCount > 0 ? 100 : 0 },
+        { stage: "New Leads", count: 0, percentage: 0 },
+        { stage: "Contacted", count: 0, percentage: 0 },
+        { stage: "Qualified", count: 0, percentage: 0 },
+        { stage: "In-Progress", count: 0, percentage: 0 },
+        { stage: "Won", count: wonCount, percentage: conversionRateCalc },
+        { stage: "Lost", count: lostCount, percentage: totalCount > 0 ? Math.round((lostCount / totalCount) * 100) : 0 },
       ];
     }
-  } catch (_err) {
+  } catch {
     totalCount = 0;
     wonCount = 0;
     lostCount = 0;
@@ -166,9 +194,13 @@ export const getLeadMetrics = async (
       { source: "Social Media", count: 0, percentage: 0 },
     ];
     leadConversion = [
-      { stage: "Total Leads", count: 0, percentage: 0 },
-      { stage: "Won Deals", count: 0, percentage: 0 },
-      { stage: "Lost Deals", count: 0, percentage: 0 },
+      { stage: "Total", count: 0, percentage: 0 },
+      { stage: "New Leads", count: 0, percentage: 0 },
+      { stage: "Contacted", count: 0, percentage: 0 },
+      { stage: "Qualified", count: 0, percentage: 0 },
+      { stage: "In-Progress", count: 0, percentage: 0 },
+      { stage: "Won", count: 0, percentage: 0 },
+      { stage: "Lost", count: 0, percentage: 0 },
     ];
   }
 

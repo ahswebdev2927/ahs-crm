@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
+import { db } from "@/db";
+import { leadStages } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getPaymentMetrics } from "./payment-metrics.service";
 import { getLeadMetrics } from "./lead-metrics.service";
 import { getSalesMetrics } from "./sales-metrics.service";
@@ -56,10 +59,59 @@ describe("Dashboard Metric Providers Audit", () => {
       assert.ok(Array.isArray(metrics.leadConversion));
     });
 
+    it("aggregates lead conversion into exactly 7 stages in expected order", async () => {
+      const metrics = await getLeadMetrics(mockContext, "30d");
+
+      assert.strictEqual(metrics.leadConversion.length, 7, "Should have exactly 7 funnel stages");
+      const expectedStages = [
+        "Total",
+        "New Leads",
+        "Contacted",
+        "Qualified",
+        "In-Progress",
+        "Won",
+        "Lost",
+      ];
+      const actualStages = metrics.leadConversion.map((s) => s.stage);
+      assert.deepStrictEqual(actualStages, expectedStages);
+
+      const totalStage = metrics.leadConversion.find((s) => s.stage === "Total");
+      assert.strictEqual(totalStage?.count, metrics.totalLeads);
+
+      const wonStage = metrics.leadConversion.find((s) => s.stage === "Won");
+      assert.strictEqual(wonStage?.count, metrics.wonDeals);
+
+      const lostStage = metrics.leadConversion.find((s) => s.stage === "Lost");
+      assert.strictEqual(lostStage?.count, metrics.lostDeals);
+    });
+
     it("handles personal scope lead metrics query cleanly", async () => {
       const metrics = await getLeadMetrics(mockPersonalContext, "7d");
       assert.ok(typeof metrics.totalLeads === "number");
       assert.ok(Array.isArray(metrics.leadSources));
+      assert.strictEqual(metrics.leadConversion.length, 7);
+    });
+
+    it("dynamically rolls any intermediate pipeline stage into In-Progress", async () => {
+      const [insertedStage] = await db
+        .insert(leadStages)
+        .values({
+          name: "Site Survey Scheduled",
+          code: "site_survey_test",
+          order: 5,
+        })
+        .returning();
+
+      try {
+        const metrics = await getLeadMetrics(mockContext, "30d");
+        const inProgress = metrics.leadConversion.find((s) => s.stage === "In-Progress");
+        assert.ok(inProgress, "In-Progress stage must exist");
+        assert.strictEqual(metrics.leadConversion.length, 7, "Must retain exactly 7 consolidated stages");
+      } finally {
+        if (insertedStage?.id) {
+          await db.delete(leadStages).where(eq(leadStages.id, insertedStage.id));
+        }
+      }
     });
   });
 
