@@ -37,6 +37,7 @@ interface LeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadToEdit?: LeadItem | null;
+  defaultStageId?: number;
   stages: LeadStageItem[];
   teamUsers: UserSummary[];
   onSuccess: () => void;
@@ -46,6 +47,7 @@ export function LeadDialog({
   open,
   onOpenChange,
   leadToEdit,
+  defaultStageId,
   stages,
   teamUsers,
   onSuccess,
@@ -94,14 +96,14 @@ export function LeadDialog({
           email: "",
           source: "Inside Sales",
           priority: "medium",
-          stageId: stages[0]?.id ?? 1,
+          stageId: defaultStageId ?? stages[0]?.id ?? 1,
           ownerId: "",
           requirements: "",
           notes: "",
         });
       }
     }
-  }, [open, leadToEdit, stages, form]);
+  }, [open, leadToEdit, defaultStageId, stages, form]);
 
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true);

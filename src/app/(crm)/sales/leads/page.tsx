@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, usePathname } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { LeadFilters } from "@/features/leads/components/lead-filters";
 import { LeadTable } from "@/features/leads/components/lead-table";
 import { LeadDrawer } from "@/features/leads/components/lead-drawer";
+import { LeadDialog } from "@/features/leads/components/lead-dialog";
 import { LeadAssignDialog } from "@/features/leads/components/lead-assign-dialog";
 import { LeadStageDialog } from "@/features/leads/components/lead-stage-dialog";
 import { LeadStageManagerDialog } from "@/features/leads/components/lead-stage-manager-dialog";
@@ -13,6 +15,9 @@ import { Plus, Settings2 } from "lucide-react";
 import type { LeadItem, LeadStageItem, UserSummary } from "@/features/leads/types/lead.types";
 
 export default function LeadsPage() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
   const [leads, setLeads] = React.useState<LeadItem[]>([]);
   const [stages, setStages] = React.useState<LeadStageItem[]>([]);
   const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([]);
@@ -35,8 +40,17 @@ export default function LeadsPage() {
     totalPages: 1,
   });
 
-  // Slide-over drawer state
-  const [isLeadDrawerOpen, setIsLeadDrawerOpen] = React.useState<boolean>(false);
+  // URL-aware Lead Workspace Drawer state
+  const leadQueryParam = searchParams.get("lead");
+  const [selectedLeadId, setSelectedLeadId] = React.useState<string | null>(leadQueryParam);
+
+  React.useEffect(() => {
+    setSelectedLeadId(leadQueryParam);
+  }, [leadQueryParam]);
+
+  // Create / Edit modal dialog state
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState<boolean>(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState<boolean>(false);
   const [leadToEdit, setLeadToEdit] = React.useState<LeadItem | null>(null);
 
   const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState<boolean>(false);
@@ -123,15 +137,31 @@ export default function LeadsPage() {
     fetchLeads();
   }, [fetchLeads]);
 
-  // Handlers for Drawer & Modals
+  // Drawer handlers with URL state synchronization
+  const handleViewLead = (lead: LeadItem) => {
+    setSelectedLeadId(lead.id);
+    const params = new URLSearchParams(window.location.search);
+    params.set("lead", lead.id);
+    window.history.pushState(null, "", `${pathname}?${params.toString()}`);
+  };
+
+  const handleCloseLeadDrawer = () => {
+    setSelectedLeadId(null);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("lead");
+    const searchString = params.toString();
+    const newUrl = searchString ? `${pathname}?${searchString}` : pathname;
+    window.history.pushState(null, "", newUrl);
+  };
+
+  // Handlers for Modals
   const handleCreateLead = () => {
-    setLeadToEdit(null);
-    setIsLeadDrawerOpen(true);
+    setIsCreateDialogOpen(true);
   };
 
   const handleEditLead = (lead: LeadItem) => {
     setLeadToEdit(lead);
-    setIsLeadDrawerOpen(true);
+    setIsEditDialogOpen(true);
   };
 
   const handleAssignLead = (lead: LeadItem) => {
@@ -190,7 +220,7 @@ export default function LeadsPage() {
                 Manage Stages
               </Button>
             )}
-            <Button size="sm" onClick={handleCreateLead} className="h-9 text-xs">
+            <Button size="sm" onClick={handleCreateLead} className="h-9 text-xs cursor-pointer">
               <Plus className="h-4 w-4 mr-1.5" />
               <span>Create Lead</span>
             </Button>
@@ -240,18 +270,37 @@ export default function LeadsPage() {
           setLimit(l);
           setPage(1);
         }}
+        onViewLead={handleViewLead}
         onEditLead={handleEditLead}
         onAssignLead={handleAssignLead}
         onChangeStage={handleChangeStage}
         onArchiveLead={handleArchiveLead}
       />
 
-      {/* Create / Edit Slide-Over Drawer */}
+      {/* Unified Lead Workspace Drawer */}
       <LeadDrawer
-        open={isLeadDrawerOpen}
-        onOpenChange={setIsLeadDrawerOpen}
+        leadId={selectedLeadId}
+        open={Boolean(selectedLeadId)}
+        onOpenChange={(open) => {
+          if (!open) handleCloseLeadDrawer();
+        }}
+        onLeadUpdated={fetchLeads}
+      />
+
+      {/* Create Lead Dialog */}
+      <LeadDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        stages={stages}
+        teamUsers={teamUsers}
+        onSuccess={fetchLeads}
+      />
+
+      {/* Edit Lead Dialog */}
+      <LeadDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
         leadToEdit={leadToEdit}
-        currentUserId={currentUserId}
         stages={stages}
         teamUsers={teamUsers}
         onSuccess={fetchLeads}

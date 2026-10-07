@@ -56,6 +56,7 @@ interface LeadTableProps {
   };
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
+  onViewLead?: (lead: LeadItem) => void;
   onEditLead: (lead: LeadItem) => void;
   onAssignLead: (lead: LeadItem) => void;
   onChangeStage: (lead: LeadItem) => void;
@@ -69,6 +70,7 @@ export function LeadTable({
   pagination,
   onPageChange,
   onLimitChange,
+  onViewLead,
   onEditLead,
   onAssignLead,
   onChangeStage,
@@ -156,12 +158,22 @@ export function LeadTable({
                     {/* Lead / Company */}
                     <TableCell className="font-medium">
                       <div className="space-y-0.5">
-                        <Link
-                          href={`/sales/leads/${lead.id}`}
-                          className="text-sm font-semibold hover:text-primary transition-colors line-clamp-1"
-                        >
-                          {lead.name}
-                        </Link>
+                        {onViewLead ? (
+                          <button
+                            type="button"
+                            onClick={() => onViewLead(lead)}
+                            className="text-sm font-semibold hover:text-primary transition-colors line-clamp-1 text-left cursor-pointer"
+                          >
+                            {lead.name}
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/sales/leads/${lead.id}`}
+                            className="text-sm font-semibold hover:text-primary transition-colors line-clamp-1"
+                          >
+                            {lead.name}
+                          </Link>
+                        )}
                         {lead.company && (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
                             <Building2 className="h-3 w-3 shrink-0" />
@@ -239,7 +251,16 @@ export function LeadTable({
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => router.push(`/sales/leads/${lead.id}`)} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              if (onViewLead) {
+                                onViewLead(lead);
+                              } else {
+                                router.push(`/sales/leads/${lead.id}`);
+                              }
+                            }}
+                            className="cursor-pointer"
+                          >
                             <Eye className="h-4 w-4 mr-2 text-muted-foreground" />
                             View Workspace
                           </DropdownMenuItem>

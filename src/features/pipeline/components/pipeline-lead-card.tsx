@@ -21,6 +21,7 @@ export interface PipelineLeadCardContentProps {
   listeners?: Record<string, any>
   isDragging?: boolean
   isOverlay?: boolean
+  onViewLead?: (lead: LeadItem) => void
   onEdit?: (lead: LeadItem) => void
   onViewHistory?: (lead: LeadItem) => void
   className?: string
@@ -32,6 +33,7 @@ export function PipelineLeadCardContent({
   listeners,
   isDragging = false,
   isOverlay = false,
+  onViewLead,
   onEdit,
   onViewHistory,
   className,
@@ -44,7 +46,11 @@ export function PipelineLeadCardContent({
         if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("a")) {
           return
         }
-        onEdit?.(lead)
+        if (onViewLead) {
+          onViewLead(lead)
+        } else {
+          onEdit?.(lead)
+        }
       }}
       className={cn(
         "group relative flex flex-col gap-2 rounded-lg border border-border/80 bg-card p-3.5 shadow-2xs transition-all hover:border-primary/40 hover:shadow-xs dark:bg-card/90 cursor-pointer",
@@ -69,7 +75,13 @@ export function PipelineLeadCardContent({
 
           <button
             type="button"
-            onClick={() => onEdit?.(lead)}
+            onClick={() => {
+              if (onViewLead) {
+                onViewLead(lead)
+              } else {
+                onEdit?.(lead)
+              }
+            }}
             className="font-medium text-sm text-foreground hover:text-primary transition-colors truncate text-left cursor-pointer"
           >
             {lead.name}
@@ -89,7 +101,13 @@ export function PipelineLeadCardContent({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
-                onClick={() => router.push(`/sales/leads/${lead.id}`)}
+                onClick={() => {
+                  if (onViewLead) {
+                    onViewLead(lead)
+                  } else {
+                    router.push(`/sales/leads/${lead.id}`)
+                  }
+                }}
                 className="cursor-pointer"
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-2" />
@@ -160,6 +178,7 @@ export function PipelineLeadCardContent({
 
 interface PipelineLeadCardProps {
   lead: LeadItem
+  onViewLead?: (lead: LeadItem) => void
   onEdit?: (lead: LeadItem) => void
   onViewHistory?: (lead: LeadItem) => void
   className?: string
@@ -167,6 +186,7 @@ interface PipelineLeadCardProps {
 
 export function PipelineLeadCard({
   lead,
+  onViewLead,
   onEdit,
   onViewHistory,
   className,
@@ -179,6 +199,7 @@ export function PipelineLeadCard({
           attributes={attributes}
           listeners={listeners}
           isDragging={isDragging}
+          onViewLead={onViewLead}
           onEdit={onEdit}
           onViewHistory={onViewHistory}
         />

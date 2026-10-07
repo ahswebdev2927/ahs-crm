@@ -21,6 +21,7 @@ import type {
 interface PipelineBoardProps {
   initialBoardData?: PipelineBoardData
   teamUsers: UserSummary[]
+  onViewLead?: (lead: LeadItem) => void
   onEditLead?: (lead: LeadItem) => void
   onCreateLead?: (stageId?: number) => void
 }
@@ -28,6 +29,7 @@ interface PipelineBoardProps {
 export function PipelineBoard({
   initialBoardData,
   teamUsers,
+  onViewLead,
   onEditLead,
   onCreateLead,
 }: PipelineBoardProps) {
@@ -387,6 +389,7 @@ export function PipelineBoard({
                     <PipelineLeadCard
                       key={lead.id}
                       lead={lead}
+                      onViewLead={onViewLead}
                       onEdit={handleOpenEdit}
                       onViewHistory={handleOpenHistory}
                     />

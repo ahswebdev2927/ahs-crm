@@ -3,3 +3,5 @@ export * from "./schemas/lead-partner.schema";
 export * from "./types/lead.types";
 export * from "./repositories/lead.repository";
 export * from "./services/lead.service";
+export * from "./components/lead-workspace";
+export * from "./components/lead-drawer";
