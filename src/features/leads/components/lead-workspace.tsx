@@ -33,6 +33,7 @@ import {
   PhoneCall,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import type { LeadDetail, LeadPriority, LeadStageItem, UserSummary } from "../types/lead.types";
 import { LeadPartnershipSection } from "./partnership/lead-partnership-section";
 import { LeadFollowUpsTab } from "@/features/followups/components/lead-followups-tab";
@@ -41,6 +42,7 @@ import { LeadActivityTimeline } from "./lead-activity-timeline";
 import { LeadDialog } from "./lead-dialog";
 import { LeadStageDialog } from "./lead-stage-dialog";
 import { LeadAssignDialog } from "./lead-assign-dialog";
+import { CustomerConvertDialog } from "@/features/customers/components/customer-convert-dialog";
 
 export interface LeadWorkspaceProps {
   leadId: string;
@@ -57,6 +59,7 @@ export function LeadWorkspace({
   onLeadUpdated,
   className,
 }: LeadWorkspaceProps) {
+  const router = useRouter();
   const [lead, setLead] = React.useState<LeadDetail | null>(null);
   const [stages, setStages] = React.useState<LeadStageItem[]>([]);
   const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([]);
@@ -68,6 +71,7 @@ export function LeadWorkspace({
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState<boolean>(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState<boolean>(false);
   const [isStageDialogOpen, setIsStageDialogOpen] = React.useState<boolean>(false);
+  const [isConvertDialogOpen, setIsConvertDialogOpen] = React.useState<boolean>(false);
 
   // Fetch session user
   React.useEffect(() => {
@@ -273,6 +277,14 @@ export function LeadWorkspace({
               >
                 <UserCheck className="h-3.5 w-3.5 mr-1.5" />
                 Reassign Owner
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsConvertDialogOpen(true)}
+                className="h-8 text-xs cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                Convert to Customer
               </Button>
             </>
           ) : (
@@ -592,6 +604,16 @@ export function LeadWorkspace({
           lead={lead}
           teamUsers={teamUsers}
           onSuccess={handleMutationSuccess}
+        />
+
+        <CustomerConvertDialog
+          open={isConvertDialogOpen}
+          onOpenChange={setIsConvertDialogOpen}
+          lead={lead}
+          onSuccess={(newCustomerId) => {
+            handleMutationSuccess();
+            router.push(`/customers/customers/${newCustomerId}`);
+          }}
         />
       </React.Fragment>
     </div>
