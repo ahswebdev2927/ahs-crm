@@ -1,35 +1,47 @@
 import { NextRequest } from "next/server";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
-import { requireAuth, checkPermission } from "@/features/auth/services/authorization.service";
-import { db } from "@/db";
-import { customers } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { requireAuth } from "@/features/auth/services/authorization.service";
+import {
+  getCustomers,
+  createCustomer,
+} from "@/features/customers/services/customer.service";
 
+/**
+ * GET /api/customers
+ * Returns paginated, searchable, and filtered list of customers based on user permissions and data visibility.
+ * Backward compatibility preserved: returns data.items and data.customers.
+ */
 export const GET = withErrorHandling(async (request: NextRequest) => {
-  await requireAuth();
-  await checkPermission("customers:view");
+  const user = await requireAuth();
+  const { searchParams } = new URL(request.url);
+  const queryParams = Object.fromEntries(searchParams.entries());
 
-  const searchParams = request.nextUrl.searchParams;
-  const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);
-
-  const items = await db
-    .select({
-      id: customers.id,
-      name: customers.name,
-      company: customers.company,
-      phone: customers.phone,
-      email: customers.email,
-      status: customers.status,
-    })
-    .from(customers)
-    .where(eq(customers.status, "active"))
-    .orderBy(desc(customers.createdAt))
-    .limit(limit);
+  const result = await getCustomers(user, queryParams as any);
 
   return successResponse({
     statusCode: 200,
     message: "Customers retrieved successfully.",
-    data: { items, customers: items },
+    data: {
+      ...result,
+      customers: result.items,
+    },
+  });
+});
+
+/**
+ * POST /api/customers
+ * Creates a direct external customer (bypassing the lead pipeline).
+ */
+export const POST = withErrorHandling(async (request: NextRequest) => {
+  const user = await requireAuth();
+  const body = await request.json();
+
+  const customer = await createCustomer(user, body);
+
+  return successResponse({
+    statusCode: 201,
+    message: "Customer created successfully.",
+    data: { customer },
   });
 });
