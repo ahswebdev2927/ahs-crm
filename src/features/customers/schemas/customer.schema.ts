@@ -62,4 +62,5 @@ export const customerQuerySchema = z.object({
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
 export type ConvertLeadToCustomerInput = z.infer<typeof convertLeadToCustomerSchema>;
-export type CustomerQueryInput = z.infer<typeof customerQuerySchema>;
+export type CustomerQueryInput = z.input<typeof customerQuerySchema>;
+export type CustomerQueryOutput = z.infer<typeof customerQuerySchema>;

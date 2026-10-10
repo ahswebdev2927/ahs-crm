@@ -111,6 +111,32 @@ export const checkAnyPermission = async (
 };
 
 /**
+ * Asserts that the provided authenticated user object has the required permission.
+ * Throws AppError 403 if they do not.
+ */
+export const assertUserPermission = (
+  user: AuthenticatedUserPayload,
+  permissionCode: string
+): void => {
+  if (user.role.code === "super_admin") {
+    return;
+  }
+
+  if (!user.permissions.includes(permissionCode)) {
+    logAuthzFailure({
+      userId: user.id,
+      requiredPermission: permissionCode,
+      reason: "Missing permission code",
+    });
+    throw new AppError(
+      `Access denied. You do not have the required permission: ${permissionCode}`,
+      403,
+      "FORBIDDEN"
+    );
+  }
+};
+
+/**
  * Generates a Drizzle ORM filter condition for Lead visibility based strictly on user role:
  * - Admin (super_admin): Sees ALL leads across the company.
  * - Manager (sales_manager): Sees leads in Manager's team (teamId) + own/created/partnered.
@@ -199,6 +225,102 @@ export const getLeadVisibilityFilter = (
 };
 
 /**
+ * Builds the data visibility SQL WHERE filter for Customers based on user role and data visibility level.
+ * - Admin (super_admin): Sees ALL customers across the company.
+ * - Manager (sales_manager): Sees customers owned by their team members (teamId) + own customers + customers converted from own/team leads.
+ * - Sales Reps: Sees customers they own (ownerId) OR customers converted from leads they owned/created/partnered on.
+ */
+export const getCustomerVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  dataVisibility?: string,
+  teamId?: number | null
+) => {
+  // 1. Super Admin with 'all' visibility sees all customers
+  if (roleCode === "super_admin" && (dataVisibility === "all" || !dataVisibility)) {
+    return undefined;
+  }
+
+  // 2. Sales Manager with 'team' visibility sees team customers + own customers + customers from team leads
+  if (roleCode === "sales_manager" && (dataVisibility === "team" || !dataVisibility) && teamId) {
+    return or(
+      eq(customers.ownerId, userId),
+      exists(
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              isNotNull(customers.ownerId),
+              eq(users.id, customers.ownerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select()
+          .from(leads)
+          .where(
+            and(
+              isNotNull(customers.leadId),
+              eq(leads.id, customers.leadId!),
+              or(
+                eq(leads.ownerId, userId),
+                eq(leads.createdById, userId),
+                exists(
+                  db
+                    .select()
+                    .from(users)
+                    .where(
+                      and(
+                        isNotNull(leads.ownerId),
+                        eq(users.id, leads.ownerId!),
+                        eq(users.teamId, teamId)
+                      )
+                    )
+                )
+              )
+            )
+          )
+      )
+    );
+  }
+
+  // 3. Sales Reps / fallback: own customers OR customers converted from own/partnered leads
+  return or(
+    eq(customers.ownerId, userId),
+    exists(
+      db
+        .select()
+        .from(leads)
+        .where(
+          and(
+            isNotNull(customers.leadId),
+            eq(leads.id, customers.leadId!),
+            or(
+              eq(leads.ownerId, userId),
+              eq(leads.createdById, userId),
+              exists(
+                db
+                  .select()
+                  .from(leadPartners)
+                  .where(
+                    and(
+                      eq(leadPartners.leadId, leads.id),
+                      eq(leadPartners.partnerId, userId),
+                      eq(leadPartners.status, "active")
+                    )
+                  )
+              )
+            )
+          )
+        )
+    )
+  );
+};
+
+/**
  * Checks if the user has permission and visibility to perform the requested action on a Lead.
  * BUSINESS RULE ENFORCED:
  * - VIEW: Admin sees all; Manager sees team + own/partnered; Members see own + partnered.
@@ -207,11 +329,14 @@ export const getLeadVisibilityFilter = (
  */
 export const checkLeadAccess = async (
   leadId: string,
-  action: "view" | "create" | "edit" | "delete" | "assign" | "export"
+  action: "view" | "create" | "edit" | "delete" | "assign" | "export",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
-  const user = await checkPermission(
-    `leads:${action === "delete" || action === "assign" ? "edit" : action === "export" ? "view" : action}`
-  );
+  const permCode = `leads:${action === "delete" || action === "assign" ? "edit" : action === "export" ? "view" : action}`;
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
+  }
 
   const lead = await db
     .select({
@@ -298,9 +423,14 @@ export const checkLeadAccess = async (
  */
 export const checkCustomerAccess = async (
   customerId: string,
-  _action: "view" | "edit" | "delete"
+  action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
-  const user = await checkPermission("customers:view");
+  const permCode = action === "view" ? "customers:view" : "customers:edit";
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
+  }
 
   if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
     return user;
@@ -326,7 +456,7 @@ export const checkCustomerAccess = async (
 
   if (customer.leadId) {
     try {
-      await checkLeadAccess(customer.leadId, "view");
+      await checkLeadAccess(customer.leadId, action === "view" ? "view" : "edit");
       return user;
     } catch (_e) {
       // Ignored
@@ -334,7 +464,7 @@ export const checkCustomerAccess = async (
   }
 
   throw new AppError(
-    "Access denied. You do not have visibility permissions for this customer.",
+    "Access denied. You do not have permissions for this customer.",
     403,
     "FORBIDDEN"
   );

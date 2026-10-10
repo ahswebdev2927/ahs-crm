@@ -3,6 +3,7 @@ import type {
   UpdateCustomerInput,
   ConvertLeadToCustomerInput,
   CustomerQueryInput,
+  CustomerQueryOutput,
 } from "../schemas/customer.schema";
 
 export type {
@@ -10,6 +11,7 @@ export type {
   UpdateCustomerInput,
   ConvertLeadToCustomerInput,
   CustomerQueryInput,
+  CustomerQueryOutput,
 };
 
 export type CustomerStatus = "active" | "inactive";
