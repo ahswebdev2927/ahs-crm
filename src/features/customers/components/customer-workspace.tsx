@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { CustomerDetail, UserSummary } from "../types/customer.types";
 import { CustomerDialog } from "./customer-dialog";
+import { CustomerServicesTab } from "@/features/services/components/customer-services-tab";
 
 export interface CustomerWorkspaceProps {
   customerId: string;
@@ -394,26 +395,14 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
 
             {/* Services Tab */}
             <TabsContent value="services" className="mt-3">
-              <Card className="border border-border shadow-xs bg-card">
-                <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                    <Briefcase className="h-4 w-4 text-primary" />
-                    Subscribed & One-Time Services
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-5 pb-5">
-                  <div className="h-36 flex flex-col items-center justify-center border border-dashed border-border rounded-lg text-center p-4 text-muted-foreground space-y-1.5">
-                    <Briefcase className="h-6 w-6 text-muted-foreground/60" />
-                    <p className="text-xs font-medium text-foreground">
-                      {customer.stats.totalCustomerServices} Registered Service Contracts
-                    </p>
-                    <p className="text-[11px] max-w-sm">
-                      Catalog attachments, agreed pricing, and recurring renewals. Integrated in Phase 18 (Services).
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <CustomerServicesTab
+                customerId={customer.id}
+                customerName={customer.name}
+                onSubscriptionChange={fetchCustomerDetails}
+              />
             </TabsContent>
+
+
 
             {/* Billing Tab */}
             <TabsContent value="billing" className="mt-3">
