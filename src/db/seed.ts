@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions, appointments, followUps, fieldVisits, customers, services } from "./schema";
+import { departments, roles, permissions, rolePermissions, teams, users, leadStages, leads, leadStageHistory, leadPartners, sessions, userPermissions, appointments, followUps, fieldVisits, customers, services, customerServices } from "./schema";
+import { SEED_SERVICES, SEED_CUSTOMER_SERVICES } from "./seed-data/services-catalog";
 import * as bcrypt from "bcryptjs";
 
 async function main() {
@@ -14,6 +15,7 @@ async function main() {
   await db.delete(fieldVisits);
   await db.delete(appointments);
   await db.delete(followUps);
+  await db.delete(customerServices);
   await db.delete(customers);
   await db.delete(services);
   await db.delete(sessions);
@@ -61,7 +63,13 @@ async function main() {
     { code: "tasks:view", name: "View Tasks", description: "Access personal tasks list" },
     { code: "tasks:create", name: "Create Tasks", description: "Create a new action task" },
     { code: "customers:view", name: "View Customers", description: "Access client/customer details" },
+    { code: "customers:create", name: "Create Customers", description: "Register new customers" },
+    { code: "customers:edit", name: "Edit Customers", description: "Update customer records and contacts" },
+    { code: "customers:delete", name: "Delete Customers", description: "Delete or archive customer accounts" },
     { code: "services:view", name: "View Services", description: "View the service catalog" },
+    { code: "services:create", name: "Create Services", description: "Create new catalog service items" },
+    { code: "services:edit", name: "Edit Services", description: "Update catalog services and sync with website" },
+    { code: "services:delete", name: "Delete Services", description: "Archive or delete catalog services" },
     { code: "quotations:view", name: "View Quotations", description: "Access billing quotes" },
     { code: "quotations:create", name: "Create Quotations", description: "Generate billing quotes" },
     { code: "invoices:view", name: "View Invoices", description: "Access client invoice structures" },
@@ -114,6 +122,8 @@ async function main() {
         "tasks:view",
         "tasks:create",
         "customers:view",
+        "customers:create",
+        "customers:edit",
         "services:view",
         "quotations:view",
         "quotations:create",
@@ -137,6 +147,8 @@ async function main() {
         "appointments:create",
         "tasks:view",
         "customers:view",
+        "customers:create",
+        "customers:edit",
         "services:view",
         "quotations:view",
         "invoices:view",
@@ -540,7 +552,15 @@ async function main() {
   ];
   await db.insert(customers).values(sampleCustomers);
 
-  // 12. Seed Sample Appointments
+  // 12. Seed Services Catalog (32 live plans from AHS public website)
+  console.log("Seeding services catalog (32 live packages & plans)...");
+  await db.insert(services).values(SEED_SERVICES);
+
+  // 13. Seed Sample Customer Services / Subscriptions
+  console.log("Seeding sample customer subscriptions & snapshots...");
+  await db.insert(customerServices).values(SEED_CUSTOMER_SERVICES);
+
+  // 14. Seed Sample Appointments
   console.log("Seeding sample appointments...");
   const now = new Date();
 
