@@ -28,9 +28,16 @@ import {
 } from "lucide-react";
 import { ServiceFormDialog } from "./service-form-dialog";
 import type { CatalogServiceItem, ServiceKpis } from "../types/service.types";
+import { useAuth } from "@/contexts/auth-context";
+
 
 export function ServiceCatalogWorkspace() {
+  const { user, hasPermission } = useAuth();
+  const canManageServices = user?.roleCode === "super_admin" || (hasPermission("services:create") && hasPermission("services:edit"));
+  const canEditServices = user?.roleCode === "super_admin" || hasPermission("services:edit");
+
   const [services, setServices] = useState<CatalogServiceItem[]>([]);
+
   const [kpis, setKpis] = useState<ServiceKpis | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -185,30 +192,33 @@ export function ServiceCatalogWorkspace() {
           { label: "Service Catalog" },
         ]}
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSyncWebsite}
-              disabled={syncing}
-              className="h-8 text-xs cursor-pointer border-border hover:bg-muted"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin text-primary" : ""}`} />
-              <span>{syncing ? "Syncing..." : "Sync from Website"}</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingService(null);
-                setFormDialogOpen(true);
-              }}
-              className="h-8 text-xs cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              <span>Add Service Plan</span>
-            </Button>
-          </div>
+          canManageServices ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncWebsite}
+                disabled={syncing}
+                className="h-8 text-xs cursor-pointer border-border hover:bg-muted"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin text-primary" : ""}`} />
+                <span>{syncing ? "Syncing..." : "Sync from Website"}</span>
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingService(null);
+                  setFormDialogOpen(true);
+                }}
+                className="h-8 text-xs cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                <span>Add Service Plan</span>
+              </Button>
+            </div>
+          ) : undefined
         }
+
       />
 
       <div className="w-full px-4 sm:px-5 xl:px-6 space-y-4">
@@ -500,19 +510,22 @@ export function ServiceCatalogWorkspace() {
                             )}
                           </span>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingService(p);
-                              setFormDialogOpen(true);
-                            }}
-                            className="h-7 text-xs px-2 cursor-pointer hover:bg-muted"
-                          >
-                            <Edit className="h-3 w-3 mr-1" /> Edit
-                          </Button>
+                          {canEditServices && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingService(p);
+                                setFormDialogOpen(true);
+                              }}
+                              className="h-7 text-xs px-2 cursor-pointer hover:bg-muted"
+                            >
+                              <Edit className="h-3 w-3 mr-1" /> Edit
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
+
                     </Card>
                   ))}
                 </div>
@@ -582,18 +595,23 @@ export function ServiceCatalogWorkspace() {
                         </Badge>
                       </td>
                       <td className="py-2.5 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingService(p);
-                            setFormDialogOpen(true);
-                          }}
-                          className="h-7 text-xs px-2 cursor-pointer"
-                        >
-                          <Edit className="h-3 w-3 mr-1" /> Edit
-                        </Button>
+                        {canEditServices ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingService(p);
+                              setFormDialogOpen(true);
+                            }}
+                            className="h-7 text-xs px-2 cursor-pointer"
+                          >
+                            <Edit className="h-3 w-3 mr-1" /> Edit
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground/30 text-xs">—</span>
+                        )}
                       </td>
+
                     </tr>
                   ))}
                 </tbody>
