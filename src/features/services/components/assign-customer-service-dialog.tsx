@@ -55,30 +55,42 @@ export function AssignCustomerServiceDialog({
     if (open) {
       setLoadingCatalog(true);
       fetch("/api/services?limit=100&status=active")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.data?.services) {
-            setCatalog(data.data.services);
-            if (data.data.services.length > 0) {
-              const first = data.data.services[0];
+        .then(async (res) => {
+          const data = await res.json();
+          if (res.ok && (data.data?.services || Array.isArray(data.data?.items))) {
+            const items: CatalogServiceItem[] = data.data.services || data.data.items || [];
+            setCatalog(items);
+            if (items.length > 0) {
+              const first = items[0];
               setSelectedCategoryKey(first.categoryKey);
               setSelectedServiceType(first.serviceType);
               setSelectedServiceId(first.id);
               setAgreedPriceRupees(String(Math.round(first.price / 100)));
+            } else {
+              setSelectedCategoryKey("");
+              setSelectedServiceType("");
+              setSelectedServiceId("");
+              setAgreedPriceRupees("");
             }
+          } else {
+            toast.add({
+              type: "error",
+              title: "Error",
+              description: data.message || "Failed to load active catalog services.",
+            });
           }
         })
         .catch(() =>
           toast.add({
             type: "error",
-            title: "Error",
+            title: "Connection Error",
             description: "Failed to load active catalog services.",
           })
         )
         .finally(() => setLoadingCatalog(false));
-
     }
   }, [open]);
+
 
   // Derived category options
   const categoryOptions = useMemo(() => {
@@ -248,63 +260,82 @@ export function AssignCustomerServiceDialog({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-            {/* 3-Level Cascading Selector */}
-            <div className="space-y-3 p-3 rounded-lg border border-border/70 bg-muted/20">
-              <div className="space-y-1.5">
-                <label htmlFor="cat-select" className="text-xs font-medium">
-                  1. Service Category
-                </label>
-                <select
-                  id="cat-select"
-                  className="w-full h-9 px-3 py-1 bg-background border border-input rounded-md text-xs"
-                  value={selectedCategoryKey}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                >
-                  {categoryOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+            {catalog.length === 0 ? (
+              <div className="p-4 rounded-lg border border-amber-200/80 bg-amber-50/50 dark:bg-amber-950/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                <p className="font-semibold">No active services found in catalog.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Please open the Service Catalog and click &quot;Sync from Website&quot; or create a service plan first.
+                </p>
               </div>
+            ) : (
+              /* 3-Level Cascading Selector */
+              <div className="space-y-3 p-3 rounded-lg border border-border/70 bg-muted/20">
+                <div className="space-y-1.5">
+                  <label htmlFor="cat-select" className="text-xs font-medium text-foreground">
+                    1. Service Category
+                  </label>
+                  <select
+                    id="cat-select"
+                    className="w-full h-9 px-3 py-1 bg-background text-foreground border border-input rounded-md text-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-card [&>option]:text-foreground"
+                    value={selectedCategoryKey}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                  >
+                    {categoryOptions.length === 0 && (
+                      <option value="">No categories available</option>
+                    )}
+                    {categoryOptions.map((opt) => (
+                      <option key={opt.key} value={opt.key}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="type-select" className="text-xs font-medium">
-                  2. Service Type
-                </label>
-                <select
-                  id="type-select"
-                  className="w-full h-9 px-3 py-1 bg-background border border-input rounded-md text-xs"
-                  value={selectedServiceType}
-                  onChange={(e) => handleServiceTypeChange(e.target.value)}
-                >
-                  {serviceTypeOptions.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="type-select" className="text-xs font-medium text-foreground">
+                    2. Service Type
+                  </label>
+                  <select
+                    id="type-select"
+                    className="w-full h-9 px-3 py-1 bg-background text-foreground border border-input rounded-md text-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-card [&>option]:text-foreground"
+                    value={selectedServiceType}
+                    onChange={(e) => handleServiceTypeChange(e.target.value)}
+                  >
+                    {serviceTypeOptions.length === 0 && (
+                      <option value="">No service types for category</option>
+                    )}
+                    {serviceTypeOptions.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="plan-select" className="text-xs font-medium">
-                  3. Plan / Package Tier
-                </label>
-                <select
-                  id="plan-select"
-                  className="w-full h-9 px-3 py-1 bg-background border border-input rounded-md text-xs font-medium"
-                  value={selectedServiceId}
-                  onChange={(e) => handlePlanChange(Number(e.target.value))}
-                >
-                  {planOptions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.plan} — ₹{(p.price / 100).toLocaleString("en-IN")}{" "}
-                      {p.billingModel === "monthly" ? "/mo" : " (One-time)"}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-1.5">
+                  <label htmlFor="plan-select" className="text-xs font-medium text-foreground">
+                    3. Plan / Package Tier
+                  </label>
+                  <select
+                    id="plan-select"
+                    className="w-full h-9 px-3 py-1 bg-background text-foreground border border-input rounded-md text-xs font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring [&>option]:bg-card [&>option]:text-foreground"
+                    value={selectedServiceId}
+                    onChange={(e) => handlePlanChange(Number(e.target.value))}
+                  >
+                    {planOptions.length === 0 && (
+                      <option value="">No plans for selected type</option>
+                    )}
+                    {planOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.plan} — ₹{(p.price / 100).toLocaleString("en-IN")}{" "}
+                        {p.billingModel === "monthly" ? "/mo" : " (One-time)"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
+
 
             {/* Catalog Price Snapshot Preview */}
             {selectedService && (
