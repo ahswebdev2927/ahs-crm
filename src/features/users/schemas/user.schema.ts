@@ -9,9 +9,25 @@ export const userPermissionOverrideSchema = z.object({
   type: permissionOverrideTypeEnum,
 });
 
+export const optionalTeamNameSchema = z
+  .union([
+    z.string().trim().min(2, "Team name must be at least 2 characters long."),
+    z.literal(""),
+    z.null(),
+  ])
+  .optional()
+  .transform((val) => (val === "" || val === null || val === undefined ? undefined : val));
+
+export const optionalManagerIdSchema = z
+  .string()
+  .trim()
+  .nullable()
+  .optional()
+  .transform((val) => (val === "" || val === null || val === undefined ? null : val));
+
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters long."),
-  email: z.string().trim().email("Please provide a valid email address."),
+  email: z.string().trim().email("Please provide a valid work email address."),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters long.")
@@ -21,20 +37,20 @@ export const createUserSchema = z.object({
   roleId: z.number().int().positive("Role is required."),
   departmentId: z.number().int().positive().nullable().optional(),
   teamId: z.number().int().positive().nullable().optional(),
-  managerId: z.string().trim().nullable().optional(),
-  teamName: z.string().trim().min(2, "Team name must be at least 2 characters.").optional(),
+  managerId: optionalManagerIdSchema,
+  teamName: optionalTeamNameSchema,
   dataVisibility: dataVisibilityEnum.default("own"),
   permissions: z.array(userPermissionOverrideSchema).optional().default([]),
 });
 
 export const updateUserSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters long.").optional(),
-  email: z.string().trim().email("Please provide a valid email address.").optional(),
+  email: z.string().trim().email("Please provide a valid work email address.").optional(),
   roleId: z.number().int().positive("Role must be valid.").optional(),
   departmentId: z.number().int().positive().nullable().optional(),
   teamId: z.number().int().positive().nullable().optional(),
-  managerId: z.string().trim().nullable().optional(),
-  teamName: z.string().trim().min(2, "Team name must be at least 2 characters.").optional(),
+  managerId: optionalManagerIdSchema,
+  teamName: optionalTeamNameSchema,
   dataVisibility: dataVisibilityEnum.optional(),
   status: userStatusEnum.optional(),
   permissions: z.array(userPermissionOverrideSchema).optional(),

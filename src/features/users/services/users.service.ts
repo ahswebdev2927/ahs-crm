@@ -75,12 +75,21 @@ export class UsersService {
     const targetRole = rolesList.find((r) => r.id === input.roleId);
     const isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
 
-    if (isManagerRole && (!input.teamName || input.teamName.trim() === "")) {
-      throw new AppError("Team Name is required when creating a Manager account.", 400, "BAD_REQUEST");
-    }
+    let effectiveTeamName = input.teamName;
+    let effectiveManagerId = input.managerId;
 
-    if (!isManagerRole && (!input.managerId || input.managerId.trim() === "")) {
-      throw new AppError("Selecting an assigned Manager is required when creating a non-manager team member.", 400, "BAD_REQUEST");
+    if (isManagerRole) {
+      effectiveTeamName = input.teamName && input.teamName.trim() ? input.teamName.trim() : `${input.name}'s Team`;
+      effectiveManagerId = null;
+    } else {
+      if (!effectiveManagerId || effectiveManagerId.trim() === "") {
+        const availableManagers = await UsersRepository.getAvailableManagers(input.departmentId ?? undefined);
+        if (availableManagers.length > 0) {
+          effectiveManagerId = availableManagers[0].id;
+        } else {
+          throw new AppError("Selecting an assigned Manager is required when creating a team member.", 400, "BAD_REQUEST");
+        }
+      }
     }
 
     // 3. Hash initial password
@@ -96,18 +105,18 @@ export class UsersService {
       roleId: input.roleId,
       departmentId: input.departmentId,
       teamId: input.teamId,
-      managerId: input.managerId,
-      teamName: input.teamName,
+      managerId: effectiveManagerId,
+      teamName: effectiveTeamName,
       dataVisibility: input.dataVisibility,
       status: "active",
     });
 
-    // 4. Set custom permissions if provided
+    // 5. Set custom permissions if provided
     if (input.permissions && input.permissions.length > 0) {
       await UsersRepository.setUserPermissions(newUserId, input.permissions);
     }
 
-    // 5. Audit Log Entry
+    // 6. Audit Log Entry
     await db.insert(auditLogs).values({
       userId: actor.id,
       action: "USER_CREATED",
@@ -119,7 +128,7 @@ export class UsersService {
         roleId: input.roleId,
         departmentId: input.departmentId,
         teamId: input.teamId,
-        managerId: input.managerId,
+        managerId: effectiveManagerId,
         dataVisibility: input.dataVisibility,
       }),
     });
@@ -180,7 +189,7 @@ export class UsersService {
       // SuperAdmin full update logic
       if (input.email && input.email.toLowerCase() !== user.email.toLowerCase()) {
         const existing = await UsersRepository.findUserByEmail(input.email);
-        if (existing) {
+        if (existing && existing.id !== id) {
           throw new AppError("A user with this email address already exists.", 409, "CONFLICT");
         }
       }
@@ -192,6 +201,7 @@ export class UsersService {
         departmentId: input.departmentId,
         teamId: input.teamId,
         managerId: input.managerId,
+        teamName: input.teamName,
         dataVisibility: input.dataVisibility,
         status: (input as any).status,
       });

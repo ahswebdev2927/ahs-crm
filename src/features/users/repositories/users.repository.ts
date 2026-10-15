@@ -7,6 +7,7 @@ import {
   departments,
   teams,
   permissions,
+  rolePermissions,
   userPermissions,
   sessions,
 } from "@/db/schema";
@@ -330,6 +331,7 @@ export class UsersRepository {
       departmentId?: number | null;
       teamId?: number | null;
       managerId?: string | null;
+      teamName?: string;
       dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
       status?: "active" | "inactive" | "suspended";
       updatedAt?: Date;
@@ -341,21 +343,78 @@ export class UsersRepository {
 
     if (data.name !== undefined) updatePayload.name = data.name;
     if (data.email !== undefined) updatePayload.email = data.email.toLowerCase().trim();
-    if (data.roleId !== undefined) updatePayload.roleId = data.roleId;
     if (data.departmentId !== undefined) updatePayload.departmentId = data.departmentId;
     if (data.dataVisibility !== undefined) updatePayload.dataVisibility = data.dataVisibility;
     if (data.status !== undefined) updatePayload.status = data.status;
 
+    // Handle role updates and manager/team provisioning
+    if (data.roleId !== undefined) {
+      updatePayload.roleId = data.roleId;
+      const targetRole = await db.select().from(roles).where(eq(roles.id, data.roleId)).get();
+      const isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
+
+      if (isManagerRole) {
+        // If user is a manager, check if they already manage a team
+        const existingTeam = await db.select().from(teams).where(eq(teams.managerId, id)).get();
+        if (existingTeam) {
+          if (data.teamName && data.teamName.trim()) {
+            await db
+              .update(teams)
+              .set({ name: data.teamName.trim(), updatedAt: new Date() })
+              .where(eq(teams.id, existingTeam.id));
+          }
+          updatePayload.teamId = existingTeam.id;
+          updatePayload.managerId = null;
+        } else {
+          // Provision a new team for the manager
+          const teamCodeStr = `team_${id.substring(0, 8)}`;
+          const teamNameStr =
+            data.teamName && data.teamName.trim()
+              ? data.teamName.trim()
+              : `${data.name || "Sales"}'s Team`;
+
+          const [newTeam] = await db
+            .insert(teams)
+            .values({
+              name: teamNameStr,
+              code: teamCodeStr,
+              departmentId: data.departmentId ?? 1,
+              managerId: id,
+            })
+            .returning();
+
+          updatePayload.teamId = newTeam.id;
+          updatePayload.managerId = null;
+        }
+      }
+    } else if (data.teamName && data.teamName.trim()) {
+      // User is already a manager and updating their team name
+      const existingTeam = await db.select().from(teams).where(eq(teams.managerId, id)).get();
+      if (existingTeam) {
+        await db
+          .update(teams)
+          .set({ name: data.teamName.trim(), updatedAt: new Date() })
+          .where(eq(teams.id, existingTeam.id));
+      }
+    }
+
     if (data.managerId !== undefined) {
       updatePayload.managerId = data.managerId;
       if (data.managerId) {
-        const mgr = await db.select({ teamId: users.teamId }).from(users).where(eq(users.id, data.managerId)).get();
+        const mgr = await db
+          .select({ teamId: users.teamId })
+          .from(users)
+          .where(eq(users.id, data.managerId))
+          .get();
         if (mgr?.teamId) {
           updatePayload.teamId = mgr.teamId;
         }
       }
     }
-    if (data.teamId !== undefined) updatePayload.teamId = data.teamId;
+
+    if (data.teamId !== undefined && data.teamId !== null) {
+      updatePayload.teamId = data.teamId;
+    }
 
     const [updated] = await db
       .update(users)
@@ -432,10 +491,27 @@ export class UsersRepository {
   }
 
   /**
-   * Fetches all roles
+   * Fetches all roles with their assigned role permissions
    */
   static async getRoles() {
-    return await db.select().from(roles).orderBy(roles.id);
+    const rolesList = await db.select().from(roles).orderBy(roles.id);
+    const rolePerms = await db
+      .select({
+        roleId: rolePermissions.roleId,
+        permissionId: rolePermissions.permissionId,
+        permissionCode: permissions.code,
+      })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id));
+
+    return rolesList.map((r) => {
+      const assigned = rolePerms.filter((rp) => rp.roleId === r.id);
+      return {
+        ...r,
+        permissions: assigned.map((a) => a.permissionCode),
+        permissionIds: assigned.map((a) => a.permissionId),
+      };
+    });
   }
 
   /**
