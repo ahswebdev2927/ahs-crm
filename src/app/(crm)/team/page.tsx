@@ -18,7 +18,17 @@ import { TeamMemberTable, type TeamMemberRow } from "@/features/users/components
 import { TeamMemberDialog } from "@/features/users/components/team-member-dialog"
 import { ResetPasswordDialog } from "@/features/users/components/reset-password-dialog"
 import { StatusChangeDialog } from "@/features/users/components/status-change-dialog"
-import { UserPlus, Search, Filter, RefreshCw, Users } from "lucide-react"
+import {
+  UserPlus,
+  Search,
+  Filter,
+  RefreshCw,
+  Users,
+  Briefcase,
+  Building2,
+  UserCheck,
+  X,
+} from "lucide-react"
 
 export default function TeamPage() {
   const { user } = useAuth()
@@ -112,6 +122,22 @@ export default function TeamPage() {
     fetchMembers()
   }, [fetchMembers])
 
+  // Metric counts derived from current directory
+  const metrics = React.useMemo(() => {
+    const managersCount = members.filter(
+      (m) => m.roleCode === "sales_manager" || Boolean(m.isManager)
+    ).length
+    const insideCount = members.filter((m) => m.roleCode === "inside_sales").length
+    const fieldCount = members.filter((m) => m.roleCode === "field_sales").length
+
+    return {
+      total: paginationInfo.total,
+      managers: managersCount,
+      inside: insideCount,
+      field: fieldCount,
+    }
+  }, [members, paginationInfo.total])
+
   // Handlers
   const handleCreateMember = () => {
     setMemberToEdit(null)
@@ -163,9 +189,12 @@ export default function TeamPage() {
     toast.add({
       type: "success",
       title: isEdit ? "Member Updated" : "Member Created",
-      description: isEdit ? "Member profile updated successfully." : "New team member created successfully.",
+      description: isEdit
+        ? "Staff member details and permissions updated successfully."
+        : "New team member provisioned and added to the directory.",
     })
     fetchMembers()
+    fetchMetadata()
   }
 
   const handleOpenResetPassword = (memberRow: TeamMemberRow) => {
@@ -236,11 +265,20 @@ export default function TeamPage() {
     fetchMembers()
   }
 
+  const hasActiveFilters = searchQuery !== "" || roleFilter !== "all" || statusFilter !== "all"
+
+  const handleResetFilters = () => {
+    setSearchQuery("")
+    setRoleFilter("all")
+    setStatusFilter("all")
+    setPage(1)
+  }
+
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0">
       <PageHeader
         title="Team Directory"
-        description="Manage staff members, Sales department roles, data access levels, and credentials."
+        description="Oversee sales personnel, management hierarchy, CRM access scope, and permissions."
         breadcrumbs={[
           { label: "CRM", href: "/dashboard" },
           { label: "System", href: "/team" },
@@ -248,7 +286,7 @@ export default function TeamPage() {
         ]}
         actions={
           isSuperAdmin ? (
-            <Button size="sm" onClick={handleCreateMember}>
+            <Button size="sm" onClick={handleCreateMember} className="font-semibold shadow-xs">
               <UserPlus className="h-4 w-4 mr-1.5" />
               <span>Add Team Member</span>
             </Button>
@@ -256,20 +294,81 @@ export default function TeamPage() {
         }
       />
 
-      <div className="w-full p-4 sm:p-5 xl:p-6 space-y-4 flex-1">
-        {/* Filter & Search Controls Bar */}
-        <div className="p-4 rounded-xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row items-center gap-3">
+      <div className="w-full p-4 sm:p-5 xl:p-6 space-y-4 flex-1 overflow-y-auto">
+        {/* KPI Metric Tiles Bar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Total Staff */}
+          <div className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Total Personnel
+              </span>
+              <p className="text-xl font-bold tracking-tight text-foreground">{metrics.total}</p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <Users className="h-5 w-5" />
+            </div>
+          </div>
+
+          {/* Sales Managers */}
+          <div className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Sales Managers
+              </span>
+              <p className="text-xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+                {metrics.managers}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <Briefcase className="h-5 w-5" />
+            </div>
+          </div>
+
+          {/* Inside Sales */}
+          <div className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Inside Sales
+              </span>
+              <p className="text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                {metrics.inside}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <Building2 className="h-5 w-5" />
+            </div>
+          </div>
+
+          {/* Field Sales */}
+          <div className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Field Agents
+              </span>
+              <p className="text-xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400">
+                {metrics.field}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+              <UserCheck className="h-5 w-5" />
+            </div>
+          </div>
+        </div>
+
+        {/* Filter & Search Toolbar */}
+        <div className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row items-center gap-3">
           {/* Search Input */}
           <div className="relative flex-1 w-full">
             <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by staff name or email..."
+              placeholder="Search staff by name or email address..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value)
                 setPage(1)
               }}
-              className="pl-9 text-xs"
+              className="pl-9 text-xs h-9"
             />
           </div>
 
@@ -282,18 +381,20 @@ export default function TeamPage() {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="text-xs">
+              <SelectTrigger className="text-xs h-9">
                 <div className="flex items-center gap-1.5">
                   <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Filter by Role">
+                  <SelectValue placeholder="All Roles">
                     {roleFilter === "all"
                       ? "All Roles"
-                      : roles.find((r) => String(r.id) === roleFilter)?.name || "Filter by Role"}
+                      : roles.find((r) => String(r.id) === roleFilter)?.name || "All Roles"}
                   </SelectValue>
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">All Roles</SelectItem>
+                <SelectItem value="all" className="text-xs">
+                  All Roles
+                </SelectItem>
                 {roles.map((r) => (
                   <SelectItem key={r.id} value={String(r.id)} className="text-xs">
                     {r.name}
@@ -312,7 +413,7 @@ export default function TeamPage() {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="text-xs">
+              <SelectTrigger className="text-xs h-9">
                 <SelectValue placeholder="Status">
                   {statusFilter === "all"
                     ? "All Statuses"
@@ -326,13 +427,34 @@ export default function TeamPage() {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
-                <SelectItem value="active" className="text-xs">Active Only</SelectItem>
-                <SelectItem value="inactive" className="text-xs">Inactive</SelectItem>
-                <SelectItem value="suspended" className="text-xs">Suspended</SelectItem>
+                <SelectItem value="all" className="text-xs">
+                  All Statuses
+                </SelectItem>
+                <SelectItem value="active" className="text-xs">
+                  Active Only
+                </SelectItem>
+                <SelectItem value="inactive" className="text-xs">
+                  Inactive
+                </SelectItem>
+                <SelectItem value="suspended" className="text-xs">
+                  Suspended
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-xs text-muted-foreground hover:text-foreground shrink-0 h-9 px-2.5"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Reset
+            </Button>
+          )}
 
           {/* Refresh Button */}
           <Button
@@ -341,7 +463,7 @@ export default function TeamPage() {
             onClick={() => fetchMembers()}
             disabled={isLoading}
             title="Refresh Directory"
-            className="shrink-0"
+            className="shrink-0 h-9 w-9"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
@@ -352,7 +474,7 @@ export default function TeamPage() {
           <div className="flex items-center gap-2">
             <Users className="h-3.5 w-3.5 text-primary" />
             <span className="font-semibold text-foreground">Sales Staff Directory</span>
-            <span>({paginationInfo.total} total members)</span>
+            <span>({paginationInfo.total} total staff)</span>
           </div>
           <span>Showing page {page} of {paginationInfo.totalPages || 1}</span>
         </div>

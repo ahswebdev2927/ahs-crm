@@ -29,6 +29,12 @@ import {
   UserCheck,
   Building2,
   Eye,
+  Copy,
+  Check,
+  User,
+  Shield,
+  Briefcase,
+  Users,
 } from "lucide-react"
 
 export interface TeamMemberRow {
@@ -75,23 +81,37 @@ export function TeamMemberTable({
   onChangeStatus,
 }: TeamMemberTableProps) {
   const isSuperAdmin = currentUserRoleCode === "super_admin"
+  const [copiedEmailId, setCopiedEmailId] = React.useState<string | null>(null)
+
+  const handleCopyEmail = (id: string, email: string) => {
+    navigator.clipboard.writeText(email)
+    setCopiedEmailId(id)
+    setTimeout(() => setCopiedEmailId(null), 2000)
+  }
 
   if (isLoading) {
     return (
-      <div className="border rounded-xl p-8 text-center bg-card shadow-xs animate-pulse">
-        <div className="h-6 bg-muted/60 rounded w-1/4 mx-auto mb-4" />
-        <div className="h-4 bg-muted/40 rounded w-1/3 mx-auto" />
+      <div className="border border-border/80 rounded-2xl p-12 text-center bg-card shadow-xs animate-pulse space-y-4">
+        <div className="h-6 bg-muted/60 rounded-md w-1/4 mx-auto" />
+        <div className="h-4 bg-muted/40 rounded-md w-1/3 mx-auto" />
+        <div className="space-y-2 pt-4">
+          <div className="h-10 bg-muted/30 rounded-lg w-full" />
+          <div className="h-10 bg-muted/20 rounded-lg w-full" />
+          <div className="h-10 bg-muted/20 rounded-lg w-full" />
+        </div>
       </div>
     )
   }
 
   if (members.length === 0) {
     return (
-      <div className="border rounded-xl p-12 text-center bg-card shadow-xs">
-        <Building2 className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-        <h3 className="text-sm font-semibold text-foreground">No Team Members Found</h3>
-        <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-          No staff records match your current search or filter criteria. Try adjusting your filters.
+      <div className="border border-border/80 rounded-2xl p-14 text-center bg-card shadow-xs space-y-3">
+        <div className="h-12 w-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
+          <Users className="h-6 w-6 opacity-60" />
+        </div>
+        <h3 className="text-sm font-semibold text-foreground">No Staff Records Found</h3>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+          No team members match your current filters. Adjust your search query or reset role filters to view the full directory.
         </p>
       </div>
     )
@@ -100,44 +120,88 @@ export function TeamMemberTable({
   const formatVisibilityBadge = (visibility: string) => {
     switch (visibility) {
       case "all":
-        return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 text-[10px]">All Org</Badge>
+        return (
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 text-[10px] font-medium">
+            All Organization
+          </Badge>
+        )
       case "team":
-        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 text-[10px]">Team</Badge>
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 text-[10px] font-medium">
+            Team Scope
+          </Badge>
+        )
       case "partnered":
-        return <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 text-[10px]">Partnered</Badge>
+        return (
+          <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 text-[10px] font-medium">
+            Partnered
+          </Badge>
+        )
       case "shared":
-        return <Badge variant="outline" className="bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 text-[10px]">Shared</Badge>
+        return (
+          <Badge variant="outline" className="bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 text-[10px] font-medium">
+            Shared Records
+          </Badge>
+        )
       default:
-        return <Badge variant="outline" className="bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 text-[10px]">Own Only</Badge>
+        return (
+          <Badge variant="outline" className="bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 text-[10px] font-medium">
+            Own Only
+          </Badge>
+        )
     }
   }
 
   const getSubRoleBadge = (roleCode: string | null, roleName: string | null) => {
     switch (roleCode) {
       case "super_admin":
-        return <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border-rose-500/30 text-[11px] font-semibold">Super Admin</Badge>
+        return (
+          <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border-purple-500/30 text-[11px] font-semibold gap-1">
+            <Shield className="h-3 w-3" />
+            Super Admin
+          </Badge>
+        )
       case "sales_manager":
-        return <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/30 text-[11px] font-semibold">Sales Manager</Badge>
+        return (
+          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border-amber-500/30 text-[11px] font-semibold gap-1">
+            <Briefcase className="h-3 w-3" />
+            Sales Manager
+          </Badge>
+        )
       case "inside_sales":
-        return <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30 text-[11px] font-semibold">Inside Sales (In Office)</Badge>
+        return (
+          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/30 text-[11px] font-semibold gap-1">
+            <Building2 className="h-3 w-3" />
+            Inside Sales
+          </Badge>
+        )
       case "field_sales":
-        return <Badge className="bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/30 text-[11px] font-semibold">Field Sales (Field Agent)</Badge>
+        return (
+          <Badge className="bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 border-cyan-500/30 text-[11px] font-semibold gap-1">
+            <User className="h-3 w-3" />
+            Field Sales
+          </Badge>
+        )
       default:
-        return <Badge variant="secondary" className="text-[11px] font-semibold">{roleName || "Staff Member"}</Badge>
+        return (
+          <Badge variant="secondary" className="text-[11px] font-semibold">
+            {roleName || "Staff Member"}
+          </Badge>
+        )
     }
   }
 
   return (
-    <div className="border border-border/80 rounded-xl bg-card overflow-hidden shadow-xs">
+    <div className="border border-border/80 rounded-2xl bg-card overflow-hidden shadow-xs">
       <Table>
-        <TableHeader className="bg-muted/40">
+        <TableHeader className="bg-muted/40 border-b border-border/80">
           <TableRow>
-            <TableHead className="text-xs font-semibold">Team Member</TableHead>
-            <TableHead className="text-xs font-semibold">Department & Team</TableHead>
-            <TableHead className="text-xs font-semibold">Role</TableHead>
-            <TableHead className="text-xs font-semibold">Data Access</TableHead>
-            <TableHead className="text-xs font-semibold">Status</TableHead>
-            <TableHead className="text-xs font-semibold text-right">Actions</TableHead>
+            <TableHead className="text-xs font-semibold text-foreground py-3.5 pl-5">Staff Member</TableHead>
+            <TableHead className="text-xs font-semibold text-foreground py-3.5">Role</TableHead>
+            <TableHead className="text-xs font-semibold text-foreground py-3.5">Hierarchy & Team Group</TableHead>
+            <TableHead className="text-xs font-semibold text-foreground py-3.5">Data Scope</TableHead>
+            <TableHead className="text-xs font-semibold text-foreground py-3.5">Account Status</TableHead>
+            <TableHead className="text-xs font-semibold text-foreground py-3.5 text-right pr-5">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -152,71 +216,98 @@ export function TeamMemberTable({
             const isSelf = member.id === currentUserId
             const isManager = currentUserRoleCode === "sales_manager"
             const canManageThisMember = isSuperAdmin || (isManager && !isSelf && member.roleCode !== "super_admin")
+            const isManagerRole = member.roleCode === "sales_manager" || Boolean(member.isManager)
 
             return (
-              <TableRow key={member.id} className="hover:bg-muted/30 transition-colors">
+              <TableRow key={member.id} className="hover:bg-muted/20 transition-colors">
                 {/* Member Identity */}
-                <TableCell>
+                <TableCell className="py-3 pl-5">
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20">
+                    <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20 shadow-xs">
                       {initials}
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-foreground leading-snug">
                         {member.name}
+                        {isSelf && (
+                          <span className="ml-1.5 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.2 rounded-md">
+                            You
+                          </span>
+                        )}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {member.email}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[11px] text-muted-foreground select-all">
+                          {member.email}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyEmail(member.id, member.email)}
+                          title="Copy email address"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {copiedEmailId === member.id ? (
+                            <Check className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </TableCell>
-
-                {/* Department & Team */}
-                <TableCell className="text-xs font-medium text-foreground">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{member.departmentName || "Sales"}</span>
-                    </div>
-                    {member.teamName && (
-                      <p className="text-[11px] font-medium text-primary pl-5">
-                        Group: {member.teamName}
-                      </p>
-                    )}
-                    {member.managerName && (
-                      <p className="text-[10px] text-muted-foreground pl-5">
-                        Manager: {member.managerName}
-                      </p>
-                    )}
                   </div>
                 </TableCell>
 
                 {/* Sub-role */}
-                <TableCell>
+                <TableCell className="py-3">
                   {getSubRoleBadge(member.roleCode, member.roleName)}
                 </TableCell>
 
+                {/* Hierarchy & Team Group */}
+                <TableCell className="py-3 text-xs text-foreground">
+                  <div className="space-y-0.5">
+                    {isManagerRole ? (
+                      <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                        <Users className="h-3.5 w-3.5 shrink-0" />
+                        <span>Manages: {member.teamName || "Owned Team"}</span>
+                      </div>
+                    ) : member.managerName ? (
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span>
+                          Reports to <strong className="font-semibold text-foreground">{member.managerName}</strong>
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-[11px]">Unassigned Manager</span>
+                    )}
+
+                    {member.teamName && !isManagerRole && (
+                      <p className="text-[11px] text-muted-foreground pl-5">
+                        Team: {member.teamName}
+                      </p>
+                    )}
+                  </div>
+                </TableCell>
+
                 {/* Data Visibility */}
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Eye className="h-3 w-3 text-muted-foreground" />
+                <TableCell className="py-3">
+                  <div className="flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                     {formatVisibilityBadge(member.dataVisibility)}
                   </div>
                 </TableCell>
 
                 {/* Status Badge */}
-                <TableCell>
+                <TableCell className="py-3">
                   <StatusBadge status={member.status} />
                 </TableCell>
 
                 {/* Actions Dropdown */}
-                <TableCell className="text-right">
+                <TableCell className="py-3 text-right pr-5">
                   {canManageThisMember ? (
                     <DropdownMenu>
-                      <DropdownMenuTrigger className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-muted font-medium text-xs">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Open menu</span>
+                      <DropdownMenuTrigger className="h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-muted font-medium text-xs transition-colors">
+                        <MoreHorizontal className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        <span className="sr-only">Open actions menu</span>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48 text-xs">
                         <DropdownMenuGroup>
@@ -225,7 +316,7 @@ export function TeamMemberTable({
                           </DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => onEdit(member)}>
                             <Edit className="h-3.5 w-3.5 mr-2" />
-                            <span>{isSuperAdmin ? "Edit Profile" : "Edit Access & Status"}</span>
+                            <span>{isSuperAdmin ? "Edit Staff Details" : "Edit Access & Status"}</span>
                           </DropdownMenuItem>
 
                           {isSuperAdmin && (

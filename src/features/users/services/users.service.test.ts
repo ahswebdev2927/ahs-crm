@@ -30,4 +30,33 @@ describe("Users Repository & Service Unit Tests", () => {
     assert.ok(marcus);
     assert.strictEqual(marcus.roleName, "Sales Manager");
   });
+
+  it("ensures SuperAdmin (MD) has null managerId and 'all' dataVisibility on creation & update", async () => {
+    const rolesList = await UsersRepository.getRoles();
+    const superAdminRole = rolesList.find((r) => r.code === "super_admin");
+    assert.ok(superAdminRole);
+
+    const testAdminId = `test-admin-${Date.now()}`;
+    const created = await UsersRepository.createUser({
+      id: testAdminId,
+      name: "Executive MD Test",
+      email: `${testAdminId}@ahs-crm.com`,
+      passwordHash: "dummyhash",
+      roleId: superAdminRole.id,
+      managerId: "should-be-stripped-for-superadmin",
+      dataVisibility: "own",
+    });
+
+    assert.strictEqual(created.managerId, null, "SuperAdmin must never have an assigned manager");
+    assert.strictEqual(created.dataVisibility, "all", "SuperAdmin must have 'all' data visibility");
+
+    const updated = await UsersRepository.updateUser(testAdminId, {
+      name: "Executive MD Updated",
+      managerId: "should-be-stripped-again",
+      dataVisibility: "team",
+    });
+
+    assert.strictEqual(updated.managerId, null, "SuperAdmin must retain null managerId after update");
+    assert.strictEqual(updated.dataVisibility, "all", "SuperAdmin must retain 'all' dataVisibility after update");
+  });
 });

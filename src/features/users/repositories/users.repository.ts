@@ -260,15 +260,19 @@ export class UsersRepository {
     dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
     status?: "active" | "inactive" | "suspended";
   }) {
-    // 1. Fetch role info to check isManager flag
+    // 1. Fetch role info to check isManager and super_admin flag
     const targetRole = await db.select().from(roles).where(eq(roles.id, data.roleId)).get();
+    const isSuperAdminRole = targetRole?.code === "super_admin";
     const isManagerRole = Boolean(targetRole?.isManager);
 
     let assignedTeamId = data.teamId ?? null;
     let assignedManagerId = data.managerId ?? null;
 
-    // If creating a non-manager and managerId was passed, resolve manager's teamId
-    if (!isManagerRole && assignedManagerId) {
+    if (isSuperAdminRole) {
+      assignedManagerId = null;
+      assignedTeamId = null;
+    } else if (!isManagerRole && assignedManagerId) {
+      // If creating a non-manager and managerId was passed, resolve manager's teamId
       const managerUserRecord = await db.select({ teamId: users.teamId }).from(users).where(eq(users.id, assignedManagerId)).get();
       if (managerUserRecord?.teamId) {
         assignedTeamId = managerUserRecord.teamId;
@@ -287,7 +291,7 @@ export class UsersRepository {
         departmentId: data.departmentId ?? null,
         teamId: assignedTeamId,
         managerId: assignedManagerId,
-        dataVisibility: data.dataVisibility ?? (isManagerRole ? "team" : "own"),
+        dataVisibility: isSuperAdminRole ? "all" : (data.dataVisibility ?? (isManagerRole ? "team" : "own")),
         status: data.status ?? "active",
       })
       .returning();
@@ -295,7 +299,7 @@ export class UsersRepository {
     const inserted = insertedArray[0];
 
     // 3. If new member is a Manager, provision an owned team group automatically
-    if (isManagerRole) {
+    if (isManagerRole && !isSuperAdminRole) {
       const teamCodeStr = `team_${data.id.substring(0, 8)}`;
       const teamNameStr = data.teamName && data.teamName.trim() ? data.teamName.trim() : `${data.name}'s Team`;
 
@@ -347,58 +351,64 @@ export class UsersRepository {
     if (data.dataVisibility !== undefined) updatePayload.dataVisibility = data.dataVisibility;
     if (data.status !== undefined) updatePayload.status = data.status;
 
-    // Handle role updates and manager/team provisioning
+    // Determine target role (new role if updated, else existing role)
+    let isSuperAdminRole = false;
+    let isManagerRole = false;
+
     if (data.roleId !== undefined) {
       updatePayload.roleId = data.roleId;
       const targetRole = await db.select().from(roles).where(eq(roles.id, data.roleId)).get();
-      const isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
-
-      if (isManagerRole) {
-        // If user is a manager, check if they already manage a team
-        const existingTeam = await db.select().from(teams).where(eq(teams.managerId, id)).get();
-        if (existingTeam) {
-          if (data.teamName && data.teamName.trim()) {
-            await db
-              .update(teams)
-              .set({ name: data.teamName.trim(), updatedAt: new Date() })
-              .where(eq(teams.id, existingTeam.id));
-          }
-          updatePayload.teamId = existingTeam.id;
-          updatePayload.managerId = null;
-        } else {
-          // Provision a new team for the manager
-          const teamCodeStr = `team_${id.substring(0, 8)}`;
-          const teamNameStr =
-            data.teamName && data.teamName.trim()
-              ? data.teamName.trim()
-              : `${data.name || "Sales"}'s Team`;
-
-          const [newTeam] = await db
-            .insert(teams)
-            .values({
-              name: teamNameStr,
-              code: teamCodeStr,
-              departmentId: data.departmentId ?? 1,
-              managerId: id,
-            })
-            .returning();
-
-          updatePayload.teamId = newTeam.id;
-          updatePayload.managerId = null;
-        }
-      }
-    } else if (data.teamName && data.teamName.trim()) {
-      // User is already a manager and updating their team name
-      const existingTeam = await db.select().from(teams).where(eq(teams.managerId, id)).get();
-      if (existingTeam) {
-        await db
-          .update(teams)
-          .set({ name: data.teamName.trim(), updatedAt: new Date() })
-          .where(eq(teams.id, existingTeam.id));
-      }
+      isSuperAdminRole = targetRole?.code === "super_admin";
+      isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
+    } else {
+      const currentRole = await db
+        .select({ code: roles.code, isManager: roles.isManager })
+        .from(users)
+        .innerJoin(roles, eq(users.roleId, roles.id))
+        .where(eq(users.id, id))
+        .get();
+      isSuperAdminRole = currentRole?.code === "super_admin";
+      isManagerRole = Boolean(currentRole?.isManager || currentRole?.code === "sales_manager");
     }
 
-    if (data.managerId !== undefined) {
+    if (isSuperAdminRole) {
+      // SuperAdmin is MD at top of org: never reports to anyone and has all data access
+      updatePayload.managerId = null;
+      updatePayload.teamId = null;
+      updatePayload.dataVisibility = "all";
+    } else if (isManagerRole) {
+      updatePayload.managerId = null;
+      // If user is a manager, check if they already manage a team
+      const existingTeam = await db.select().from(teams).where(eq(teams.managerId, id)).get();
+      if (existingTeam) {
+        if (data.teamName && data.teamName.trim()) {
+          await db
+            .update(teams)
+            .set({ name: data.teamName.trim(), updatedAt: new Date() })
+            .where(eq(teams.id, existingTeam.id));
+        }
+        updatePayload.teamId = existingTeam.id;
+      } else {
+        // Provision a new team for the manager
+        const teamCodeStr = `team_${id.substring(0, 8)}`;
+        const teamNameStr =
+          data.teamName && data.teamName.trim()
+            ? data.teamName.trim()
+            : `${data.name || "Sales"}'s Team`;
+
+        const [newTeam] = await db
+          .insert(teams)
+          .values({
+            name: teamNameStr,
+            code: teamCodeStr,
+            departmentId: data.departmentId ?? 1,
+            managerId: id,
+          })
+          .returning();
+
+        updatePayload.teamId = newTeam.id;
+      }
+    } else if (data.managerId !== undefined) {
       updatePayload.managerId = data.managerId;
       if (data.managerId) {
         const mgr = await db
@@ -410,10 +420,6 @@ export class UsersRepository {
           updatePayload.teamId = mgr.teamId;
         }
       }
-    }
-
-    if (data.teamId !== undefined && data.teamId !== null) {
-      updatePayload.teamId = data.teamId;
     }
 
     const [updated] = await db

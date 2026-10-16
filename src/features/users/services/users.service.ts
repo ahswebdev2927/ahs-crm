@@ -70,15 +70,22 @@ export class UsersService {
       throw new AppError("A user with this email address already exists.", 409, "CONFLICT");
     }
 
-    // 2. Validate Manager vs Non-Manager rules
+    // 2. Validate Manager vs Non-Manager vs SuperAdmin rules
     const rolesList = await UsersRepository.getRoles();
     const targetRole = rolesList.find((r) => r.id === input.roleId);
+    const isSuperAdminRole = targetRole?.code === "super_admin";
     const isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
 
     let effectiveTeamName = input.teamName;
     let effectiveManagerId = input.managerId;
+    let effectiveDataVisibility = input.dataVisibility;
 
-    if (isManagerRole) {
+    if (isSuperAdminRole) {
+      // SuperAdmin is MD at top of org: never reports to anyone and has all data access
+      effectiveTeamName = undefined;
+      effectiveManagerId = null;
+      effectiveDataVisibility = "all";
+    } else if (isManagerRole) {
       effectiveTeamName = input.teamName && input.teamName.trim() ? input.teamName.trim() : `${input.name}'s Team`;
       effectiveManagerId = null;
     } else {
@@ -104,10 +111,10 @@ export class UsersService {
       passwordHash,
       roleId: input.roleId,
       departmentId: input.departmentId,
-      teamId: input.teamId,
+      teamId: isSuperAdminRole ? null : input.teamId,
       managerId: effectiveManagerId,
       teamName: effectiveTeamName,
-      dataVisibility: input.dataVisibility,
+      dataVisibility: effectiveDataVisibility,
       status: "active",
     });
 
@@ -194,15 +201,34 @@ export class UsersService {
         }
       }
 
+      const rolesList = await UsersRepository.getRoles();
+      const targetRoleId = input.roleId ?? user.roleId;
+      const targetRole = rolesList.find((r) => r.id === targetRoleId);
+      const isSuperAdminRole = targetRole?.code === "super_admin";
+      const isManagerRole = Boolean(targetRole?.isManager || targetRole?.code === "sales_manager");
+
+      let effectiveManagerId = input.managerId;
+      let effectiveTeamName = input.teamName;
+      let effectiveDataVisibility = input.dataVisibility;
+
+      if (isSuperAdminRole) {
+        // SuperAdmin is MD: no manager, no team group, all data visibility
+        effectiveManagerId = null;
+        effectiveTeamName = undefined;
+        effectiveDataVisibility = "all";
+      } else if (isManagerRole) {
+        effectiveManagerId = null;
+      }
+
       await UsersRepository.updateUser(id, {
         name: input.name,
         email: input.email,
         roleId: input.roleId,
         departmentId: input.departmentId,
-        teamId: input.teamId,
-        managerId: input.managerId,
-        teamName: input.teamName,
-        dataVisibility: input.dataVisibility,
+        teamId: isSuperAdminRole ? null : input.teamId,
+        managerId: effectiveManagerId,
+        teamName: effectiveTeamName,
+        dataVisibility: effectiveDataVisibility,
         status: (input as any).status,
       });
 
