@@ -86,10 +86,11 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
     });
   };
 
-  const formatCurrency = (cents: number) => {
-    return (cents / 100).toLocaleString("en-US", {
+  const formatCurrency = (paise: number) => {
+    return (paise / 100).toLocaleString("en-IN", {
       style: "currency",
-      currency: "USD",
+      currency: "INR",
+      maximumFractionDigits: 2,
     });
   };
 
