@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 import type { CustomerDetail, UserSummary } from "../types/customer.types";
 import { CustomerDialog } from "./customer-dialog";
 import { CustomerServicesTab } from "@/features/services/components/customer-services-tab";
+import { CustomerQuotationsTab } from "@/features/quotations/components/customer-quotations-tab";
+import { CustomerBillingTab } from "@/features/invoices/components/customer-billing-tab";
 
 export interface CustomerWorkspaceProps {
   customerId: string;
@@ -373,25 +375,10 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
 
             {/* Quotations Tab */}
             <TabsContent value="quotations" className="mt-3">
-              <Card className="border border-border shadow-xs bg-card">
-                <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                    <FileCheck className="h-4 w-4 text-primary" />
-                    Customer Quotations & Proposals
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-5 pb-5">
-                  <div className="h-36 flex flex-col items-center justify-center border border-dashed border-border rounded-lg text-center p-4 text-muted-foreground space-y-1.5">
-                    <FileText className="h-6 w-6 text-muted-foreground/60" />
-                    <p className="text-xs font-medium text-foreground">
-                      {customer.stats.totalQuotations} Active Quotations
-                    </p>
-                    <p className="text-[11px] max-w-sm">
-                      Customer proposals and agreed itemized scopes. Managed in Phase 19 (Quotations).
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <CustomerQuotationsTab
+                customerId={customer.id}
+                customerName={customer.name}
+              />
             </TabsContent>
 
             {/* Services Tab */}
@@ -407,25 +394,10 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
 
             {/* Billing Tab */}
             <TabsContent value="billing" className="mt-3">
-              <Card className="border border-border shadow-xs bg-card">
-                <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                    <Receipt className="h-4 w-4 text-primary" />
-                    Invoicing & Payment Collections
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-5 pb-5">
-                  <div className="h-36 flex flex-col items-center justify-center border border-dashed border-border rounded-lg text-center p-4 text-muted-foreground space-y-1.5">
-                    <Receipt className="h-6 w-6 text-muted-foreground/60" />
-                    <p className="text-xs font-medium text-foreground">
-                      {customer.stats.totalInvoices} Invoices Recorded
-                    </p>
-                    <p className="text-[11px] max-w-sm">
-                      Itemized invoices, partial payment records, and balances. Managed in Phase 20 (Invoicing & Payments).
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <CustomerBillingTab
+                customerId={customer.id}
+                customerName={customer.name}
+              />
             </TabsContent>
           </Tabs>
         </div>

@@ -11,12 +11,16 @@ export const quotations = sqliteTable('quotations', {
   customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
   quoteNumber: text('quote_number').notNull().unique(),
   validUntil: integer('valid_until', { mode: 'timestamp_ms' }).notNull(),
-  subtotal: integer('subtotal').notNull(), // in cents
-  discount: integer('discount').notNull().default(0), // in cents
-  tax: integer('tax').notNull().default(0), // in cents
-  total: integer('total').notNull(), // in cents
-  status: text('status', { enum: ['draft', 'sent', 'accepted', 'declined', 'expired'] }).notNull().default('draft'),
+  subtotal: integer('subtotal').notNull(), // in cents / paise
+  discount: integer('discount').notNull().default(0), // in cents / paise
+  tax: integer('tax').notNull().default(0), // in cents / paise
+  total: integer('total').notNull(), // in cents / paise
+  status: text('status', { enum: ['draft', 'sent', 'viewed', 'accepted', 'declined', 'expired'] }).notNull().default('draft'),
   notes: text('notes'),
+  terms: text('terms'),
+  sentAt: integer('sent_at', { mode: 'timestamp_ms' }),
+  acceptedAt: integer('accepted_at', { mode: 'timestamp_ms' }),
+  declinedAt: integer('declined_at', { mode: 'timestamp_ms' }),
   createdById: text('created_by_id').notNull().references(() => users.id),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
@@ -24,6 +28,7 @@ export const quotations = sqliteTable('quotations', {
   index('quotations_lead_id_idx').on(t.leadId),
   index('quotations_customer_id_idx').on(t.customerId),
   index('quotations_quote_number_idx').on(t.quoteNumber),
+  index('quotations_status_idx').on(t.status),
 ]);
 
 export const quotationItems = sqliteTable('quotation_items', {
@@ -32,8 +37,8 @@ export const quotationItems = sqliteTable('quotation_items', {
   serviceId: integer('service_id').references(() => services.id, { onDelete: 'set null' }),
   description: text('description').notNull(),
   quantity: integer('quantity').notNull().default(1),
-  unitPrice: integer('unit_price').notNull(), // in cents
-  totalPrice: integer('total_price').notNull(), // in cents
+  unitPrice: integer('unit_price').notNull(), // in cents / paise
+  totalPrice: integer('total_price').notNull(), // in cents / paise
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
@@ -47,14 +52,15 @@ export const invoices = sqliteTable('invoices', {
   invoiceNumber: text('invoice_number').notNull().unique(),
   issueDate: integer('issue_date', { mode: 'timestamp_ms' }).notNull(),
   dueDate: integer('due_date', { mode: 'timestamp_ms' }).notNull(),
-  subtotal: integer('subtotal').notNull(), // in cents
-  discount: integer('discount').notNull().default(0), // in cents
-  tax: integer('tax').notNull().default(0), // in cents
-  total: integer('total').notNull(), // in cents
-  amountPaid: integer('amount_paid').notNull().default(0), // in cents
-  amountDue: integer('amount_due').notNull(), // in cents
+  subtotal: integer('subtotal').notNull(), // in cents / paise
+  discount: integer('discount').notNull().default(0), // in cents / paise
+  tax: integer('tax').notNull().default(0), // in cents / paise
+  total: integer('total').notNull(), // in cents / paise
+  amountPaid: integer('amount_paid').notNull().default(0), // in cents / paise
+  amountDue: integer('amount_due').notNull(), // in cents / paise
   status: text('status', { enum: ['draft', 'unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled', 'void'] }).notNull().default('unpaid'),
   notes: text('notes'),
+  terms: text('terms'),
   createdById: text('created_by_id').notNull().references(() => users.id),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
@@ -62,6 +68,7 @@ export const invoices = sqliteTable('invoices', {
   index('invoices_customer_id_idx').on(t.customerId),
   index('invoices_invoice_number_idx').on(t.invoiceNumber),
   index('invoices_status_idx').on(t.status),
+  index('invoices_due_date_idx').on(t.dueDate),
 ]);
 
 export const invoiceItems = sqliteTable('invoice_items', {
@@ -70,8 +77,8 @@ export const invoiceItems = sqliteTable('invoice_items', {
   serviceId: integer('service_id').references(() => services.id, { onDelete: 'set null' }),
   description: text('description').notNull(),
   quantity: integer('quantity').notNull().default(1),
-  unitPrice: integer('unit_price').notNull(), // in cents
-  totalPrice: integer('total_price').notNull(), // in cents
+  unitPrice: integer('unit_price').notNull(), // in cents / paise
+  totalPrice: integer('total_price').notNull(), // in cents / paise
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
@@ -81,10 +88,13 @@ export const invoiceItems = sqliteTable('invoice_items', {
 export const payments = sqliteTable('payments', {
   id: text('id').primaryKey(), // UUID
   invoiceId: text('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
-  amount: integer('amount').notNull(), // in cents
+  customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  amount: integer('amount').notNull(), // in cents / paise
   paymentDate: integer('payment_date', { mode: 'timestamp_ms' }).notNull(),
   paymentMethod: text('payment_method').notNull(),
   transactionReference: text('transaction_reference'),
+  receiptUrl: text('receipt_url'),
+  receiptPublicId: text('receipt_public_id'),
   notes: text('notes'),
   status: text('status', { enum: ['pending', 'completed', 'failed', 'refunded'] }).notNull().default('completed'),
   receivedById: text('received_by_id').notNull().references(() => users.id),
@@ -92,7 +102,9 @@ export const payments = sqliteTable('payments', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('payments_invoice_id_idx').on(t.invoiceId),
+  index('payments_customer_id_idx').on(t.customerId),
   index('payments_received_by_id_idx').on(t.receivedById),
+  index('payments_payment_date_idx').on(t.paymentDate),
 ]);
 
 // Relational Definitions
@@ -156,6 +168,10 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   invoice: one(invoices, {
     fields: [payments.invoiceId],
     references: [invoices.id],
+  }),
+  customer: one(customers, {
+    fields: [payments.customerId],
+    references: [customers.id],
   }),
   receivedBy: one(users, {
     fields: [payments.receivedById],

@@ -97,7 +97,7 @@ describe("Dashboard Metric Providers Audit", () => {
         .insert(leadStages)
         .values({
           name: "Site Survey Scheduled",
-          code: "site_survey_test",
+          code: `site_survey_test_${Date.now()}`,
           order: 5,
         })
         .returning();

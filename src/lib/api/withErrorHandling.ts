@@ -87,6 +87,9 @@ export function withErrorHandling(handler: RouteHandler): RouteHandler {
       // 3. Handle unexpected errors (500 Internal Server Error)
       const errMessage = error instanceof Error ? error.message : "Unknown error";
       const errStack = error instanceof Error ? error.stack : undefined;
+      const errCause =
+        (error as any)?.cause?.message ||
+        (typeof (error as any)?.cause === "string" ? (error as any).cause : undefined);
 
       logger.error(
         {
@@ -94,16 +97,19 @@ export function withErrorHandling(handler: RouteHandler): RouteHandler {
           url: request.url,
           method: request.method,
           errorMessage: errMessage,
+          errorCause: errCause,
           stack: errStack,
         },
-        `Unexpected exception handling ${request.method} ${request.url}: ${errMessage}`
+        `Unexpected exception handling ${request.method} ${request.url}: ${errMessage}${
+          errCause ? ` | Cause: ${errCause}` : ""
+        }`
       );
 
       return errorResponse({
         statusCode: 500,
         message: "Something went wrong",
         errorCode: "INTERNAL_SERVER_ERROR",
-        devMessage: errMessage,
+        devMessage: errCause ? `${errMessage} (Cause: ${errCause})` : errMessage,
       });
     }
   };
