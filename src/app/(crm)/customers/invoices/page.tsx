@@ -80,8 +80,8 @@ export default function InvoicesPage() {
         const data = await listRes.json();
         if (data?.data?.items) {
           setItems(data.data.items);
-          setTotalCount(data.data.pagination?.total || 0);
-          setTotalPages(data.data.pagination?.totalPages || 1);
+          setTotalCount(data.data.pagination?.total ?? data.data.total ?? 0);
+          setTotalPages(data.data.pagination?.totalPages ?? data.data.totalPages ?? 1);
         }
       }
 

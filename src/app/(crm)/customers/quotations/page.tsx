@@ -10,7 +10,7 @@ import { QuotationFilters } from "@/features/quotations/components/quotation-fil
 import { QuotationDialog } from "@/features/quotations/components/quotation-dialog";
 import { QuotationDetailDialog } from "@/features/quotations/components/quotation-detail-dialog";
 import { QuotationPrintPreview } from "@/features/quotations/components/quotation-print-preview";
-import { InvoiceDialog } from "@/features/invoices/components/invoice-dialog";
+import { ConvertQuotationDialog } from "@/features/quotations/components/convert-quotation-dialog";
 import { formatINR } from "@/lib/formatters";
 import type {
   QuotationItem,
@@ -277,14 +277,10 @@ export default function QuotationsPage() {
 
       {/* Convert to Invoice Dialog */}
       {isConvertOpen && (
-        <InvoiceDialog
+        <ConvertQuotationDialog
           open={isConvertOpen}
           onOpenChange={setIsConvertOpen}
-          preselectedQuotation={convertTargetQuote}
-          preselectedCustomerId={convertTargetQuote?.customerId || undefined}
-          preselectedClientName={
-            convertTargetQuote?.customer?.name || convertTargetQuote?.lead?.name || undefined
-          }
+          quote={convertTargetQuote}
           onSuccess={() => {
             fetchQuotations();
           }}

@@ -1,5 +1,9 @@
 import { AppError } from "@/lib/errors/AppError";
 import {
+  recordAuditLog,
+  recordLeadActivityIfApplicable,
+} from "@/features/audit/services/audit.service";
+import {
   assertUserPermission,
   checkLeadAccess,
   checkCustomerAccess,
@@ -221,7 +225,27 @@ export const updateQuotationStatus = async (
     );
   }
 
-  return updateQuotationStatusRecord(id, validated.status);
+  const updated = await updateQuotationStatusRecord(id, validated.status);
+
+  recordAuditLog({
+    userId: user.id,
+    action: "quotation:status_change",
+    entityType: "quotation",
+    entityId: id,
+    oldData: { status: existing.status },
+    newData: { status: validated.status },
+  }).catch(() => {});
+
+  if (existing.leadId) {
+    recordLeadActivityIfApplicable(
+      existing.leadId,
+      user.id,
+      "note",
+      `Quotation ${existing.quoteNumber} status changed from '${existing.status}' to '${validated.status}'.`
+    ).catch(() => {});
+  }
+
+  return updated;
 };
 
 /**

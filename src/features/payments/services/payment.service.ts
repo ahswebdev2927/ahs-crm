@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { recordAuditLog } from "@/features/audit/services/audit.service";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -95,7 +96,22 @@ export const recordPayment = async (
 
   await checkCustomerAccess(invoice.customerId, "view", user);
 
-  return recordPaymentTransaction(validated, user.id);
+  const payment = await recordPaymentTransaction(validated, user.id);
+
+  recordAuditLog({
+    userId: user.id,
+    action: "payment:received",
+    entityType: "payment",
+    entityId: payment.id,
+    newData: {
+      invoiceId: validated.invoiceId,
+      customerId: invoice.customerId,
+      amount: validated.amount,
+      method: validated.paymentMethod,
+    },
+  }).catch(() => {});
+
+  return payment;
 };
 
 /**

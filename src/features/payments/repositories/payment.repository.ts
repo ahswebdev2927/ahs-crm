@@ -288,9 +288,17 @@ export const recordPaymentTransaction = async (
       receivedById,
     });
 
-    // 3. Recalculate invoice balances and status
-    const newAmountPaid = inv.amountPaid + data.amount;
-    const newAmountDue = inv.total - newAmountPaid;
+    // 3. Resiliently recalculate invoice balances from all completed payments
+    const sumResult = await tx
+      .select({
+        totalPaid: sql<number>`coalesce(sum(${payments.amount}), 0)`,
+      })
+      .from(payments)
+      .where(and(eq(payments.invoiceId, data.invoiceId), eq(payments.status, "completed")))
+      .get();
+
+    const newAmountPaid = Number(sumResult?.totalPaid ?? 0);
+    const newAmountDue = Math.max(0, inv.total - newAmountPaid);
     const newStatus = newAmountDue <= 0 ? "paid" : "partially_paid";
 
     await tx

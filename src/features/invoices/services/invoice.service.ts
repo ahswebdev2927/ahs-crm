@@ -1,4 +1,11 @@
+import { db } from "@/db";
+import { customers, invoices } from "@/db/schema";
+import { eq, and, notInArray } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
+import {
+  recordAuditLog,
+  recordLeadActivityIfApplicable,
+} from "@/features/audit/services/audit.service";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -155,13 +162,38 @@ export const convertQuotationToInvoice = async (
     );
   }
 
+  // Prevent duplicate active invoice conversion
+  const existingActiveInvoice = await db
+    .select({ id: invoices.id, invoiceNumber: invoices.invoiceNumber })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.quotationId, quotationId),
+        notInArray(invoices.status, ["cancelled", "void"])
+      )
+    )
+    .get();
+
+  if (existingActiveInvoice) {
+    throw new AppError(
+      `This quotation has already been converted to invoice ${existingActiveInvoice.invoiceNumber}.`,
+      400,
+      "DUPLICATE_CONVERSION"
+    );
+  }
+
   // Ensure customer exists
   let customerId = quote.customerId;
   if (!customerId && quote.leadId) {
-    // If quote is only linked to a lead, verify if lead was converted to a customer
-    const leadCustomer = quote.customer?.id;
-    if (leadCustomer) {
-      customerId = leadCustomer;
+    // Check if the lead has been converted to a customer in the CRM
+    const convertedCustomer = await db
+      .select({ id: customers.id })
+      .from(customers)
+      .where(eq(customers.leadId, quote.leadId))
+      .get();
+
+    if (convertedCustomer) {
+      customerId = convertedCustomer.id;
     } else {
       throw new AppError(
         "This quotation is linked to a Lead that has not yet been converted to a Customer. Please convert the lead to a customer first before generating an invoice.",
@@ -175,7 +207,7 @@ export const convertQuotationToInvoice = async (
     throw new AppError("Customer ID is missing on this quotation.", 400, "MISSING_CUSTOMER");
   }
 
-  return convertQuotationToInvoiceRecord(
+  const invoice = await convertQuotationToInvoiceRecord(
     quotationId,
     customerId,
     validated.dueDate,
@@ -183,6 +215,26 @@ export const convertQuotationToInvoice = async (
     validated.terms || null,
     user.id
   );
+
+  // Audit Log & Lead Timeline
+  recordAuditLog({
+    userId: user.id,
+    action: "quotation:converted_to_invoice",
+    entityType: "quotation",
+    entityId: quotationId,
+    newData: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, customerId },
+  }).catch(() => {});
+
+  if (quote.leadId) {
+    recordLeadActivityIfApplicable(
+      quote.leadId,
+      user.id,
+      "note",
+      `Quotation ${quote.quoteNumber} converted to official invoice ${invoice.invoiceNumber}.`
+    ).catch(() => {});
+  }
+
+  return invoice;
 };
 
 /**

@@ -378,6 +378,7 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
               <CustomerQuotationsTab
                 customerId={customer.id}
                 customerName={customer.name}
+                onInvoiceCreated={fetchCustomerDetails}
               />
             </TabsContent>
 

@@ -8,18 +8,21 @@ import { QuotationTable } from "./quotation-table";
 import { QuotationDialog } from "./quotation-dialog";
 import { QuotationDetailDialog } from "./quotation-detail-dialog";
 import { QuotationPrintPreview } from "./quotation-print-preview";
+import { ConvertQuotationDialog } from "./convert-quotation-dialog";
 import type { QuotationItem, QuotationDetail, QuotationStatus } from "../types/quotation.types";
 
 interface CustomerQuotationsTabProps {
   customerId: string;
   customerName: string;
   onConvertToInvoice?: (quote: QuotationItem) => void;
+  onInvoiceCreated?: () => void;
 }
 
 export function CustomerQuotationsTab({
   customerId,
   customerName,
   onConvertToInvoice,
+  onInvoiceCreated,
 }: CustomerQuotationsTabProps) {
   const [items, setItems] = React.useState<QuotationItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -27,6 +30,8 @@ export function CustomerQuotationsTab({
   const [selectedQuote, setSelectedQuote] = React.useState<QuotationDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
   const [isPrintOpen, setIsPrintOpen] = React.useState(false);
+  const [isConvertOpen, setIsConvertOpen] = React.useState(false);
+  const [quoteToConvert, setQuoteToConvert] = React.useState<QuotationItem | null>(null);
 
   const fetchCustomerQuotations = React.useCallback(async () => {
     setIsLoading(true);
@@ -82,6 +87,15 @@ export function CustomerQuotationsTab({
     handleView(quote).then(() => setIsPrintOpen(true));
   };
 
+  const handleConvertAction = (quote: QuotationItem) => {
+    if (onConvertToInvoice) {
+      onConvertToInvoice(quote);
+    } else {
+      setQuoteToConvert(quote);
+      setIsConvertOpen(true);
+    }
+  };
+
   return (
     <Card className="border border-border shadow-xs bg-card">
       <CardHeader className="pb-3 pt-4 px-4 sm:px-5 flex flex-row items-center justify-between">
@@ -111,7 +125,7 @@ export function CustomerQuotationsTab({
           isLoading={isLoading}
           onView={handleView}
           onStatusChange={handleStatusChange}
-          onConvertToInvoice={onConvertToInvoice}
+          onConvertToInvoice={handleConvertAction}
           onPrintPreview={handlePrint}
         />
       </CardContent>
@@ -131,7 +145,7 @@ export function CustomerQuotationsTab({
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         onStatusChange={async (q, s) => handleStatusChange(q, s)}
-        onConvertToInvoice={(q) => onConvertToInvoice?.(q)}
+        onConvertToInvoice={(q) => handleConvertAction(q)}
         onPrintPreview={() => setIsPrintOpen(true)}
       />
 
@@ -141,6 +155,19 @@ export function CustomerQuotationsTab({
         open={isPrintOpen}
         onOpenChange={setIsPrintOpen}
       />
+
+      {/* Convert to Invoice Modal */}
+      {isConvertOpen && (
+        <ConvertQuotationDialog
+          open={isConvertOpen}
+          onOpenChange={setIsConvertOpen}
+          quote={quoteToConvert}
+          onSuccess={() => {
+            fetchCustomerQuotations();
+            onInvoiceCreated?.();
+          }}
+        />
+      )}
     </Card>
   );
 }

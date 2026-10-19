@@ -17,6 +17,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   const queryParams = Object.fromEntries(searchParams.entries());
 
   const result = await getPayments(user, queryParams as any);
+  const totalPages = Math.ceil(result.total / (result.limit || 20)) || 1;
 
   return successResponse({
     statusCode: 200,
@@ -24,6 +25,13 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     data: {
       ...result,
       payments: result.items,
+      totalPages,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages,
+      },
     },
   });
 });

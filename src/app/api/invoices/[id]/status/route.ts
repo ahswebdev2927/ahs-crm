@@ -5,10 +5,10 @@ import { requireAuth } from "@/features/auth/services/authorization.service";
 import { updateInvoiceStatus } from "@/features/invoices/services/invoice.service";
 
 /**
- * POST /api/invoices/[id]/status
  * Update invoice status manually (e.g. void or cancel).
+ * Supports both POST and PATCH methods.
  */
-export const POST = withErrorHandling(async (request: NextRequest, context) => {
+const handleStatusUpdate = async (request: NextRequest, context: any) => {
   const user = await requireAuth();
   const rawParams = await context?.params;
   const id = Array.isArray(rawParams?.id) ? rawParams.id[0] : rawParams?.id || "";
@@ -21,4 +21,7 @@ export const POST = withErrorHandling(async (request: NextRequest, context) => {
     message: `Invoice status updated to ${invoice.status}.`,
     data: { invoice },
   });
-});
+};
+
+export const POST = withErrorHandling(handleStatusUpdate);
+export const PATCH = withErrorHandling(handleStatusUpdate);

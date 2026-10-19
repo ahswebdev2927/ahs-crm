@@ -43,8 +43,8 @@ export function CustomerBillingTab({
       if (res.ok) {
         const data = await res.json();
         setInvoices(data.data.items || []);
-        setTotalCount(data.data.pagination?.total || 0);
-        setTotalPages(data.data.pagination?.totalPages || 1);
+        setTotalCount(data.data.pagination?.total ?? data.data.total ?? 0);
+        setTotalPages(data.data.pagination?.totalPages ?? data.data.totalPages ?? 1);
       }
     } catch (err) {
       console.error("Error fetching customer invoices:", err);

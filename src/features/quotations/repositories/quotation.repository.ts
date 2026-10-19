@@ -13,12 +13,13 @@ import type { QuotationItemInput } from "../schemas/quotation.schema";
 /**
  * Generates a standard chronological sequential quote number: QT-YYYYMM-XXXX
  */
-export const generateNextQuoteNumber = async (): Promise<string> => {
+export const generateNextQuoteNumber = async (tx?: any): Promise<string> => {
+  const runner = tx || db;
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
   const prefix = `QT-${yearMonth}-`;
 
-  const existingQuotes = await db
+  const existingQuotes = await runner
     .select({ quoteNumber: quotations.quoteNumber })
     .from(quotations)
     .where(like(quotations.quoteNumber, `${prefix}%`))
@@ -338,9 +339,10 @@ export const createQuotationRecord = async (
   createdById: string
 ): Promise<QuotationDetail> => {
   const quotationId = randomUUID();
-  const quoteNumber = await generateNextQuoteNumber();
 
   await db.transaction(async (tx) => {
+    const quoteNumber = await generateNextQuoteNumber(tx);
+
     await tx.insert(quotations).values({
       id: quotationId,
       quoteNumber,

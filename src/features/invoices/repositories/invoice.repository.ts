@@ -14,12 +14,13 @@ import type { InvoiceItemInput } from "../schemas/invoice.schema";
 /**
  * Generates a sequential invoice number: INV-YYYYMM-XXXX
  */
-export const generateNextInvoiceNumber = async (): Promise<string> => {
+export const generateNextInvoiceNumber = async (tx?: any): Promise<string> => {
+  const runner = tx || db;
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
   const prefix = `INV-${yearMonth}-`;
 
-  const existingInvoices = await db
+  const existingInvoices = await runner
     .select({ invoiceNumber: invoices.invoiceNumber })
     .from(invoices)
     .where(like(invoices.invoiceNumber, `${prefix}%`))
@@ -70,12 +71,12 @@ export const findInvoices = async (
   if (overdueOnly) {
     conditions.push(lte(invoices.dueDate, new Date(now)));
     conditions.push(sql`${invoices.amountDue} > 0`);
-    conditions.push(sql`${invoices.status} != 'cancelled'`);
+    conditions.push(sql`${invoices.status} NOT IN ('cancelled', 'void')`);
   } else if (status && status !== "all") {
     if (status === "overdue") {
       conditions.push(lte(invoices.dueDate, new Date(now)));
       conditions.push(sql`${invoices.amountDue} > 0`);
-      conditions.push(sql`${invoices.status} != 'cancelled'`);
+      conditions.push(sql`${invoices.status} NOT IN ('cancelled', 'void')`);
     } else {
       conditions.push(eq(invoices.status, status as any));
     }
@@ -168,9 +169,9 @@ export const findInvoices = async (
 
   const items: InvoiceItem[] = rows.map((r) => {
     const dueDateMs = r.dueDate instanceof Date ? r.dueDate.getTime() : Number(r.dueDate);
-    const isOverdue = dueDateMs < now && r.amountDue > 0 && r.status !== "cancelled";
+    const isOverdue = dueDateMs < now && r.amountDue > 0 && r.status !== "cancelled" && r.status !== "void";
     let effectiveStatus = r.status as InvoiceStatus;
-    if (isOverdue && effectiveStatus !== "paid" && effectiveStatus !== "cancelled") {
+    if (isOverdue && effectiveStatus !== "paid" && effectiveStatus !== "cancelled" && effectiveStatus !== "void") {
       effectiveStatus = "overdue";
     }
 
@@ -283,9 +284,9 @@ export const findInvoiceById = async (id: string): Promise<InvoiceDetail | null>
 
   const now = Date.now();
   const dueDateMs = inv.dueDate instanceof Date ? inv.dueDate.getTime() : Number(inv.dueDate);
-  const isOverdue = dueDateMs < now && inv.amountDue > 0 && inv.status !== "cancelled";
+  const isOverdue = dueDateMs < now && inv.amountDue > 0 && inv.status !== "cancelled" && inv.status !== "void";
   let effectiveStatus = inv.status as InvoiceStatus;
-  if (isOverdue && effectiveStatus !== "paid" && effectiveStatus !== "cancelled") {
+  if (isOverdue && effectiveStatus !== "paid" && effectiveStatus !== "cancelled" && effectiveStatus !== "void") {
     effectiveStatus = "overdue";
   }
 
@@ -366,9 +367,10 @@ export const createInvoiceRecord = async (
   createdById: string
 ): Promise<InvoiceDetail> => {
   const invoiceId = randomUUID();
-  const invoiceNumber = await generateNextInvoiceNumber();
 
   await db.transaction(async (tx) => {
+    const invoiceNumber = await generateNextInvoiceNumber(tx);
+
     await tx.insert(invoices).values({
       id: invoiceId,
       customerId: data.customerId,
@@ -432,9 +434,10 @@ export const convertQuotationToInvoiceRecord = async (
     .all();
 
   const invoiceId = randomUUID();
-  const invoiceNumber = await generateNextInvoiceNumber();
 
   await db.transaction(async (tx) => {
+    const invoiceNumber = await generateNextInvoiceNumber(tx);
+
     await tx.insert(invoices).values({
       id: invoiceId,
       customerId,
