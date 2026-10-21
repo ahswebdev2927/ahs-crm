@@ -491,23 +491,48 @@ export const getFollowUpMetrics = async (
 
   // Overdue count
   const overdueConds = [...baseConditions, lt(followUps.scheduledAt, startOfToday), eq(followUps.status, "scheduled")];
-  const overdueRes = await db.select({ total: count() }).from(followUps).where(and(...overdueConds));
+  const overdueRes = await db
+    .select({ total: count() })
+    .from(followUps)
+    .leftJoin(leads, eq(followUps.leadId, leads.id))
+    .leftJoin(customers, eq(followUps.customerId, customers.id))
+    .where(and(...overdueConds));
 
   // Today count
   const todayConds = [...baseConditions, gte(followUps.scheduledAt, startOfToday), lte(followUps.scheduledAt, endOfToday), eq(followUps.status, "scheduled")];
-  const todayRes = await db.select({ total: count() }).from(followUps).where(and(...todayConds));
+  const todayRes = await db
+    .select({ total: count() })
+    .from(followUps)
+    .leftJoin(leads, eq(followUps.leadId, leads.id))
+    .leftJoin(customers, eq(followUps.customerId, customers.id))
+    .where(and(...todayConds));
 
   // Upcoming count
   const upcomingConds = [...baseConditions, gt(followUps.scheduledAt, endOfToday), eq(followUps.status, "scheduled")];
-  const upcomingRes = await db.select({ total: count() }).from(followUps).where(and(...upcomingConds));
+  const upcomingRes = await db
+    .select({ total: count() })
+    .from(followUps)
+    .leftJoin(leads, eq(followUps.leadId, leads.id))
+    .leftJoin(customers, eq(followUps.customerId, customers.id))
+    .where(and(...upcomingConds));
 
   // Completed Today count
   const completedTodayConds = [...baseConditions, gte(followUps.completedAt, startOfToday), lte(followUps.completedAt, endOfToday), eq(followUps.status, "completed")];
-  const completedTodayRes = await db.select({ total: count() }).from(followUps).where(and(...completedTodayConds));
+  const completedTodayRes = await db
+    .select({ total: count() })
+    .from(followUps)
+    .leftJoin(leads, eq(followUps.leadId, leads.id))
+    .leftJoin(customers, eq(followUps.customerId, customers.id))
+    .where(and(...completedTodayConds));
 
   // Total pending count
   const totalPendingConds = [...baseConditions, eq(followUps.status, "scheduled")];
-  const totalPendingRes = await db.select({ total: count() }).from(followUps).where(and(...totalPendingConds));
+  const totalPendingRes = await db
+    .select({ total: count() })
+    .from(followUps)
+    .leftJoin(leads, eq(followUps.leadId, leads.id))
+    .leftJoin(customers, eq(followUps.customerId, customers.id))
+    .where(and(...totalPendingConds));
 
   return {
     overdueCount: overdueRes[0]?.total ?? 0,
