@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { or, eq, exists, and, isNotNull } from "drizzle-orm";
+import { or, eq, exists, and, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { AppError } from "@/lib/errors/AppError";
 import { logAuthzFailure } from "@/lib/logger";
@@ -314,6 +314,141 @@ export const getCustomerVisibilityFilter = (
                   )
               )
             )
+          )
+        )
+    )
+  );
+};
+
+/**
+ * Builds the data visibility SQL WHERE filter for Tasks based on user role and data visibility level.
+ * - Admin (super_admin): Sees ALL tasks across the company (when dataVisibility == 'all' or undefined).
+ * - Manager (sales_manager): Sees tasks assigned to team members, created by team members, or linked to leads/customers owned by team members.
+ * - Sales Reps: Sees tasks assigned to them, created by them, or attached to leads they own/partner on, or customers they own.
+ * - When dataVisibility is 'own': Strictly restricted to tasks assigned to or created by the user.
+ */
+export const getTaskVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  dataVisibility?: string,
+  teamId?: number | null
+) => {
+  // 1. If dataVisibility is 'own', restrict strictly to tasks assigned to or created by the user
+  if (dataVisibility === "own") {
+    return or(
+      eq(tasks.assignedToId, userId),
+      eq(tasks.createdById, userId)
+    );
+  }
+
+  // 2. Super Admin with 'all' visibility sees all tasks
+  if (roleCode === "super_admin" && (dataVisibility === "all" || !dataVisibility)) {
+    return undefined;
+  }
+
+  // 3. Sales Manager with 'team' visibility sees team tasks + own/created
+  if (roleCode === "sales_manager" && (dataVisibility === "team" || !dataVisibility) && teamId) {
+    return or(
+      eq(tasks.assignedToId, userId),
+      eq(tasks.createdById, userId),
+      // Assigned to a team member
+      exists(
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              isNotNull(tasks.assignedToId),
+              eq(users.id, tasks.assignedToId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      // Created by a team member
+      exists(
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.id, tasks.createdById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      // Linked to a lead owned by a team member
+      exists(
+        db
+          .select()
+          .from(leads)
+          .innerJoin(users, eq(users.id, leads.ownerId))
+          .where(
+            and(
+              isNotNull(tasks.leadId),
+              eq(leads.id, tasks.leadId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      // Linked to a customer owned by a team member
+      exists(
+        db
+          .select()
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              isNotNull(tasks.customerId),
+              eq(customers.id, tasks.customerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  // 4. Standard Reps / fallback: own tasks (assigned/created) OR tasks linked to own/partnered leads or own customers
+  return or(
+    eq(tasks.assignedToId, userId),
+    eq(tasks.createdById, userId),
+    // Linked to a lead owned, created, or partnered by user
+    exists(
+      db
+        .select()
+        .from(leads)
+        .where(
+          and(
+            isNotNull(tasks.leadId),
+            eq(leads.id, tasks.leadId!),
+            or(
+              eq(leads.ownerId, userId),
+              eq(leads.createdById, userId),
+              exists(
+                db
+                  .select()
+                  .from(leadPartners)
+                  .where(
+                    and(
+                      eq(leadPartners.leadId, leads.id),
+                      eq(leadPartners.partnerId, userId),
+                      eq(leadPartners.status, "active")
+                    )
+                  )
+              )
+            )
+          )
+        )
+    ),
+    // Linked to a customer owned by user
+    exists(
+      db
+        .select()
+        .from(customers)
+        .where(
+          and(
+            isNotNull(tasks.customerId),
+            eq(customers.id, tasks.customerId!),
+            eq(customers.ownerId, userId)
           )
         )
     )
@@ -638,10 +773,6 @@ export const checkTaskAccess = async (
   const permCode = action === "view" ? "tasks:view" : "tasks:create";
   const user = await checkPermission(permCode);
 
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
-  }
-
   const task = await db
     .select({
       id: tasks.id,
@@ -649,13 +780,18 @@ export const checkTaskAccess = async (
       createdById: tasks.createdById,
       leadId: tasks.leadId,
       customerId: tasks.customerId,
+      deletedAt: tasks.deletedAt,
     })
     .from(tasks)
-    .where(eq(tasks.id, taskId))
+    .where(and(eq(tasks.id, taskId), isNull(tasks.deletedAt)))
     .get();
 
   if (!task) {
     throw new AppError("Task not found.", 404, "NOT_FOUND");
+  }
+
+  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
+    return user;
   }
 
   if (task.assignedToId === user.id || task.createdById === user.id) {
