@@ -429,7 +429,7 @@ export async function deleteTaskRecord(
   }
 }
 
-export async function getTaskMetrics(
+export async function getTaskMetricsRepo(
   visibilityFilter: SQL | undefined
 ): Promise<TaskMetrics> {
   const now = Date.now();
