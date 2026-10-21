@@ -13,6 +13,7 @@ import {
   isNotNull,
   sql,
   SQL,
+  Column,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type {
@@ -27,7 +28,34 @@ import type { TaskItem, TaskMetrics } from "../types/task.types";
 const createdByUsers = alias(users, "createdByUsers");
 const assignedToUsers = alias(users, "assignedToUsers");
 
-function mapTaskRow(row: any): TaskItem {
+interface TaskDbRow {
+  tasks: typeof tasks.$inferSelect;
+  leads: {
+    id: string;
+    name: string;
+    company: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  customers: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  createdByUsers: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  assignedToUsers: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+}
+
+function mapTaskRow(row: TaskDbRow): TaskItem {
   return {
     id: row.tasks.id,
     title: row.tasks.title,
@@ -146,7 +174,7 @@ export async function findTasks(
     .where(whereClause);
 
   // Sorting selection
-  let orderColumn: any = tasks.dueDate;
+  let orderColumn: Column = tasks.dueDate;
   if (params.sortBy === "priority") {
     orderColumn = tasks.priority;
   } else if (params.sortBy === "createdAt") {
@@ -359,7 +387,7 @@ export async function updateTaskRecord(
   input: UpdateTaskInput
 ): Promise<TaskItem | null> {
   const now = new Date();
-  const updateValues: Record<string, any> = {
+  const updateValues: Record<string, unknown> = {
     updatedAt: now,
   };
 
@@ -422,10 +450,12 @@ export async function deleteTaskRecord(
         updatedAt: now,
       })
       .where(and(eq(tasks.id, id), isNull(tasks.deletedAt)));
-    return (res as any)?.changes !== 0;
+    const info = res as unknown as { changes?: number };
+    return (info?.changes ?? 0) !== 0;
   } else {
     const res = await db.delete(tasks).where(eq(tasks.id, id));
-    return (res as any)?.changes !== 0;
+    const info = res as unknown as { changes?: number };
+    return (info?.changes ?? 0) !== 0;
   }
 }
 

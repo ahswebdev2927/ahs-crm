@@ -35,6 +35,7 @@ import { CustomerDialog } from "./customer-dialog";
 import { CustomerServicesTab } from "@/features/services/components/customer-services-tab";
 import { CustomerQuotationsTab } from "@/features/quotations/components/customer-quotations-tab";
 import { CustomerBillingTab } from "@/features/invoices/components/customer-billing-tab";
+import { EmbeddedTaskList } from "@/features/tasks";
 
 export interface CustomerWorkspaceProps {
   customerId: string;
@@ -242,6 +243,9 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
               <TabsTrigger value="billing" className="text-xs shrink-0 cursor-pointer">
                 Billing ({customer.stats.totalInvoices})
               </TabsTrigger>
+              <TabsTrigger value="tasks" className="text-xs shrink-0 cursor-pointer">
+                Tasks
+              </TabsTrigger>
             </TabsList>
 
             {/* Overview Tab Content */}
@@ -399,6 +403,11 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
                 customerId={customer.id}
                 customerName={customer.name}
               />
+            </TabsContent>
+
+            {/* Tasks Tab */}
+            <TabsContent value="tasks" className="mt-3">
+              <EmbeddedTaskList customerId={customer.id} />
             </TabsContent>
           </Tabs>
         </div>

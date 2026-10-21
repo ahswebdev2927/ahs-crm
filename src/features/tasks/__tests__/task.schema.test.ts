@@ -112,6 +112,21 @@ describe("Tasks Feature — Zod Validation Schemas", () => {
     });
   });
 
+  describe("updateTaskSchema", () => {
+    test("validates partial task update input", () => {
+      const res = updateTaskSchema.parse({
+        title: "Updated task title",
+        priority: "high",
+        status: "completed",
+        assignedToId: "unassigned",
+      });
+      assert.equal(res.title, "Updated task title");
+      assert.equal(res.priority, "high");
+      assert.equal(res.status, "completed");
+      assert.equal(res.assignedToId, null);
+    });
+  });
+
   describe("taskQuerySchema", () => {
     test("parses query parameters with default pagination and sorting", () => {
       const res = taskQuerySchema.parse({});

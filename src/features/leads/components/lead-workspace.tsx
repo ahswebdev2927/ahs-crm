@@ -40,6 +40,7 @@ import { LeadFollowUpsTab } from "@/features/followups/components/lead-followups
 import { LeadAppointmentsTab } from "@/features/appointments/components/lead-appointments-tab";
 import { LeadActivityTimeline } from "./lead-activity-timeline";
 import { LeadQuotationsTab } from "@/features/quotations/components/lead-quotations-tab";
+import { EmbeddedTaskList } from "@/features/tasks";
 import { LeadDialog } from "./lead-dialog";
 import { LeadStageDialog } from "./lead-stage-dialog";
 import { LeadAssignDialog } from "./lead-assign-dialog";
@@ -366,13 +367,14 @@ export function LeadWorkspace({
 
           {/* Unified Workspace Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid grid-cols-4 sm:grid-cols-7 w-full bg-muted/40 p-1 border border-border rounded-xl h-auto">
+            <TabsList className="grid grid-cols-4 sm:grid-cols-8 w-full bg-muted/40 p-1 border border-border rounded-xl h-auto">
               <TabsTrigger value="overview" className="text-xs py-1.5">Overview</TabsTrigger>
               <TabsTrigger value="history" className="text-xs py-1.5">
                 History ({lead.stageHistory.length})
               </TabsTrigger>
               <TabsTrigger value="followups" className="text-xs py-1.5">Follow-ups</TabsTrigger>
               <TabsTrigger value="appointments" className="text-xs py-1.5">Appointments</TabsTrigger>
+              <TabsTrigger value="tasks" className="text-xs py-1.5">Tasks</TabsTrigger>
               <TabsTrigger value="quotations" className="text-xs py-1.5">Quotations</TabsTrigger>
               <TabsTrigger value="partners" className="text-xs py-1.5">
                 Partners ({lead.partners.length})
@@ -492,7 +494,7 @@ export function LeadWorkspace({
               />
             </TabsContent>
 
-            {/* TAB 6: ACTIVITY TIMELINE */}
+            {/* TAB: ACTIVITY TIMELINE */}
             <TabsContent value="timeline" className="pt-4">
               <LeadActivityTimeline
                 leadId={lead.id}
@@ -501,6 +503,11 @@ export function LeadWorkspace({
                 canUserEdit={canUserEdit}
                 onActivityAdded={handleMutationSuccess}
               />
+            </TabsContent>
+
+            {/* TAB: TASKS */}
+            <TabsContent value="tasks" className="pt-4">
+              <EmbeddedTaskList leadId={lead.id} canUserEdit={canUserEdit} />
             </TabsContent>
           </Tabs>
         </div>
