@@ -17,8 +17,10 @@ import {
   AlertCircle,
   FileText,
   Loader2,
+  Receipt,
 } from "lucide-react";
 import { AssignCustomerServiceDialog } from "./assign-customer-service-dialog";
+import { InvoiceDialog } from "@/features/invoices/components/invoice-dialog";
 import type { CustomerServiceSubscriptionItem } from "../types/service.types";
 
 interface CustomerServicesTabProps {
@@ -36,6 +38,10 @@ export function CustomerServicesTab({
   const [loading, setLoading] = useState(true);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [billInvoiceOpen, setBillInvoiceOpen] = useState(false);
+  const [billingItems, setBillingItems] = useState<
+    { serviceId?: number; description: string; quantity: number; unitPriceRupees: number }[]
+  >([]);
 
   const fetchSubscriptions = async () => {
     setLoading(true);
@@ -279,26 +285,51 @@ export function CustomerServicesTab({
                       )}
                     </div>
 
-                    {/* Status Changer */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[11px]">Status:</span>
-                      <select
-                        value={sub.status}
-                        disabled={updatingId === sub.id}
-                        onChange={(e) =>
-                          handleStatusChange(
-                            sub.id,
-                            e.target.value as "active" | "suspended" | "cancelled" | "expired"
-                          )
-                        }
-                        className="h-7 px-2 bg-muted/50 border border-input rounded text-xs cursor-pointer"
-                      >
-                        <option value="active">Active</option>
-                        <option value="suspended">Suspended</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="expired">Expired</option>
-                      </select>
+                    {/* Service Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {sub.status === "active" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setBillingItems([
+                              {
+                                serviceId: sub.serviceId,
+                                description: `${sub.serviceNameSnapshot || "Service Contract"} - ${sub.planSnapshot || "Standard Tier"}`,
+                                quantity: sub.quantity || 1,
+                                unitPriceRupees: Math.round(sub.totalPrice / (sub.quantity || 1) / 100),
+                              },
+                            ]);
+                            setBillInvoiceOpen(true);
+                          }}
+                          className="h-7 text-xs border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 gap-1 cursor-pointer"
+                        >
+                          <Receipt className="h-3 w-3" />
+                          Bill this Service
+                        </Button>
+                      )}
+
+                      {/* Status Changer */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px]">Status:</span>
+                        <select
+                          value={sub.status}
+                          disabled={updatingId === sub.id}
+                          onChange={(e) =>
+                            handleStatusChange(
+                              sub.id,
+                              e.target.value as "active" | "suspended" | "cancelled" | "expired"
+                            )
+                          }
+                          className="h-7 px-2 bg-muted/50 border border-input rounded text-xs cursor-pointer"
+                        >
+                          <option value="active">Active</option>
+                          <option value="suspended">Suspended</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                          <option value="expired">Expired</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -316,6 +347,23 @@ export function CustomerServicesTab({
         customerName={customerName}
         onSuccess={() => {
           fetchSubscriptions();
+          onSubscriptionChange?.();
+        }}
+      />
+
+      {/* Bill Service Invoice Dialog */}
+      <InvoiceDialog
+        open={billInvoiceOpen}
+        onOpenChange={setBillInvoiceOpen}
+        preselectedCustomerId={customerId}
+        preselectedCustomerName={customerName}
+        initialItems={billingItems}
+        onSuccess={() => {
+          toast.add({
+            type: "success",
+            title: "Tax Invoice Generated",
+            description: "Tax invoice successfully created from active service subscription.",
+          });
           onSubscriptionChange?.();
         }}
       />

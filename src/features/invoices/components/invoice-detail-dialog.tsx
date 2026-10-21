@@ -435,7 +435,7 @@ export function InvoiceDetailDialog({
           </div>
 
           <div className="flex items-center gap-2">
-            {invoice.status === "draft" && onEdit && (
+            {invoice.amountPaid === 0 && invoice.status !== "cancelled" && invoice.status !== "void" && onEdit && (
               <Button
                 variant="outline"
                 size="sm"

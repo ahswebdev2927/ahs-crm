@@ -12,10 +12,13 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  RotateCcw,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatINR, formatFinancialDate } from "@/lib/formatters";
+import { PaymentDetailsDialog } from "./payment-details-dialog";
 import type { PaymentItem } from "../types/payment.types";
 
 interface PaymentTableProps {
@@ -26,6 +29,7 @@ interface PaymentTableProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   onViewInvoice?: (invoiceId: string) => void;
+  onPaymentUpdated?: () => void;
 }
 
 export function PaymentTable({
@@ -36,7 +40,12 @@ export function PaymentTable({
   totalPages,
   onPageChange,
   onViewInvoice,
+  onPaymentUpdated,
 }: PaymentTableProps) {
+  const [selectedPaymentForDetails, setSelectedPaymentForDetails] =
+    React.useState<PaymentItem | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
+
   const getMethodBadge = (method: string) => {
     switch (method) {
       case "bank_transfer":
@@ -84,6 +93,12 @@ export function PaymentTable({
         return (
           <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">
             <Clock className="w-2.5 h-2.5 mr-1" /> Pending
+          </Badge>
+        );
+      case "refunded":
+        return (
+          <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px]">
+            <RotateCcw className="w-2.5 h-2.5 mr-1" /> Refunded
           </Badge>
         );
       case "failed":
@@ -136,8 +151,8 @@ export function PaymentTable({
               <th className="py-3 px-4 font-semibold">Transaction Reference / UTR</th>
               <th className="py-3 px-4 text-right font-semibold">Amount</th>
               <th className="py-3 px-4 text-center font-semibold">Status</th>
-              <th className="py-3 px-4 font-semibold">Logged By</th>
-              <th className="py-3 px-4 text-right font-semibold">Receipt</th>
+              <th className="py-3 px-4 text-stone-600 whitespace-nowrap">Logged By</th>
+              <th className="py-3 px-4 text-right font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-200">
@@ -190,18 +205,31 @@ export function PaymentTable({
                 </td>
 
                 <td className="py-3 px-4 text-right whitespace-nowrap">
-                  {p.receiptUrl ? (
-                    <a
-                      href={p.receiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-emerald-700 hover:underline font-medium text-[11px]"
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedPaymentForDetails(p);
+                        setIsDetailsOpen(true);
+                      }}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                     >
-                      <Receipt className="w-3 h-3" /> View
-                    </a>
-                  ) : (
-                    <span className="text-stone-300">—</span>
-                  )}
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      Details
+                    </Button>
+                    {p.receiptUrl && (
+                      <a
+                        href={p.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-700 hover:underline font-medium text-[11px] px-1"
+                        title="Open external receipt"
+                      >
+                        <Receipt className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -241,6 +269,15 @@ export function PaymentTable({
           </div>
         </div>
       )}
+
+      {/* Details & Reversal Dialog */}
+      <PaymentDetailsDialog
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        payment={selectedPaymentForDetails}
+        onViewInvoice={onViewInvoice}
+        onSuccess={onPaymentUpdated}
+      />
     </div>
   );
 }

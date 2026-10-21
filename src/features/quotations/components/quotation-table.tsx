@@ -46,9 +46,9 @@ export function QuotationTable({
   onConvertToInvoice,
   onPrintPreview,
 }: QuotationTableProps) {
-  const getStatusBadge = (status: QuotationStatus, validUntil: number) => {
-    const isPast = validUntil < Date.now();
-    if (status === "sent" && isPast) {
+  const getStatusBadge = (quote: QuotationItem) => {
+    const isPast = quote.validUntil < Date.now();
+    if (quote.status === "sent" && isPast) {
       return (
         <Badge variant="outline" className="border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10">
           <Clock className="h-3 w-3 mr-1" />
@@ -57,7 +57,7 @@ export function QuotationTable({
       );
     }
 
-    switch (status) {
+    switch (quote.status) {
       case "draft":
         return (
           <Badge variant="secondary" className="font-normal text-muted-foreground">
@@ -80,10 +80,17 @@ export function QuotationTable({
         );
       case "accepted":
         return (
-          <Badge className="bg-emerald-600 text-white font-medium hover:bg-emerald-700">
-            <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
-            Accepted
-          </Badge>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge className="bg-emerald-600 text-white font-medium hover:bg-emerald-700">
+              <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+              Accepted
+            </Badge>
+            {quote.invoiceNumber && (
+              <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 font-mono text-[10px]">
+                Invoiced: {quote.invoiceNumber}
+              </Badge>
+            )}
+          </div>
         );
       case "declined":
         return (
@@ -184,7 +191,7 @@ export function QuotationTable({
 
                   {/* Status Badge */}
                   <td className="py-3.5 px-4">
-                    {getStatusBadge(quote.status, quote.validUntil)}
+                    {getStatusBadge(quote)}
                   </td>
 
                   {/* Valid Until */}
@@ -223,16 +230,26 @@ export function QuotationTable({
                           </DropdownMenuItem>
                         )}
 
-                        {quote.status === "accepted" && onConvertToInvoice && (
+                        {quote.status === "accepted" && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => onConvertToInvoice(quote)}
-                              className="text-primary font-medium"
-                            >
-                              <ArrowRight className="h-3.5 w-3.5 mr-2" />
-                              Convert to Invoice
-                            </DropdownMenuItem>
+                            {quote.invoiceNumber ? (
+                              <DropdownMenuItem
+                                onClick={() => onView(quote)}
+                                className="text-primary font-medium"
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-2" />
+                                View Tax Invoice
+                              </DropdownMenuItem>
+                            ) : onConvertToInvoice ? (
+                              <DropdownMenuItem
+                                onClick={() => onConvertToInvoice(quote)}
+                                className="text-primary font-medium"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5 mr-2" />
+                                Convert to Invoice
+                              </DropdownMenuItem>
+                            ) : null}
                           </>
                         )}
 

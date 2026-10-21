@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,6 +258,16 @@ export function InvoiceTable({
                             Print Tax Invoice
                           </DropdownMenuItem>
                         )}
+
+                        {inv.amountPaid === 0 &&
+                          inv.status !== "cancelled" &&
+                          inv.status !== "void" &&
+                          onEdit && (
+                            <DropdownMenuItem onClick={() => onEdit(inv)}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" />
+                              Edit Invoice
+                            </DropdownMenuItem>
+                          )}
 
                         {inv.amountDue > 0 && onRecordPayment && inv.status !== "cancelled" && (
                           <>

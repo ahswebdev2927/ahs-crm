@@ -10,13 +10,16 @@ import {
   findPayments,
   findPaymentById,
   recordPaymentTransaction,
+  updatePaymentStatusRecord,
   getPaymentsKpis,
 } from "../repositories/payment.repository";
 import {
   recordPaymentSchema,
   paymentQuerySchema,
+  updatePaymentStatusSchema,
   type RecordPaymentInput,
   type PaymentQueryInput,
+  type UpdatePaymentStatusInput,
 } from "../schemas/payment.schema";
 import type { PaymentItem, PaymentKpis } from "../types/payment.types";
 
@@ -115,6 +118,43 @@ export const recordPayment = async (
 };
 
 /**
+ * Updates a payment's status (e.g. marking as refunded or failed/reversed)
+ * and recalculates customer invoice balance atomically.
+ */
+export const updatePaymentStatus = async (
+  user: AuthenticatedUserPayload,
+  paymentId: string,
+  input: UpdatePaymentStatusInput
+): Promise<PaymentItem> => {
+  assertUserPermission(user, "payments:create");
+  const validated = updatePaymentStatusSchema.parse(input);
+
+  const existing = await findPaymentById(paymentId);
+  if (!existing) {
+    throw new AppError("Payment transaction not found.", 404, "NOT_FOUND");
+  }
+
+  const isSuper =
+    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  if (!isSuper && existing.receivedById !== user.id && existing.customerId) {
+    await checkCustomerAccess(existing.customerId, "view", user);
+  }
+
+  const updated = await updatePaymentStatusRecord(paymentId, validated.status, validated.reason);
+
+  recordAuditLog({
+    userId: user.id,
+    action: `payment:${validated.status}`,
+    entityType: "payment",
+    entityId: paymentId,
+    oldData: { status: existing.status },
+    newData: { status: validated.status, reason: validated.reason },
+  }).catch(() => {});
+
+  return updated;
+};
+
+/**
  * Retrieves aggregate collection KPIs for the authenticated user's scope.
  */
 export const getPaymentsStats = async (
@@ -129,3 +169,4 @@ export const getPaymentsStats = async (
     userId: user.id,
   });
 };
+

@@ -33,6 +33,7 @@ interface InvoiceDialogProps {
   preselectedClientName?: string;
   preselectedQuotationId?: string;
   preselectedQuotation?: QuotationItem | QuotationDetail | null;
+  initialItems?: FormLineItem[];
   onSuccess: () => void;
 }
 
@@ -52,6 +53,7 @@ export function InvoiceDialog({
   preselectedClientName,
   preselectedQuotationId,
   preselectedQuotation,
+  initialItems,
   onSuccess,
 }: InvoiceDialogProps) {
   const [submitting, setSubmitting] = React.useState(false);
@@ -182,6 +184,19 @@ export function InvoiceDialog({
       } else {
         setItems([{ description: "", quantity: 1, unitPriceRupees: 0 }]);
       }
+    } else if (initialItems && initialItems.length > 0) {
+      setSelectedCustomerId(preselectedCustomerId || "");
+      setIssueDate(new Date().toISOString().split("T")[0]);
+      const d = new Date();
+      d.setDate(d.getDate() + 15);
+      setDueDate(d.toISOString().split("T")[0]);
+      setDiscountRupees(0);
+      setTaxRate(18);
+      setNotes("");
+      setTerms(
+        "1. Payment due within 15 calendar days from the date of invoice.\n2. Please mention the Invoice Number in your bank transfer or cheque remarks.\n3. GST applied as per Government of India statutory mandates."
+      );
+      setItems(initialItems);
     } else {
       setSelectedCustomerId(preselectedCustomerId || "");
       setIssueDate(new Date().toISOString().split("T")[0]);
@@ -197,7 +212,7 @@ export function InvoiceDialog({
       setItems([{ description: "", quantity: 1, unitPriceRupees: 0 }]);
     }
     setErrorMsg(null);
-  }, [open, invoiceToEdit, preselectedCustomerId, preselectedQuotation]);
+  }, [open, invoiceToEdit, preselectedCustomerId, preselectedQuotation, initialItems]);
 
   // Real-time calculations in Paise
   const subtotalPaise = React.useMemo(() => {

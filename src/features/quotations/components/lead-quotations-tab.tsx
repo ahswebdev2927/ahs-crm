@@ -8,6 +8,7 @@ import { QuotationTable } from "./quotation-table";
 import { QuotationDialog } from "./quotation-dialog";
 import { QuotationDetailDialog } from "./quotation-detail-dialog";
 import { QuotationPrintPreview } from "./quotation-print-preview";
+import { ConvertQuotationDialog } from "./convert-quotation-dialog";
 import type { QuotationItem, QuotationDetail, QuotationStatus } from "../types/quotation.types";
 
 interface LeadQuotationsTabProps {
@@ -29,6 +30,8 @@ export function LeadQuotationsTab({
   const [selectedQuote, setSelectedQuote] = React.useState<QuotationDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
   const [isPrintOpen, setIsPrintOpen] = React.useState(false);
+  const [isConvertOpen, setIsConvertOpen] = React.useState(false);
+  const [quoteToConvert, setQuoteToConvert] = React.useState<QuotationItem | null>(null);
 
   const fetchLeadQuotations = React.useCallback(async () => {
     setIsLoading(true);
@@ -84,6 +87,15 @@ export function LeadQuotationsTab({
     handleView(quote).then(() => setIsPrintOpen(true));
   };
 
+  const handleConvertAction = (quote: QuotationItem) => {
+    if (onConvertToInvoice) {
+      onConvertToInvoice(quote);
+    } else {
+      setQuoteToConvert(quote);
+      setIsConvertOpen(true);
+    }
+  };
+
   return (
     <Card className="border border-border shadow-xs bg-card">
       <CardHeader className="pb-3 pt-4 px-4 sm:px-5 flex flex-row items-center justify-between">
@@ -115,7 +127,7 @@ export function LeadQuotationsTab({
           isLoading={isLoading}
           onView={handleView}
           onStatusChange={canEdit ? handleStatusChange : undefined}
-          onConvertToInvoice={onConvertToInvoice}
+          onConvertToInvoice={handleConvertAction}
           onPrintPreview={handlePrint}
         />
       </CardContent>
@@ -135,7 +147,7 @@ export function LeadQuotationsTab({
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         onStatusChange={async (q, s) => handleStatusChange(q, s)}
-        onConvertToInvoice={(q) => onConvertToInvoice?.(q)}
+        onConvertToInvoice={(q) => handleConvertAction(q)}
         onPrintPreview={() => setIsPrintOpen(true)}
       />
 
@@ -145,6 +157,16 @@ export function LeadQuotationsTab({
         open={isPrintOpen}
         onOpenChange={setIsPrintOpen}
       />
+
+      {/* Convert to Invoice Modal */}
+      {isConvertOpen && (
+        <ConvertQuotationDialog
+          open={isConvertOpen}
+          onOpenChange={setIsConvertOpen}
+          quote={quoteToConvert}
+          onSuccess={fetchLeadQuotations}
+        />
+      )}
     </Card>
   );
 }

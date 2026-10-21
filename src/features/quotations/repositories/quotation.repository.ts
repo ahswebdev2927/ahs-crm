@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { quotations, quotationItems, leads, customers, users } from "@/db/schema";
-import { eq, and, or, sql, like, inArray, gte, lte, desc } from "drizzle-orm";
+import { quotations, quotationItems, leads, customers, users, invoices } from "@/db/schema";
+import { eq, and, or, sql, like, inArray, notInArray, gte, lte, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type {
   QuotationItem,
@@ -154,11 +154,20 @@ export const findQuotations = async (
       customerPhone: customers.phone,
       createdByName: users.name,
       createdByEmail: users.email,
+      invoiceId: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
     })
     .from(quotations)
     .leftJoin(leads, eq(quotations.leadId, leads.id))
     .leftJoin(customers, eq(quotations.customerId, customers.id))
     .leftJoin(users, eq(quotations.createdById, users.id))
+    .leftJoin(
+      invoices,
+      and(
+        eq(invoices.quotationId, quotations.id),
+        notInArray(invoices.status, ["cancelled", "void"])
+      )
+    )
     .where(whereClause)
     .orderBy(desc(quotations.createdAt))
     .limit(limit)
@@ -184,6 +193,8 @@ export const findQuotations = async (
     createdById: r.createdById,
     createdAt: r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt),
     updatedAt: r.updatedAt instanceof Date ? r.updatedAt.getTime() : Number(r.updatedAt),
+    invoiceId: r.invoiceId || null,
+    invoiceNumber: r.invoiceNumber || null,
     lead: r.leadId
       ? {
           id: r.leadId,
@@ -250,11 +261,20 @@ export const findQuotationById = async (id: string): Promise<QuotationDetail | n
       customerAddress: customers.address,
       createdByName: users.name,
       createdByEmail: users.email,
+      invoiceId: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
     })
     .from(quotations)
     .leftJoin(leads, eq(quotations.leadId, leads.id))
     .leftJoin(customers, eq(quotations.customerId, customers.id))
     .leftJoin(users, eq(quotations.createdById, users.id))
+    .leftJoin(
+      invoices,
+      and(
+        eq(invoices.quotationId, quotations.id),
+        notInArray(invoices.status, ["cancelled", "void"])
+      )
+    )
     .where(eq(quotations.id, id))
     .get();
 
@@ -285,6 +305,8 @@ export const findQuotationById = async (id: string): Promise<QuotationDetail | n
     createdById: quote.createdById,
     createdAt: quote.createdAt instanceof Date ? quote.createdAt.getTime() : Number(quote.createdAt),
     updatedAt: quote.updatedAt instanceof Date ? quote.updatedAt.getTime() : Number(quote.updatedAt),
+    invoiceId: quote.invoiceId || null,
+    invoiceNumber: quote.invoiceNumber || null,
     items: items.map((it) => ({
       ...it,
       createdAt: it.createdAt instanceof Date ? it.createdAt.getTime() : Number(it.createdAt),

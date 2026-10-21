@@ -67,3 +67,15 @@ export const paymentQuerySchema = z.object({
 });
 
 export type PaymentQueryInput = z.infer<typeof paymentQuerySchema>;
+
+/**
+ * Schema for updating payment status (e.g. refunding or voiding a payment receipt).
+ */
+export const updatePaymentStatusSchema = z.object({
+  status: z.enum(["completed", "refunded", "failed"], {
+    errorMap: () => ({ message: "Status must be 'completed', 'refunded', or 'failed'." }),
+  }),
+  reason: z.string().max(500, "Reason cannot exceed 500 characters.").optional(),
+});
+
+export type UpdatePaymentStatusInput = z.infer<typeof updatePaymentStatusSchema>;

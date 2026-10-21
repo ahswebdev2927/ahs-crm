@@ -318,6 +318,104 @@ export const recordPaymentTransaction = async (
 };
 
 /**
+ * Updates a payment's status (e.g., refunding or voiding) and atomically recalculates
+ * the related invoice's amountPaid, amountDue, and payment status.
+ */
+export const updatePaymentStatusRecord = async (
+  paymentId: string,
+  status: "completed" | "refunded" | "failed",
+  reason?: string
+): Promise<PaymentItem> => {
+  await db.transaction(async (tx) => {
+    const existing = await tx
+      .select({
+        id: payments.id,
+        invoiceId: payments.invoiceId,
+        status: payments.status,
+        notes: payments.notes,
+      })
+      .from(payments)
+      .where(eq(payments.id, paymentId))
+      .get();
+
+    if (!existing) {
+      throw new Error("Payment record not found.");
+    }
+
+    if (existing.status === status) {
+      return;
+    }
+
+    // 1. Fetch current invoice state
+    const inv = await tx
+      .select({
+        id: invoices.id,
+        total: invoices.total,
+        status: invoices.status,
+      })
+      .from(invoices)
+      .where(eq(invoices.id, existing.invoiceId))
+      .get();
+
+    if (!inv) {
+      throw new Error("Associated invoice not found.");
+    }
+
+    const updatedNotes = reason
+      ? existing.notes
+        ? `${existing.notes} | Status changed to ${status}: ${reason}`
+        : `Status changed to ${status}: ${reason}`
+      : existing.notes;
+
+    // 2. Update payment status
+    await tx
+      .update(payments)
+      .set({
+        status,
+        notes: updatedNotes,
+        updatedAt: new Date(),
+      })
+      .where(eq(payments.id, paymentId));
+
+    // 3. Resiliently re-aggregate all completed payments for this invoice
+    const sumResult = await tx
+      .select({
+        totalPaid: sql<number>`coalesce(sum(${payments.amount}), 0)`,
+      })
+      .from(payments)
+      .where(and(eq(payments.invoiceId, existing.invoiceId), eq(payments.status, "completed")))
+      .get();
+
+    const newAmountPaid = Number(sumResult?.totalPaid ?? 0);
+    const newAmountDue = Math.max(0, inv.total - newAmountPaid);
+
+    // If invoice is void or cancelled, do not mutate its status
+    if (inv.status !== "void" && inv.status !== "cancelled") {
+      const newStatus =
+        newAmountDue <= 0
+          ? "paid"
+          : newAmountPaid > 0
+          ? "partially_paid"
+          : "unpaid";
+
+      await tx
+        .update(invoices)
+        .set({
+          amountPaid: newAmountPaid,
+          amountDue: newAmountDue,
+          status: newStatus,
+          updatedAt: new Date(),
+        })
+        .where(eq(invoices.id, existing.invoiceId));
+    }
+  });
+
+  const updated = await findPaymentById(paymentId);
+  if (!updated) throw new Error("Failed to retrieve updated payment record.");
+  return updated;
+};
+
+/**
  * Aggregates collection KPIs for payments.
  */
 export const getPaymentsKpis = async (

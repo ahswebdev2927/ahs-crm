@@ -56,6 +56,8 @@ export interface QuotationItem {
   customer?: QuotationClientSnapshot | null;
   createdBy?: QuotationCreatorSnapshot | null;
   itemsCount?: number;
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
 }
 
 export interface QuotationDetail extends QuotationItem {

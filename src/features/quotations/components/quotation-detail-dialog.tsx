@@ -267,14 +267,21 @@ export function QuotationDetailDialog({
             )}
 
             {quote.status === "accepted" && (
-              <Button
-                size="sm"
-                onClick={() => onConvertToInvoice(quote)}
-                className="text-xs font-semibold bg-primary text-primary-foreground cursor-pointer"
-              >
-                <ArrowRight className="h-3.5 w-3.5 mr-1.5" />
-                Convert to Invoice
-              </Button>
+              quote.invoiceNumber ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-xs font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Invoiced as {quote.invoiceNumber}</span>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => onConvertToInvoice(quote)}
+                  className="text-xs font-semibold bg-primary text-primary-foreground cursor-pointer"
+                >
+                  <ArrowRight className="h-3.5 w-3.5 mr-1.5" />
+                  Convert to Invoice
+                </Button>
+              )
             )}
           </div>
 

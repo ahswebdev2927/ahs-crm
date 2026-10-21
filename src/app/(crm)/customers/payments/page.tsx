@@ -146,6 +146,7 @@ export default function PaymentsPage() {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         onViewInvoice={handleViewInvoice}
+        onPaymentUpdated={fetchPayments}
       />
 
       {/* Invoice Detail Dialog (from clicking invoice number) */}

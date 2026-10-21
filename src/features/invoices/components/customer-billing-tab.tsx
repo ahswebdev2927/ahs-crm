@@ -35,6 +35,7 @@ export function CustomerBillingTab({
   const [printPreviewOpen, setPrintPreviewOpen] = React.useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = React.useState(false);
   const [invoiceForPayment, setInvoiceForPayment] = React.useState<InvoiceDetail | InvoiceItem | null>(null);
+  const [invoiceToEdit, setInvoiceToEdit] = React.useState<InvoiceDetail | null>(null);
 
   const fetchCustomerInvoices = React.useCallback(async () => {
     setLoading(true);
@@ -109,6 +110,19 @@ export function CustomerBillingTab({
     }
   };
 
+  const handleEdit = async (inv: InvoiceItem) => {
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInvoiceToEdit(data?.data?.invoice || data?.data);
+        setCreateDialogOpen(true);
+      }
+    } catch (err) {
+      console.error("Error fetching invoice for edit:", err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Financial Overview Cards */}
@@ -166,7 +180,10 @@ export function CustomerBillingTab({
           {canManageBilling && (
             <Button
               size="sm"
-              onClick={() => setCreateDialogOpen(true)}
+              onClick={() => {
+                setInvoiceToEdit(null);
+                setCreateDialogOpen(true);
+              }}
               className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8 gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" /> Create Invoice
@@ -184,6 +201,7 @@ export function CustomerBillingTab({
         totalPages={totalPages}
         onPageChange={setPage}
         onViewDetails={handleOpenDetail}
+        onEdit={handleEdit}
         onRecordPayment={handleOpenPayment}
         onPrintPreview={handleOpenPrint}
       />
@@ -191,7 +209,11 @@ export function CustomerBillingTab({
       {/* Dialogs */}
       <InvoiceDialog
         open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) setInvoiceToEdit(null);
+        }}
+        invoiceToEdit={invoiceToEdit}
         preselectedCustomerId={customerId}
         preselectedCustomerName={customerName}
         onSuccess={fetchCustomerInvoices}
@@ -210,6 +232,10 @@ export function CustomerBillingTab({
           setDetailDialogOpen(false);
           setSelectedInvoice(inv);
           setPrintPreviewOpen(true);
+        }}
+        onEdit={(inv) => {
+          setDetailDialogOpen(false);
+          handleEdit(inv);
         }}
         onStatusChange={async (invId, status) => {
           await fetch(`/api/invoices/${invId}/status`, {
