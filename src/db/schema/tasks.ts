@@ -27,21 +27,6 @@ export const tasks = sqliteTable('tasks', {
   index('tasks_status_idx').on(t.status),
 ]);
 
-export const activities = sqliteTable('activities', {
-  id: text('id').primaryKey(), // UUID
-  leadId: text('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
-  customerId: text('customer_id').references(() => customers.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => users.id),
-  type: text('type').notNull(), // e.g. "note", "call", "stage_change", "appointment", "visit", "quotation", "invoice", "payment"
-  subject: text('subject').notNull(),
-  description: text('description'),
-  metadata: text('metadata'), // JSON context payload
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
-}, (t) => [
-  index('activities_lead_id_idx').on(t.leadId),
-  index('activities_customer_id_idx').on(t.customerId),
-  index('activities_user_id_idx').on(t.userId),
-]);
 
 export const taskTodos = sqliteTable('task_todos', {
   id: text('id').primaryKey(), // UUID
@@ -116,17 +101,3 @@ export const taskNotesRelations = relations(taskNotes, ({ one }) => ({
   }),
 }));
 
-export const activitiesRelations = relations(activities, ({ one }) => ({
-  lead: one(leads, {
-    fields: [activities.leadId],
-    references: [leads.id],
-  }),
-  customer: one(customers, {
-    fields: [activities.customerId],
-    references: [customers.id],
-  }),
-  user: one(users, {
-    fields: [activities.userId],
-    references: [users.id],
-  }),
-}));

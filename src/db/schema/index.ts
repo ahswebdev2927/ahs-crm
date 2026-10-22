@@ -8,4 +8,5 @@ export * from "./notifications";
 export * from "./attachments";
 export * from "./audit";
 export * from "./security";
+export * from "./activities";
 
