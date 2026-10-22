@@ -1,4 +1,6 @@
 export * from "./schemas/task.schema";
+export * from "./schemas/task-todo.schema";
+export * from "./schemas/task-note.schema";
 export * from "./types/task.types";
 export * from "./components/task-badge";
 export * from "./components/task-stats";
@@ -8,4 +10,6 @@ export * from "./components/task-table";
 export * from "./components/task-kanban-board";
 export * from "./components/task-dialog";
 export * from "./components/task-detail-dialog";
+export * from "./components/task-checklist";
+export * from "./components/task-notes";
 export * from "./components/embedded-task-list";

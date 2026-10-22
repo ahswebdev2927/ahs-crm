@@ -18,7 +18,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Edit, Trash2, ArrowRight, Briefcase, User, CheckSquare } from "lucide-react";
+import {
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  ArrowRight,
+  Briefcase,
+  User,
+  CheckSquare,
+  MessageSquare,
+} from "lucide-react";
 import Link from "next/link";
 import { TaskPriorityBadge, TaskStatusBadge, TaskDueDateBadge } from "./task-badge";
 import type { TaskItem, TaskStatus } from "../types/task.types";
@@ -116,6 +126,29 @@ export function TaskTable({
                         <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
                           {task.description}
                         </p>
+                      )}
+                      {((task.todoCount !== undefined && task.todoCount > 0) ||
+                        (task.notesCount !== undefined && task.notesCount > 0)) && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {task.todoCount !== undefined && task.todoCount > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/70 px-1.5 py-0.5 rounded font-medium"
+                              title={`${task.completedTodoCount ?? 0} of ${task.todoCount} checklist items completed`}
+                            >
+                              <CheckSquare className="h-3 w-3" />
+                              {task.completedTodoCount ?? 0}/{task.todoCount}
+                            </span>
+                          )}
+                          {task.notesCount !== undefined && task.notesCount > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/70 px-1.5 py-0.5 rounded font-medium"
+                              title={`${task.notesCount} note${task.notesCount > 1 ? "s" : ""}`}
+                            >
+                              <MessageSquare className="h-3 w-3" />
+                              {task.notesCount}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </TableCell>

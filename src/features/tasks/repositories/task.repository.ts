@@ -53,7 +53,14 @@ interface TaskDbRow {
     name: string;
     email: string;
   } | null;
+  todoCount?: number;
+  completedTodoCount?: number;
+  notesCount?: number;
 }
+
+const todoCountExpr = sql<number>`(SELECT count(*) FROM task_todos WHERE task_todos.task_id = ${tasks.id})`;
+const completedTodoCountExpr = sql<number>`(SELECT count(*) FROM task_todos WHERE task_todos.task_id = ${tasks.id} AND task_todos.is_completed = 1)`;
+const notesCountExpr = sql<number>`(SELECT count(*) FROM task_notes WHERE task_notes.task_id = ${tasks.id})`;
 
 function mapTaskRow(row: TaskDbRow): TaskItem {
   return {
@@ -71,6 +78,9 @@ function mapTaskRow(row: TaskDbRow): TaskItem {
     createdAt: new Date(row.tasks.createdAt),
     updatedAt: new Date(row.tasks.updatedAt),
     deletedAt: row.tasks.deletedAt ? new Date(row.tasks.deletedAt) : null,
+    todoCount: Number(row.todoCount ?? 0),
+    completedTodoCount: Number(row.completedTodoCount ?? 0),
+    notesCount: Number(row.notesCount ?? 0),
     lead: row.leads?.id
       ? {
           id: row.leads.id,
@@ -215,6 +225,9 @@ export async function findTasks(
         name: assignedToUsers.name,
         email: assignedToUsers.email,
       },
+      todoCount: todoCountExpr,
+      completedTodoCount: completedTodoCountExpr,
+      notesCount: notesCountExpr,
     })
     .from(tasks)
     .leftJoin(leads, eq(tasks.leadId, leads.id))
@@ -259,6 +272,9 @@ export async function findTaskById(id: string): Promise<TaskItem | null> {
         name: assignedToUsers.name,
         email: assignedToUsers.email,
       },
+      todoCount: todoCountExpr,
+      completedTodoCount: completedTodoCountExpr,
+      notesCount: notesCountExpr,
     })
     .from(tasks)
     .leftJoin(leads, eq(tasks.leadId, leads.id))
@@ -299,6 +315,9 @@ export async function findTasksByLeadId(leadId: string): Promise<TaskItem[]> {
         name: assignedToUsers.name,
         email: assignedToUsers.email,
       },
+      todoCount: todoCountExpr,
+      completedTodoCount: completedTodoCountExpr,
+      notesCount: notesCountExpr,
     })
     .from(tasks)
     .leftJoin(leads, eq(tasks.leadId, leads.id))
@@ -340,6 +359,9 @@ export async function findTasksByCustomerId(
         name: assignedToUsers.name,
         email: assignedToUsers.email,
       },
+      todoCount: todoCountExpr,
+      completedTodoCount: completedTodoCountExpr,
+      notesCount: notesCountExpr,
     })
     .from(tasks)
     .leftJoin(leads, eq(tasks.leadId, leads.id))

@@ -127,3 +127,6 @@ export const taskQuerySchema = z.object({
 });
 
 export type TaskQueryInput = z.infer<typeof taskQuerySchema>;
+
+export * from "./task-todo.schema";
+export * from "./task-note.schema";

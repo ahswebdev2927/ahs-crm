@@ -10,7 +10,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, User, Briefcase, Eye, Edit, Trash2, ArrowRight } from "lucide-react";
+import {
+  MoreVertical,
+  User,
+  Briefcase,
+  Eye,
+  Edit,
+  Trash2,
+  ArrowRight,
+  CheckSquare,
+  MessageSquare,
+} from "lucide-react";
 import Link from "next/link";
 import { TaskPriorityBadge, TaskDueDateBadge } from "./task-badge";
 import type { TaskItem, TaskStatus } from "../types/task.types";
@@ -142,10 +152,32 @@ export function TaskCard({
         </p>
       )}
 
-      {/* Priority & Due Date Badges */}
+      {/* Priority & Due Date Badges + Checklist & Notes Counters */}
       <div className="flex flex-wrap items-center gap-1.5 pl-6 pt-0.5">
         <TaskPriorityBadge priority={task.priority} />
         <TaskDueDateBadge dueDate={task.dueDate} status={task.status} />
+
+        {task.todoCount !== undefined && task.todoCount > 0 && (
+          <div
+            className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 rounded bg-muted/60"
+            title={`${task.completedTodoCount ?? 0} of ${task.todoCount} checklist items completed`}
+          >
+            <CheckSquare className="h-3 w-3 text-muted-foreground" />
+            <span>
+              {task.completedTodoCount ?? 0}/{task.todoCount}
+            </span>
+          </div>
+        )}
+
+        {task.notesCount !== undefined && task.notesCount > 0 && (
+          <div
+            className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 rounded bg-muted/60"
+            title={`${task.notesCount} note${task.notesCount > 1 ? "s" : ""}`}
+          >
+            <MessageSquare className="h-3 w-3 text-muted-foreground" />
+            <span>{task.notesCount}</span>
+          </div>
+        )}
       </div>
 
       {/* Footer: Linked Lead / Customer + Assignee Avatar */}

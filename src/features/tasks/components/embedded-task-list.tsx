@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, CheckSquare, MoreHorizontal, Edit, Trash2, Eye, User, Loader2 } from "lucide-react";
+import { Plus, CheckSquare, MessageSquare, MoreHorizontal, Edit, Trash2, Eye, User, Loader2 } from "lucide-react";
 import { TaskPriorityBadge, TaskDueDateBadge } from "./task-badge";
 import { TaskDialog } from "./task-dialog";
 import { TaskDetailDialog } from "./task-detail-dialog";
@@ -224,6 +224,28 @@ export function EmbeddedTaskList({
                       <TaskPriorityBadge priority={task.priority} />
                       <TaskDueDateBadge dueDate={task.dueDate} status={task.status} />
 
+                      {task.todoCount !== undefined && task.todoCount > 0 && (
+                        <div
+                          className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 rounded bg-muted/60"
+                          title={`${task.completedTodoCount ?? 0} of ${task.todoCount} checklist items completed`}
+                        >
+                          <CheckSquare className="h-3 w-3 text-muted-foreground" />
+                          <span>
+                            {task.completedTodoCount ?? 0}/{task.todoCount}
+                          </span>
+                        </div>
+                      )}
+
+                      {task.notesCount !== undefined && task.notesCount > 0 && (
+                        <div
+                          className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium px-1.5 py-0.5 rounded bg-muted/60"
+                          title={`${task.notesCount} note${task.notesCount > 1 ? "s" : ""}`}
+                        >
+                          <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                          <span>{task.notesCount}</span>
+                        </div>
+                      )}
+
                       {task.assignedTo ? (
                         <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                           <User className="h-3 w-3" />
@@ -316,6 +338,17 @@ export function EmbeddedTaskList({
         onStatusChange={(task, newStatus) => {
           handleStatusChange(task, newStatus);
           setTaskToView((prev) => (prev ? { ...prev, status: newStatus } : null));
+        }}
+        onRefresh={() => {
+          reloadTasks();
+          if (taskToView) {
+            fetch(`/api/tasks/${taskToView.id}`)
+              .then((r) => r.json())
+              .then((d) => {
+                if (d?.data?.task) setTaskToView(d.data.task);
+              })
+              .catch(() => {});
+          }
         }}
       />
     </div>

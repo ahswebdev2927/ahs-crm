@@ -42,6 +42,9 @@ export interface TaskItem {
   customer: CustomerSummary | null;
   assignedTo: UserSummary | null;
   createdBy: UserSummary;
+  todoCount?: number;
+  completedTodoCount?: number;
+  notesCount?: number;
 }
 
 export interface TaskMetrics {
@@ -78,4 +81,27 @@ export interface TaskKanbanColumn {
   id: TaskStatus;
   title: string;
   tasks: TaskItem[];
+}
+
+export interface TaskTodoItem {
+  id: string;
+  taskId: string;
+  title: string;
+  isCompleted: boolean;
+  position: number;
+  completedAt: Date | null;
+  completedById: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  completedBy?: UserSummary | null;
+}
+
+export interface TaskNoteItem {
+  id: string;
+  taskId: string;
+  userId: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  user: UserSummary;
 }

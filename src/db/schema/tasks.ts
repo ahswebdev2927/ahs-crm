@@ -43,8 +43,35 @@ export const activities = sqliteTable('activities', {
   index('activities_user_id_idx').on(t.userId),
 ]);
 
+export const taskTodos = sqliteTable('task_todos', {
+  id: text('id').primaryKey(), // UUID
+  taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  isCompleted: integer('is_completed', { mode: 'boolean' }).notNull().default(false),
+  position: integer('position').notNull().default(0),
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+  completedById: text('completed_by_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (t) => [
+  index('task_todos_task_id_idx').on(t.taskId),
+  index('task_todos_position_idx').on(t.position),
+]);
+
+export const taskNotes = sqliteTable('task_notes', {
+  id: text('id').primaryKey(), // UUID
+  taskId: text('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+}, (t) => [
+  index('task_notes_task_id_idx').on(t.taskId),
+  index('task_notes_user_id_idx').on(t.userId),
+]);
+
 // Relational Definitions
-export const tasksRelations = relations(tasks, ({ one }) => ({
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
   lead: one(leads, {
     fields: [tasks.leadId],
     references: [leads.id],
@@ -62,6 +89,30 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
     fields: [tasks.createdById],
     references: [users.id],
     relationName: 'tasksCreator',
+  }),
+  todos: many(taskTodos),
+  notes: many(taskNotes),
+}));
+
+export const taskTodosRelations = relations(taskTodos, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskTodos.taskId],
+    references: [tasks.id],
+  }),
+  completedBy: one(users, {
+    fields: [taskTodos.completedById],
+    references: [users.id],
+  }),
+}));
+
+export const taskNotesRelations = relations(taskNotes, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskNotes.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [taskNotes.userId],
+    references: [users.id],
   }),
 }));
 

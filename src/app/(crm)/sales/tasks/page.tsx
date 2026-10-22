@@ -300,6 +300,18 @@ export default function TasksPage() {
           handleStatusChange(task, newStatus);
           setTaskToView((prev) => (prev ? { ...prev, status: newStatus } : null));
         }}
+        onRefresh={() => {
+          fetchTasks();
+          fetchStats();
+          if (taskToView) {
+            fetch(`/api/tasks/${taskToView.id}`)
+              .then((r) => r.json())
+              .then((d) => {
+                if (d?.data?.task) setTaskToView(d.data.task);
+              })
+              .catch(() => {});
+          }
+        }}
       />
     </div>
   );
