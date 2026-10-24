@@ -36,12 +36,14 @@ import { CustomerServicesTab } from "@/features/services/components/customer-ser
 import { CustomerQuotationsTab } from "@/features/quotations/components/customer-quotations-tab";
 import { CustomerBillingTab } from "@/features/invoices/components/customer-billing-tab";
 import { EmbeddedTaskList } from "@/features/tasks";
+import { ActivityTimeline, RecentActivitiesWidget } from "@/features/activities";
 
 export interface CustomerWorkspaceProps {
   customerId: string;
 }
 
 export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
+  const [activeTab, setActiveTab] = React.useState<string>("overview");
   const [customer, setCustomer] = React.useState<CustomerDetail | null>(null);
   const [teamUsers, setTeamUsers] = React.useState<UserSummary[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
@@ -223,10 +225,13 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
         {/* Left 2 Cols: Tabbed Content & History */}
         <div className="lg:col-span-2 space-y-4">
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start h-9 p-1 bg-muted/50 border border-border/60 overflow-x-auto flex-nowrap no-scrollbar">
               <TabsTrigger value="overview" className="text-xs shrink-0 cursor-pointer">
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="text-xs shrink-0 cursor-pointer">
+                Activity Timeline
               </TabsTrigger>
               <TabsTrigger value="appointments" className="text-xs shrink-0 cursor-pointer">
                 Appointments & Visits ({customer.stats.totalAppointments})
@@ -275,6 +280,12 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
                   </div>
                 </Card>
               </div>
+
+              {/* Recent Activity Timeline Preview */}
+              <RecentActivitiesWidget
+                customerId={customer.id}
+                onViewAllClick={() => setActiveTab("timeline")}
+              />
 
               {/* Origin & Acquisition Story */}
               <Card className="border border-border shadow-xs bg-card">
@@ -408,6 +419,11 @@ export function CustomerWorkspace({ customerId }: CustomerWorkspaceProps) {
             {/* Tasks Tab */}
             <TabsContent value="tasks" className="mt-3">
               <EmbeddedTaskList customerId={customer.id} />
+            </TabsContent>
+
+            {/* Activity Timeline Tab */}
+            <TabsContent value="timeline" className="mt-3">
+              <ActivityTimeline customerId={customer.id} />
             </TabsContent>
           </Tabs>
         </div>

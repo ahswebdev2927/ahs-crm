@@ -38,7 +38,7 @@ import type { LeadDetail, LeadPriority, LeadStageItem, UserSummary } from "../ty
 import { LeadPartnershipSection } from "./partnership/lead-partnership-section";
 import { LeadFollowUpsTab } from "@/features/followups/components/lead-followups-tab";
 import { LeadAppointmentsTab } from "@/features/appointments/components/lead-appointments-tab";
-import { LeadActivityTimeline } from "./lead-activity-timeline";
+import { ActivityTimeline, RecentActivitiesWidget } from "@/features/activities";
 import { LeadQuotationsTab } from "@/features/quotations/components/lead-quotations-tab";
 import { EmbeddedTaskList } from "@/features/tasks";
 import { LeadDialog } from "./lead-dialog";
@@ -70,6 +70,7 @@ export function LeadWorkspace({
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   // Mutation Dialog states
+  const [activeTab, setActiveTab] = React.useState<string>("overview");
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState<boolean>(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState<boolean>(false);
   const [isStageDialogOpen, setIsStageDialogOpen] = React.useState<boolean>(false);
@@ -366,7 +367,7 @@ export function LeadWorkspace({
           </Card>
 
           {/* Unified Workspace Tabs */}
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-4 sm:grid-cols-8 w-full bg-muted/40 p-1 border border-border rounded-xl h-auto">
               <TabsTrigger value="overview" className="text-xs py-1.5">Overview</TabsTrigger>
               <TabsTrigger value="history" className="text-xs py-1.5">
@@ -384,6 +385,12 @@ export function LeadWorkspace({
 
             {/* TAB 1: OVERVIEW */}
             <TabsContent value="overview" className="space-y-4 pt-4">
+              {/* Recent Activity Timeline Preview */}
+              <RecentActivitiesWidget
+                leadId={lead.id}
+                onViewAllClick={() => setActiveTab("timeline")}
+              />
+
               {/* Requirements & Description */}
               <Card className="border-border shadow-xs">
                 <CardHeader className="pb-3">
@@ -496,13 +503,7 @@ export function LeadWorkspace({
 
             {/* TAB: ACTIVITY TIMELINE */}
             <TabsContent value="timeline" className="pt-4">
-              <LeadActivityTimeline
-                leadId={lead.id}
-                activities={lead.activities || []}
-                stageHistory={lead.stageHistory || []}
-                canUserEdit={canUserEdit}
-                onActivityAdded={handleMutationSuccess}
-              />
+              <ActivityTimeline leadId={lead.id} />
             </TabsContent>
 
             {/* TAB: TASKS */}
