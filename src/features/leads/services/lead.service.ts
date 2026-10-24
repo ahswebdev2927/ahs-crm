@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
   checkLeadAccess,
@@ -130,11 +131,26 @@ export const createLead = async (
   const ownerId = validated.ownerId && validated.ownerId.trim() !== "" ? validated.ownerId : user.id;
 
   // 5. Execute repository insert
-  return await createLeadRecord({
+  const createdLead = await createLeadRecord({
     ...validated,
     createdById: user.id,
     ownerId,
   });
+
+  // 6. Log system lifecycle activity
+  logSystemEvent({
+    leadId: createdLead.id,
+    userId: user.id,
+    type: "lead_created",
+    subject: `Lead created: ${createdLead.name}`,
+    description: `Created lead in stage "${stage.name}"`,
+    metadata: {
+      toStageName: stage.name,
+      toStageColor: stage.color,
+    },
+  }).catch(() => {});
+
+  return createdLead;
 };
 
 export const updateLead = async (
@@ -161,13 +177,28 @@ export const updateLead = async (
       throw new AppError(`Target stage (ID: ${validated.stageId}) does not exist.`, 400, "VALIDATION_ERROR");
     }
 
-    return await updateLeadStageWithHistory(
+    const updated = await updateLeadStageWithHistory(
       leadId,
       existing.stageId,
       validated.stageId,
       user.id,
       "Lead stage updated via lead edit form"
     );
+
+    logSystemEvent({
+      leadId,
+      userId: user.id,
+      type: "stage_change",
+      subject: `Stage changed to ${targetStage.name}`,
+      description: `Stage updated from ${existing.stage?.name ?? "previous stage"} to ${targetStage.name}`,
+      metadata: {
+        fromStageName: existing.stage?.name,
+        toStageName: targetStage.name,
+        toStageColor: targetStage.color,
+      },
+    }).catch(() => {});
+
+    return updated;
   }
 
   // 5. Execute normal lead properties update
@@ -224,13 +255,29 @@ export const changeLeadStage = async (
   }
 
   // 6. Update stage and insert history record in atomic transaction
-  return await updateLeadStageWithHistory(
+  const updated = await updateLeadStageWithHistory(
     leadId,
     existing.stageId,
     validated.toStageId,
     user.id,
     validated.reason ?? null
   );
+
+  logSystemEvent({
+    leadId,
+    userId: user.id,
+    type: "stage_change",
+    subject: `Stage changed to ${targetStage.name}`,
+    description: validated.reason || `Stage updated from ${existing.stage?.name ?? "previous stage"} to ${targetStage.name}`,
+    metadata: {
+      fromStageName: existing.stage?.name,
+      toStageName: targetStage.name,
+      toStageColor: targetStage.color,
+      stageReason: validated.reason,
+    },
+  }).catch(() => {});
+
+  return updated;
 };
 
 export const getLeadStages = async (
@@ -303,7 +350,7 @@ export const moveLeadStage = async (
     throw new AppError(`Destination stage (ID: ${validated.toStageId}) does not exist.`, 400, "VALIDATION_ERROR");
   }
 
-  return await updateLeadStageAndPositionInRepo(
+  const updated = await updateLeadStageAndPositionInRepo(
     validated.leadId,
     validated.fromStageId,
     validated.toStageId,
@@ -311,6 +358,22 @@ export const moveLeadStage = async (
     user.id,
     validated.reason ?? "Moved via Sales Pipeline Kanban"
   );
+
+  logSystemEvent({
+    leadId: validated.leadId,
+    userId: user.id,
+    type: "stage_change",
+    subject: `Stage changed to ${targetStage.name}`,
+    description: validated.reason ?? `Moved from ${existing.stage?.name ?? "previous stage"} to ${targetStage.name} via Kanban`,
+    metadata: {
+      fromStageName: existing.stage?.name,
+      toStageName: targetStage.name,
+      toStageColor: targetStage.color,
+      stageReason: validated.reason,
+    },
+  }).catch(() => {});
+
+  return updated;
 };
 
 export const reorderStageLeads = async (

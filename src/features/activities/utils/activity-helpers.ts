@@ -61,6 +61,8 @@ export function getTypeLabel(type: ActivityType): string {
       return "Task Assigned";
     case "task_completed":
       return "Task Completed";
+    case "task_status_changed":
+      return "Task Status Changed";
     case "converted":
       return "Converted to Customer";
     case "quotation_created":

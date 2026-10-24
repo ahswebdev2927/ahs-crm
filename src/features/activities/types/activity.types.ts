@@ -15,6 +15,7 @@ export type ActivityLifecycleType =
   | "field_visit"
   | "task_created"
   | "task_completed"
+  | "task_status_changed"
   | "converted";
 
 export type ActivityCommercialType =

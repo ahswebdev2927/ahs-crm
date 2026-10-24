@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { customers, invoices } from "@/db/schema";
 import { eq, and, notInArray } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   recordAuditLog,
   recordLeadActivityIfApplicable,
@@ -233,6 +234,20 @@ export const convertQuotationToInvoice = async (
       `Quotation ${quote.quoteNumber} converted to official invoice ${invoice.invoiceNumber}.`
     ).catch(() => {});
   }
+
+  logSystemEvent({
+    leadId: quote.leadId,
+    customerId,
+    userId: user.id,
+    type: "invoice_issued",
+    subject: `Invoice ${invoice.invoiceNumber} issued`,
+    description: `Official invoice issued with total amount of ₹${(invoice.total / 100).toLocaleString("en-IN")}`,
+    metadata: {
+      invoiceNumber: invoice.invoiceNumber,
+      quoteNumber: quote.quoteNumber,
+      amountPaise: invoice.total,
+    },
+  }).catch(() => {});
 
   return invoice;
 };

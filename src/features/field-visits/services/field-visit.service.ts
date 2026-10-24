@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
 import { notifications, leadActivities, followUps, appointments } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -401,6 +402,20 @@ export const completeFieldVisit = async (
       "field_visit_completed"
     );
   }
+
+  logSystemEvent({
+    leadId: existing.leadId,
+    customerId: existing.customerId,
+    userId: user.id,
+    type: "field_visit",
+    subject: `Completed Field Visit: "${existing.purpose}"`,
+    description: validatedInput.summary || `Field visit completed with outcome: ${validatedInput.outcome || "N/A"}`,
+    outcome: validatedInput.outcome || "held",
+    metadata: {
+      nextAction: validatedInput.nextAction,
+      summary: validatedInput.summary,
+    },
+  }).catch(() => {});
 
   return updated;
 };

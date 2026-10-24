@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   recordAuditLog,
   recordLeadActivityIfApplicable,
@@ -125,7 +126,7 @@ export const createQuotation = async (
     validated.taxRate
   );
 
-  return createQuotationRecord(
+  const created = await createQuotationRecord(
     {
       leadId: validated.leadId,
       customerId: validated.customerId,
@@ -140,6 +141,21 @@ export const createQuotation = async (
     },
     user.id
   );
+
+  logSystemEvent({
+    leadId: created.leadId,
+    customerId: created.customerId,
+    userId: user.id,
+    type: "quotation_created",
+    subject: `Quotation ${created.quoteNumber} created`,
+    description: `Created quotation with total value of ₹${(created.total / 100).toLocaleString("en-IN")}`,
+    metadata: {
+      quoteNumber: created.quoteNumber,
+      amountPaise: created.total,
+    },
+  }).catch(() => {});
+
+  return created;
 };
 
 /**
@@ -244,6 +260,27 @@ export const updateQuotationStatus = async (
       `Quotation ${existing.quoteNumber} status changed from '${existing.status}' to '${validated.status}'.`
     ).catch(() => {});
   }
+
+  const activityType =
+    validated.status === "sent"
+      ? "quotation_sent"
+      : validated.status === "accepted"
+      ? "quotation_accepted"
+      : "quotation_created";
+
+  logSystemEvent({
+    leadId: existing.leadId,
+    customerId: existing.customerId,
+    userId: user.id,
+    type: activityType,
+    subject: `Quotation ${existing.quoteNumber} ${validated.status}`,
+    description: `Quotation status changed from '${existing.status}' to '${validated.status}'. Total: ₹${(existing.total / 100).toLocaleString("en-IN")}`,
+    outcome: validated.status,
+    metadata: {
+      quoteNumber: existing.quoteNumber,
+      amountPaise: existing.total,
+    },
+  }).catch(() => {});
 
   return updated;
 };

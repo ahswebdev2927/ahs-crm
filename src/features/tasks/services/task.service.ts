@@ -1,7 +1,8 @@
 import { db } from "@/db";
-import { leads, customers, users, activities, notifications } from "@/db/schema";
+import { leads, customers, users, notifications } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
   checkTaskAccess,
@@ -68,26 +69,20 @@ async function logTaskActivity(
   subject: string,
   description?: string
 ) {
-  try {
-    await db.insert(activities).values({
-      id: crypto.randomUUID(),
-      leadId: task.leadId,
-      customerId: task.customerId,
-      userId,
-      type,
-      subject,
-      description: description ?? null,
-      metadata: JSON.stringify({
-        taskId: task.id,
-        taskTitle: task.title,
-        priority: task.priority,
-        status: task.status,
-      }),
-      createdAt: new Date(),
-    });
-  } catch (err) {
-    console.error("Failed to log task activity:", err);
-  }
+  await logSystemEvent({
+    leadId: task.leadId,
+    customerId: task.customerId,
+    userId,
+    type,
+    subject,
+    description: description ?? null,
+    metadata: {
+      taskId: task.id,
+      taskTitle: task.title,
+      priority: task.priority,
+      status: task.status,
+    },
+  });
 }
 
 /**

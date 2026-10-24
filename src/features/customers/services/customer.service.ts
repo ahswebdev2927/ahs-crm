@@ -1,6 +1,6 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
-  checkPermission,
   assertUserPermission,
   checkCustomerAccess,
   checkLeadAccess,
@@ -145,7 +145,7 @@ export const convertLeadToCustomer = async (
   await checkLeadAccess(validated.leadId, "edit", user);
 
   // 4. Execute atomic conversion transaction
-  return await convertLeadTransaction(
+  const customer = await convertLeadTransaction(
     validated.leadId,
     {
       name: validated.name,
@@ -158,4 +158,20 @@ export const convertLeadToCustomer = async (
     },
     user.id
   );
+
+  // 5. Log system lifecycle conversion event
+  logSystemEvent({
+    leadId: validated.leadId,
+    customerId: customer.id,
+    userId: user.id,
+    type: "converted",
+    subject: `Converted to Customer: ${customer.name}`,
+    description: validated.notes || `Lead was converted into customer account #${customer.id.slice(0, 8)}`,
+    metadata: {
+      customerName: customer.name,
+      customerCompany: customer.company,
+    },
+  }).catch(() => {});
+
+  return customer;
 };

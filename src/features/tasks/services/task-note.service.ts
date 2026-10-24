@@ -1,6 +1,5 @@
-import { db } from "@/db";
-import { activities } from "@/db/schema";
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { checkTaskAccess } from "@/features/auth/services/authorization.service";
 import { findTaskById } from "../repositories/task.repository";
 import {
@@ -43,27 +42,21 @@ export async function createTaskNote(
   });
 
   // If task is linked to lead or customer, log note in the central activity timeline
-  try {
-    const task = await findTaskById(taskId);
-    if (task && (task.leadId || task.customerId)) {
-      await db.insert(activities).values({
-        id: crypto.randomUUID(),
-        leadId: task.leadId,
-        customerId: task.customerId,
-        userId: user.id,
-        type: "note",
-        subject: `Added note on task "${task.title}"`,
-        description: validated.content,
-        metadata: JSON.stringify({
-          taskId: task.id,
-          taskTitle: task.title,
-          noteId: note.id,
-        }),
-        createdAt: new Date(),
-      });
-    }
-  } catch (err) {
-    console.error("Failed to log task note to activity timeline:", err);
+  const task = await findTaskById(taskId);
+  if (task && (task.leadId || task.customerId)) {
+    logSystemEvent({
+      leadId: task.leadId,
+      customerId: task.customerId,
+      userId: user.id,
+      type: "note",
+      subject: `Added note on task "${task.title}"`,
+      description: validated.content,
+      metadata: {
+        taskId: task.id,
+        taskTitle: task.title,
+        noteId: note.id,
+      },
+    }).catch(() => {});
   }
 
   return note;

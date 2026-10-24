@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import {
   assertUserPermission,
@@ -112,6 +113,24 @@ export const recordPayment = async (
       amount: validated.amount,
       method: validated.paymentMethod,
     },
+  }).catch(() => {});
+
+  logSystemEvent({
+    customerId: invoice.customerId,
+    userId: user.id,
+    type: "payment_received",
+    subject: `Payment received: ₹${(validated.amount / 100).toLocaleString("en-IN")}`,
+    description: `Received payment for Invoice #${invoice.invoiceNumber || invoice.id.slice(0, 8)} via ${validated.paymentMethod}${
+      validated.transactionReference ? ` (Ref: ${validated.transactionReference})` : ""
+    }`,
+    outcome: "received",
+    metadata: {
+      invoiceNumber: invoice.invoiceNumber,
+      amountPaise: validated.amount,
+      paymentMethod: validated.paymentMethod,
+      paymentReference: validated.transactionReference,
+    },
+    createdAt: validated.paymentDate ? new Date(validated.paymentDate) : new Date(),
   }).catch(() => {});
 
   return payment;

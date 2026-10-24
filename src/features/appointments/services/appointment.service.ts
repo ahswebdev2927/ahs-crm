@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
 import { notifications, leadActivities } from "@/db/schema";
 import {
@@ -187,6 +188,21 @@ export const createAppointment = async (
       `Scheduled Appointment: ${created.title} for ${formattedDate} with ${created.assignedTo.name}.`
     );
   }
+
+  logSystemEvent({
+    leadId: created.leadId,
+    customerId: created.customerId,
+    userId: user.id,
+    type: "appointment",
+    subject: `Scheduled Appointment: ${created.title}`,
+    description: `Appointment scheduled for ${formattedDate} with ${created.assignedTo?.name || "assigned agent"}. Location: ${created.location || "N/A"}`,
+    outcome: "scheduled",
+    metadata: {
+      appointmentTitle: created.title,
+      appointmentLocation: created.location,
+    },
+    createdAt: created.createdAt,
+  }).catch(() => {});
 
   return created;
 };

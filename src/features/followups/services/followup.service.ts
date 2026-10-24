@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
   getLeadVisibilityFilter,
@@ -190,6 +191,19 @@ export const completeFollowUp = async (
       "note",
       logMessage
     ).catch(() => {});
+
+    logSystemEvent({
+      leadId: result.completed.leadId,
+      userId: user.id,
+      type: "follow_up",
+      subject: `Completed Follow-up (${result.completed.type.toUpperCase()})`,
+      description: `Follow-up completed with outcome: ${validatedInput.outcome}`,
+      outcome: validatedInput.outcome,
+      metadata: {
+        followUpType: result.completed.type,
+        channelOutcome: validatedInput.outcome,
+      },
+    }).catch(() => {});
   }
 
   return result;

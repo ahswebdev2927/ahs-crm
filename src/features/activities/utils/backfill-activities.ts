@@ -226,7 +226,7 @@ export async function backfillHistoricalActivities(): Promise<{ inserted: number
         outcome: visit.outcome || null,
         metadata: JSON.stringify({
           purpose: visit.purpose,
-          requirementsNotes: visit.requirementsNotes,
+          requirements: visit.requirements,
         }),
         createdAt: visit.createdAt,
         updatedAt: visit.updatedAt,
