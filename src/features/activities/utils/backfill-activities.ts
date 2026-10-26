@@ -1,3 +1,8 @@
+/**
+ * Server-Side Historical Data Backfill Utility
+ * NOTE: This file directly connects to the database via `@/db` and must NEVER
+ * be exported from client-facing barrels (`index.ts`) or imported into client components.
+ */
 import { db } from "@/db";
 import {
   activities,
