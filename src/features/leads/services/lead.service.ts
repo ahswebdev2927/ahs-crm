@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
+import { sendNotification } from "@/features/notifications/services/notification.service";
 import {
   checkPermission,
   checkLeadAccess,
@@ -223,7 +224,20 @@ export const assignLead = async (
   }
 
   // 4. Reassign lead owner
-  return await repoReassignLeadOwner(leadId, validated.ownerId);
+  const updated = await repoReassignLeadOwner(leadId, validated.ownerId);
+
+  // 5. Dispatch notification to newly assigned owner (fail-safe)
+  sendNotification({
+    recipientId: validated.ownerId,
+    title: "Lead Assigned",
+    message: `You have been assigned as the owner of lead "${existing.name}".`,
+    category: "leads",
+    type: "lead:assigned",
+    actionUrl: `/leads/${leadId}`,
+    referenceId: leadId,
+  }).catch(() => {});
+
+  return updated;
 };
 
 export const changeLeadStage = async (

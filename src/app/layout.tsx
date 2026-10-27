@@ -20,7 +20,11 @@ export const metadata: Metadata = {
   description: "Internal company CRM WebApp for AHS.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"

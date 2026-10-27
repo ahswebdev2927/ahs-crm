@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 const BANNER_DISMISSED_KEY = "ahs_push_banner_dismissed";
 
 interface PushPermissionBannerProps {
-  onEnable?: () => Promise<void> | void;
+  onEnable?: () => Promise<unknown> | unknown;
   className?: string;
 }
 

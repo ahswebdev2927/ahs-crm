@@ -1,6 +1,7 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
+import { sendNotification } from "@/features/notifications/services/notification.service";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -101,6 +102,18 @@ export const recordPayment = async (
   await checkCustomerAccess(invoice.customerId, "view", user);
 
   const payment = await recordPaymentTransaction(validated, user.id);
+
+  if (invoice.createdById) {
+    sendNotification({
+      recipientId: invoice.createdById,
+      title: "Payment Received",
+      message: `Payment of ₹${(validated.amount / 100).toLocaleString("en-IN")} recorded for Invoice #${invoice.invoiceNumber || invoice.id.slice(0, 8)}.`,
+      category: "financials",
+      type: "payment:received",
+      actionUrl: `/invoices/${invoice.id}`,
+      referenceId: payment.id,
+    }).catch(() => {});
+  }
 
   recordAuditLog({
     userId: user.id,

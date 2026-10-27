@@ -1,7 +1,8 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
-import { notifications, leadActivities } from "@/db/schema";
+import { leadActivities } from "@/db/schema";
+import { sendNotification } from "@/features/notifications/services/notification.service";
 import {
   checkPermission,
   checkAppointmentAccess,
@@ -49,15 +50,14 @@ async function dispatchAssignmentNotification(
   dateStr: string
 ) {
   try {
-    await db.insert(notifications).values({
-      id: crypto.randomUUID(),
+    await sendNotification({
       recipientId: assignedToId,
       title,
       message: `You have been assigned to appointment "${appointmentTitle}" scheduled for ${dateStr}.`,
-      type: "appointment_assigned",
+      category: "appointments",
+      type: "appointment:assigned",
+      actionUrl: `/appointments/${appointmentId}`,
       referenceId: appointmentId,
-      isRead: 0,
-      createdAt: new Date(),
     });
   } catch (err) {
     console.error("Failed to create appointment assignment notification:", err);

@@ -1,5 +1,6 @@
 import { db } from "@/db";
-import { leads, customers, users, notifications } from "@/db/schema";
+import { leads, customers, users } from "@/db/schema";
+import { sendNotification } from "@/features/notifications/services/notification.service";
 import { eq, and, isNull } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
@@ -34,7 +35,7 @@ import {
 import type { TaskItem, TaskMetrics, TaskListResponse } from "../types/task.types";
 
 /**
- * Dispatches an in-app notification when a task is assigned to a team member
+ * Dispatches an in-app and push notification when a task is assigned to a team member
  */
 async function dispatchTaskAssignedNotification(
   assignedToId: string,
@@ -44,15 +45,14 @@ async function dispatchTaskAssignedNotification(
 ) {
   try {
     const dueStr = dueDate ? ` (Due: ${dueDate.toLocaleDateString()})` : "";
-    await db.insert(notifications).values({
-      id: crypto.randomUUID(),
+    await sendNotification({
       recipientId: assignedToId,
       title: "New Task Assigned",
       message: `You have been assigned to task: "${taskTitle}"${dueStr}.`,
-      type: "task_assigned",
+      category: "tasks",
+      type: "task:assigned",
+      actionUrl: `/tasks/${taskId}`,
       referenceId: taskId,
-      isRead: 0,
-      createdAt: new Date(),
     });
   } catch (err) {
     console.error("Failed to dispatch task assigned notification:", err);

@@ -1,7 +1,8 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
-import { notifications, leadActivities, followUps, appointments } from "@/db/schema";
+import { leadActivities, followUps, appointments } from "@/db/schema";
+import { sendNotification } from "@/features/notifications/services/notification.service";
 import { eq } from "drizzle-orm";
 import {
   checkPermission,
@@ -49,15 +50,14 @@ async function dispatchVisitNotification(
   type: string = "field_visit_completed"
 ) {
   try {
-    await db.insert(notifications).values({
-      id: crypto.randomUUID(),
+    await sendNotification({
       recipientId,
       title,
       message,
+      category: "appointments",
       type,
       referenceId,
-      isRead: 0,
-      createdAt: new Date(),
+      actionUrl: `/field-visits/${referenceId}`,
     });
   } catch (err) {
     console.error("Failed to create field visit notification:", err);
