@@ -3,6 +3,7 @@
 import * as React from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import {
   CheckCheck,
   Trash2,
@@ -63,12 +64,52 @@ export default function NotificationsPage() {
     totalPages,
     isLoading,
     setFilter,
+    refetch,
     markAsRead,
     markAllAsRead,
     clearRead,
   } = useNotifications(hookFilter);
 
-  const { subscribeToPush } = usePushSubscription();
+  const { subscribeToPush, error: pushError } = usePushSubscription();
+  const [sendingTest, setSendingTest] = React.useState<boolean>(false);
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    try {
+      const res = await fetch("/api/notifications/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "🔔 Test Notification",
+          message: "Real-time alert verification from AHS CRM Notification Center.",
+          category: "leads",
+        }),
+      });
+
+      if (res.ok) {
+        toast.add({
+          type: "success",
+          title: "Test Dispatched",
+          description: "Notification sent! Audio chime, bell badge, and card stream will update.",
+        });
+        await refetch();
+      } else {
+        toast.add({
+          type: "error",
+          title: "Error",
+          description: "Could not send test notification.",
+        });
+      }
+    } catch {
+      toast.add({
+        type: "error",
+        title: "Error",
+        description: "Failed to dispatch test notification.",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   // Keep hook filter synced with UI filter state
   React.useEffect(() => {
@@ -122,6 +163,19 @@ export default function NotificationsPage() {
               type="button"
               size="sm"
               variant="outline"
+              onClick={handleSendTest}
+              disabled={sendingTest}
+              className="h-8 text-xs gap-1.5"
+              title="Send a live test notification to verify audio, badge, and inbox stream"
+            >
+              <BellRing className="h-3.5 w-3.5 text-primary" />
+              <span>{sendingTest ? "Sending..." : "Test Alert"}</span>
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
               onClick={() => setPrefsOpen(true)}
               className="h-8 text-xs gap-1.5"
             >
@@ -159,7 +213,7 @@ export default function NotificationsPage() {
 
       <div className="w-full max-w-5xl mx-auto p-4 sm:p-5 xl:p-6 space-y-4">
         {/* Soft Push Opt-in Banner */}
-        <PushPermissionBanner onEnable={subscribeToPush} />
+        <PushPermissionBanner onEnable={subscribeToPush} errorMessage={pushError} />
 
         {/* Filter Toolbar */}
         <NotificationFilters

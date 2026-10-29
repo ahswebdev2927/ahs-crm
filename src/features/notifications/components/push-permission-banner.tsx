@@ -3,11 +3,13 @@
 import * as React from "react";
 import { BellRing, X, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 const BANNER_DISMISSED_KEY = "ahs_push_banner_dismissed";
 
 interface PushPermissionBannerProps {
   onEnable?: () => Promise<unknown> | unknown;
+  errorMessage?: string | null;
   className?: string;
 }
 
@@ -17,6 +19,7 @@ interface PushPermissionBannerProps {
  */
 export function PushPermissionBanner({
   onEnable,
+  errorMessage,
   className = "",
 }: PushPermissionBannerProps) {
   const [visible, setVisible] = React.useState<boolean>(false);
@@ -44,13 +47,27 @@ export function PushPermissionBanner({
     setLoading(true);
     try {
       if (onEnable) {
-        await onEnable();
+        const result = await onEnable();
+        if (result === false) {
+          toast.add({
+            type: "warning",
+            title: "Push Service Notice",
+            description: errorMessage || "Could not register push notifications. In-app alerts remain active.",
+          });
+          return;
+        }
       } else if (typeof window !== "undefined" && "Notification" in window) {
         await Notification.requestPermission();
       }
+
+      toast.add({
+        type: "success",
+        title: "Notifications Enabled",
+        description: "You will receive desktop and mobile push alerts.",
+      });
       setVisible(false);
     } catch (err) {
-      console.error("Failed to request push permission:", err);
+      console.warn("Push permission request notice:", err);
     } finally {
       setLoading(false);
     }
@@ -78,6 +95,11 @@ export function PushPermissionBanner({
           <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
             Get instant desktop and mobile push alerts for newly assigned leads, appointments, and urgent tasks—even when CRM is closed.
           </p>
+          {errorMessage && (
+            <p className="mt-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+              {errorMessage}
+            </p>
+          )}
         </div>
       </div>
 

@@ -7,8 +7,9 @@ import * as React from "react";
  * backed by an ArrayBuffer for pushManager.subscribe() applicationServerKey
  */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
+  const clean = base64String.trim().replace(/^["']|["']$/g, "");
+  const padding = "=".repeat((4 - (clean.length % 4)) % 4);
+  const base64 = (clean + padding)
     .replace(/-/g, "+")
     .replace(/_/g, "/");
 
@@ -90,16 +91,36 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       setPermission(perm);
 
       if (perm !== "granted") {
-        setError("Notification permission was denied.");
+        setError(
+          perm === "denied"
+            ? "Notification permission was blocked in browser settings."
+            : "Notification permission was not granted."
+        );
         setIsLoading(false);
         return false;
       }
 
-      // 2. Ensure Service Worker is ready
-      const registration = await navigator.serviceWorker.ready;
+      // 2. Ensure Service Worker registration is ready
+      let registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("/sw.js");
+      }
+      await navigator.serviceWorker.ready;
 
-      // 3. Obtain VAPID public key
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      // 3. Obtain VAPID public key (prefer env, fallback to server endpoint)
+      let vapidPublicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "").trim().replace(/^["']|["']$/g, "");
+      if (!vapidPublicKey) {
+        try {
+          const res = await fetch("/api/notifications/push/vapid-public-key");
+          if (res.ok) {
+            const json = await res.json();
+            vapidPublicKey = (json?.data?.publicKey || "").trim();
+          }
+        } catch {
+          // Fall through
+        }
+      }
+
       if (!vapidPublicKey) {
         throw new Error("VAPID public key is not configured.");
       }
@@ -107,13 +128,20 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
 
       // 4. Create browser PushSubscription
-      let subscription = await registration.pushManager.getSubscription();
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedKey,
-        });
+      // Unsubscribe any stale or conflicting existing subscription first to prevent push service error
+      const existingSub = await registration.pushManager.getSubscription();
+      if (existingSub) {
+        try {
+          await existingSub.unsubscribe();
+        } catch {
+          // Continue to subscribe attempt
+        }
       }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey,
+      });
 
       const subJson = subscription.toJSON();
       if (!subJson.endpoint || !subJson.keys?.p256dh || !subJson.keys?.auth) {
@@ -141,9 +169,34 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       setIsSubscribed(true);
       return true;
     } catch (err: unknown) {
-      const errMessage = err instanceof Error ? err.message : "Failed to subscribe";
-      setError(errMessage);
-      console.error("Push subscription failure:", err);
+      let friendlyMessage = "Failed to enable background push notifications.";
+
+      const isBrave =
+        typeof navigator !== "undefined" &&
+        (Boolean((navigator as any).brave) ||
+          navigator.userAgent.includes("Brave") ||
+          (Boolean((navigator as any).brave?.isBrave) && (navigator as any).brave.isBrave()));
+
+      const isAbortError =
+        err instanceof Error &&
+        (err.name === "AbortError" ||
+          err.message.toLowerCase().includes("push service error") ||
+          err.message.toLowerCase().includes("registration failed"));
+
+      if (isAbortError) {
+        if (isBrave) {
+          friendlyMessage =
+            "Push service is disabled by Brave. Go to brave://settings/privacy, enable 'Use Google services for push messaging', and reload.";
+        } else {
+          friendlyMessage =
+            "Browser push service is currently unreachable (network, firewall/VPN, or Incognito mode). In-app alerts remain active.";
+        }
+      } else if (err instanceof Error) {
+        friendlyMessage = err.message;
+      }
+
+      setError(friendlyMessage);
+      console.warn("Push subscription warning:", friendlyMessage, err);
       return false;
     } finally {
       setIsLoading(false);
