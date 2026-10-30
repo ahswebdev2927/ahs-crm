@@ -8,6 +8,8 @@ import {
 } from "../schemas/notification.schema";
 import { formatRelativeTime } from "../components/notification-card";
 import { getAllChannels, getChannel } from "../channels/channel-registry";
+import { validateCronSecret, CRON_RESPONSE_HEADERS } from "@/lib/cron-auth";
+import { NextRequest } from "next/server";
 
 describe("Notification Schemas & Contracts", () => {
   test("validates notificationQuerySchema defaults and coercion", () => {
@@ -111,5 +113,54 @@ describe("Channel Registry & Adapters", () => {
 
     const whatsapp = getChannel("whatsapp");
     assert.ok(whatsapp, "whatsapp stub should be present");
+  });
+});
+
+describe("Cron-job.org Authentication & Anti-Cache Headers", () => {
+  const validSecret = process.env.CRON_SECRET || "development_cron_secret_key";
+
+  test("validates secret via Authorization Bearer header", () => {
+    const req = new NextRequest("http://localhost:3000/api/cron", {
+      headers: { authorization: `Bearer ${validSecret}` },
+    });
+    assert.doesNotThrow(() => validateCronSecret(req));
+  });
+
+  test("validates secret via x-cron-secret header", () => {
+    const req = new NextRequest("http://localhost:3000/api/cron", {
+      headers: { "x-cron-secret": validSecret },
+    });
+    assert.doesNotThrow(() => validateCronSecret(req));
+  });
+
+  test("validates secret via URL query parameter", () => {
+    const req = new NextRequest(`http://localhost:3000/api/cron?secret=${validSecret}`);
+    assert.doesNotThrow(() => validateCronSecret(req));
+  });
+
+  test("rejects invalid or missing secret with 401 UNAUTHORIZED", () => {
+    const reqNoSecret = new NextRequest("http://localhost:3000/api/cron");
+    assert.throws(() => validateCronSecret(reqNoSecret), {
+      name: "AppError",
+      message: "Unauthorized cron trigger.",
+    });
+
+    const reqWrongSecret = new NextRequest("http://localhost:3000/api/cron?secret=wrong");
+    assert.throws(() => validateCronSecret(reqWrongSecret), {
+      name: "AppError",
+      message: "Unauthorized cron trigger.",
+    });
+  });
+
+  test("provides LiteSpeed anti-caching response headers", () => {
+    assert.ok(
+      CRON_RESPONSE_HEADERS["Cache-Control"].includes("no-store"),
+      "Must include no-store"
+    );
+    assert.ok(
+      CRON_RESPONSE_HEADERS["Cache-Control"].includes("no-cache"),
+      "Must include no-cache"
+    );
+    assert.equal(CRON_RESPONSE_HEADERS["Pragma"], "no-cache");
   });
 });
