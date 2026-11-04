@@ -405,7 +405,7 @@ export function CommandMenu() {
               <CommandItem
                 value="Switch to Super Admin (Alex Thorne)"
                 onSelect={() => handleSwitchRole("super_admin")}
-                data-selected-role={user.roleCode === "super_admin"}
+                data-selected-role={user?.roleCode === "super_admin"}
                 className="hover:cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4 text-emerald-500" />
@@ -417,7 +417,7 @@ export function CommandMenu() {
               <CommandItem
                 value="Switch to Sales Manager (Marcus Vance)"
                 onSelect={() => handleSwitchRole("sales_manager")}
-                data-selected-role={user.roleCode === "sales_manager"}
+                data-selected-role={user?.roleCode === "sales_manager"}
                 className="hover:cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4 text-blue-500" />
@@ -429,7 +429,7 @@ export function CommandMenu() {
               <CommandItem
                 value="Switch to Inside Sales (Sarah Jenkins)"
                 onSelect={() => handleSwitchRole("inside_sales")}
-                data-selected-role={user.roleCode === "inside_sales"}
+                data-selected-role={user?.roleCode === "inside_sales"}
                 className="hover:cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4 text-sky-500" />
@@ -441,7 +441,7 @@ export function CommandMenu() {
               <CommandItem
                 value="Switch to Field Sales (David Miller)"
                 onSelect={() => handleSwitchRole("field_sales")}
-                data-selected-role={user.roleCode === "field_sales"}
+                data-selected-role={user?.roleCode === "field_sales"}
                 className="hover:cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4 text-amber-500" />

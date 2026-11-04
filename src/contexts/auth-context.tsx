@@ -157,7 +157,7 @@ export const SIMULATED_USERS: Record<RoleCode, UserProfile> = {
 }
 
 interface AuthContextType {
-  user: UserProfile
+  user: UserProfile | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -183,29 +183,43 @@ const mapBackendUser = (backendUser: any): UserProfile => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter()
-  // Initialize with simulated SuperAdmin as fallback to satisfy static layouts before session check
-  const [user, setUser] = React.useState<UserProfile>(SIMULATED_USERS.super_admin)
+  const [user, setUser] = React.useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
 
   // 1. Initial Session Check on mount
   React.useEffect(() => {
+    let isMounted = true
+
     const checkSession = async () => {
       try {
         const response = await fetch("/api/auth/session")
         if (response.ok) {
           const res = await response.json()
-          if (res.status && res.data?.user) {
+          if (res.status && res.data?.user && isMounted) {
             setUser(mapBackendUser(res.data.user))
+            return
           }
+        }
+        if (isMounted) {
+          setUser(null)
         }
       } catch (error) {
         console.error("Session mounting check failed:", error)
+        if (isMounted) {
+          setUser(null)
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     checkSession()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   // 2. Login Action
@@ -239,13 +253,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.warn("Logout request failed, clearing local state anyway:", error)
     } finally {
-      setUser(SIMULATED_USERS.super_admin) // reset to fallback state
+      setUser(null)
       toast.add({
         title: "Logged Out",
         description: "Your session has been terminated.",
         type: "success"
       })
-      router.push("/login")
+      router.replace("/login")
+      router.refresh()
     }
   }, [router])
 
@@ -272,6 +287,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 5. Permission Check Helper
   const hasPermission = React.useCallback((permission: string) => {
+    if (!user) return false
     // Super Admin bypasses all checks
     if (user.roleCode === "super_admin") return true
     return user.permissions.includes(permission)

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { CrmShell } from "@/components/layout/crm-shell"
 import { navigationConfig } from "@/lib/navigation"
@@ -9,7 +9,14 @@ import { ErrorState } from "@/components/shared/error-state"
 
 function PermissionGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { hasPermission, user, isLoading } = useAuth()
+
+  React.useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/login")
+    }
+  }, [isLoading, user, router])
 
   // Find the required permission code for the active route
   const requiredPermission = React.useMemo(() => {

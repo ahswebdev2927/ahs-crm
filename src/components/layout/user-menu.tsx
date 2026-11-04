@@ -15,8 +15,24 @@ import { ProfileDialog } from "@/features/users/components/profile-dialog"
 import { Command, LogOut, Shield, User } from "lucide-react"
 
 export function UserMenu() {
-  const { user, switchRole } = useAuth()
+  const { user, switchRole, logout } = useAuth()
   const [profileOpen, setProfileOpen] = React.useState(false)
+  const [isSigningOut, setIsSigningOut] = React.useState(false)
+
+  if (!user) {
+    return null
+  }
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true)
+      await logout()
+    } catch (error) {
+      console.error("Sign out error:", error)
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
 
   // Get color styles based on current simulated role
   const getRoleColors = (role: RoleCode) => {
@@ -110,9 +126,13 @@ export function UserMenu() {
 
           <DropdownMenuSeparator className="my-1 border-border/60 dark:border-input/5" />
           
-          <DropdownMenuItem className="cursor-pointer gap-2 py-2 text-rose-600 focus:bg-rose-500/10 focus:text-rose-600 dark:text-rose-400 dark:focus:bg-rose-500/20">
+          <DropdownMenuItem
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="cursor-pointer gap-2 py-2 text-rose-600 focus:bg-rose-500/10 focus:text-rose-600 dark:text-rose-400 dark:focus:bg-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <LogOut className="h-4 w-4" />
-            <span>Sign Out</span>
+            <span>{isSigningOut ? "Signing Out..." : "Sign Out"}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
