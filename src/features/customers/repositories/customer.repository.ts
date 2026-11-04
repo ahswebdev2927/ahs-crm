@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { eq, and, or, like, sql, desc, asc, count, isNull, isNotNull, SQL } from "drizzle-orm";
+import { eq, and, or, like, sql, desc, asc, count, isNull, isNotNull, SQL, gte, lte } from "drizzle-orm";
 import {
   customers,
   leads,
@@ -69,6 +69,33 @@ export const findCustomers = async (
   // Owner filter
   if (params.ownerId && params.ownerId.trim() !== "") {
     conditions.push(eq(customers.ownerId, params.ownerId.trim()));
+  }
+
+  // Service filter: customers who currently have an active service subscription matching serviceId
+  if (params.serviceId) {
+    conditions.push(
+      sql`EXISTS (
+        SELECT 1 FROM ${customerServices}
+        WHERE ${customerServices.customerId} = ${customers.id}
+          AND ${customerServices.serviceId} = ${params.serviceId}
+          AND ${customerServices.status} = 'active'
+      )`
+    );
+  }
+
+  // Date range filter on createdAt
+  if (params.dateFrom) {
+    const fromDate = new Date(params.dateFrom);
+    if (!isNaN(fromDate.getTime())) {
+      conditions.push(gte(customers.createdAt, fromDate));
+    }
+  }
+
+  if (params.dateTo) {
+    const toDate = new Date(params.dateTo);
+    if (!isNaN(toDate.getTime())) {
+      conditions.push(lte(customers.createdAt, toDate));
+    }
   }
 
   // Multi-column search

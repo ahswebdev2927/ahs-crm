@@ -47,7 +47,7 @@ export function Topbar({ onToggleMobileSidebar, onToggleSidebar }: TopbarProps) 
         >
           <span className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5" />
-            <span>Search routes, simulator...</span>
+            <span>Search CRM records, routes...</span>
           </span>
           <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded-sm text-muted-foreground font-mono">Ctrl+K</kbd>
         </button>

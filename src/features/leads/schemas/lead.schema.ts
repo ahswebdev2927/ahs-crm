@@ -70,6 +70,8 @@ export const leadQuerySchema = z.object({
   stageId: z.coerce.number().int().positive().optional(),
   status: leadStatusEnum.default("active"),
   ownerId: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
   sortBy: z.enum(["createdAt", "updatedAt", "name", "company", "priority"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().positive().default(1),

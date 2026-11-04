@@ -11,6 +11,15 @@ export const PAYMENT_METHODS = [
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+export const PAYMENT_STATUSES = [
+  "completed",
+  "pending",
+  "failed",
+  "refunded",
+] as const;
+
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
 const dateCoercionSchema = z.preprocess((val) => {
   if (typeof val === "number") return val;
   if (typeof val === "string") {
@@ -58,12 +67,13 @@ export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 export const paymentQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  invoiceId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
+  invoiceId: z.string().optional(),
+  customerId: z.string().optional(),
   paymentMethod: z.enum(PAYMENT_METHODS).optional(),
+  status: z.enum(PAYMENT_STATUSES).optional(),
   search: z.string().optional(),
-  dateFrom: z.coerce.number().optional(),
-  dateTo: z.coerce.number().optional(),
+  dateFrom: z.union([z.coerce.number(), z.string()]).optional(),
+  dateTo: z.union([z.coerce.number(), z.string()]).optional(),
 });
 
 export type PaymentQueryInput = z.infer<typeof paymentQuerySchema>;

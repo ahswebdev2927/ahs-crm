@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { eq, and, or, like, sql, desc, asc, count } from "drizzle-orm";
+import { eq, and, or, like, sql, desc, asc, count, gte, lte } from "drizzle-orm";
 import {
   leads,
   leadStages,
@@ -64,6 +64,20 @@ export const findLeads = async (
 
   if (params.ownerId) {
     conditions.push(eq(leads.ownerId, params.ownerId));
+  }
+
+  if (params.dateFrom) {
+    const fromDate = new Date(params.dateFrom);
+    if (!isNaN(fromDate.getTime())) {
+      conditions.push(gte(leads.createdAt, fromDate));
+    }
+  }
+
+  if (params.dateTo) {
+    const toDate = new Date(params.dateTo);
+    if (!isNaN(toDate.getTime())) {
+      conditions.push(lte(leads.createdAt, toDate));
+    }
   }
 
   if (params.search && params.search.trim() !== "") {
@@ -496,6 +510,20 @@ export const findPipelineBoardData = async (
 
   if (params.ownerId) {
     conditions.push(eq(leads.ownerId, params.ownerId));
+  }
+
+  if (params.dateFrom) {
+    const fromDate = new Date(params.dateFrom);
+    if (!isNaN(fromDate.getTime())) {
+      conditions.push(gte(leads.createdAt, fromDate));
+    }
+  }
+
+  if (params.dateTo) {
+    const toDate = new Date(params.dateTo);
+    if (!isNaN(toDate.getTime())) {
+      conditions.push(lte(leads.createdAt, toDate));
+    }
   }
 
   if (params.search && params.search.trim() !== "") {

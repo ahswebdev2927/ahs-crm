@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useTableQueryParams } from "@/lib/hooks/use-table-query-params";
 import { PageHeader } from "@/components/shared/page-header";
 import { LeadFilters } from "@/features/leads/components/lead-filters";
 import { LeadTable } from "@/features/leads/components/lead-table";
@@ -15,8 +16,10 @@ import { Plus, Settings2 } from "lucide-react";
 import type { LeadItem, LeadStageItem, UserSummary } from "@/features/leads/types/lead.types";
 
 export default function LeadsPage() {
-  const searchParams = useSearchParams();
   const pathname = usePathname();
+  const { searchParams, getParam, getNumberParam, setQueryParams, resetFilters } = useTableQueryParams({
+    defaultPreserveKeys: ["lead"],
+  });
 
   const [leads, setLeads] = React.useState<LeadItem[]>([]);
   const [stages, setStages] = React.useState<LeadStageItem[]>([]);
@@ -25,14 +28,17 @@ export default function LeadsPage() {
   const [currentUserId, setCurrentUserId] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
-  // Filter & Pagination state
-  const [search, setSearch] = React.useState<string>("");
-  const [selectedStageId, setSelectedStageId] = React.useState<string>("all");
-  const [selectedPriority, setSelectedPriority] = React.useState<string>("all");
-  const [selectedSource, setSelectedSource] = React.useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = React.useState<string>("active");
-  const [page, setPage] = React.useState<number>(1);
-  const [limit, setLimit] = React.useState<number>(10);
+  // Filter & Pagination state initialized from URL
+  const [search, setSearch] = React.useState<string>(getParam("search", ""));
+  const [selectedStageId, setSelectedStageId] = React.useState<string>(getParam("stageId", "all"));
+  const [selectedPriority, setSelectedPriority] = React.useState<string>(getParam("priority", "all"));
+  const [selectedSource, setSelectedSource] = React.useState<string>(getParam("source", "all"));
+  const [selectedStatus, setSelectedStatus] = React.useState<string>(getParam("status", "active"));
+  const [selectedOwnerId, setSelectedOwnerId] = React.useState<string>(getParam("ownerId", "all"));
+  const [dateFrom, setDateFrom] = React.useState<string | null>(getParam("dateFrom", "") || null);
+  const [dateTo, setDateTo] = React.useState<string | null>(getParam("dateTo", "") || null);
+  const [page, setPage] = React.useState<number>(getNumberParam("page", 1));
+  const [limit, setLimit] = React.useState<number>(getNumberParam("limit", 10));
   const [pagination, setPagination] = React.useState({
     total: 0,
     page: 1,
@@ -110,6 +116,9 @@ export default function LeadsPage() {
       if (selectedPriority !== "all") query.set("priority", selectedPriority);
       if (selectedSource !== "all") query.set("source", selectedSource);
       if (selectedStatus) query.set("status", selectedStatus);
+      if (selectedOwnerId !== "all") query.set("ownerId", selectedOwnerId);
+      if (dateFrom) query.set("dateFrom", dateFrom);
+      if (dateTo) query.set("dateTo", dateTo);
       query.set("page", page.toString());
       query.set("limit", limit.toString());
 
@@ -126,7 +135,7 @@ export default function LeadsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, selectedStageId, selectedPriority, selectedSource, selectedStatus, page, limit]);
+  }, [search, selectedStageId, selectedPriority, selectedSource, selectedStatus, selectedOwnerId, dateFrom, dateTo, page, limit]);
 
   React.useEffect(() => {
     fetchStages();
@@ -190,8 +199,12 @@ export default function LeadsPage() {
     setSelectedPriority("all");
     setSelectedSource("all");
     setSelectedStatus("active");
+    setSelectedOwnerId("all");
+    setDateFrom(null);
+    setDateTo(null);
     setPage(1);
     setLimit(10);
+    resetFilters(["lead"]);
   };
 
   const isManagerOrAdmin =
@@ -235,26 +248,46 @@ export default function LeadsPage() {
         onSearchChange={(v) => {
           setSearch(v);
           setPage(1);
+          setQueryParams({ search: v });
         }}
         selectedStageId={selectedStageId}
         onStageChange={(v) => {
           setSelectedStageId(v);
           setPage(1);
+          setQueryParams({ stageId: v });
         }}
         selectedPriority={selectedPriority}
         onPriorityChange={(v) => {
           setSelectedPriority(v);
           setPage(1);
+          setQueryParams({ priority: v });
         }}
         selectedSource={selectedSource}
         onSourceChange={(v) => {
           setSelectedSource(v);
           setPage(1);
+          setQueryParams({ source: v });
         }}
         selectedStatus={selectedStatus}
         onStatusChange={(v) => {
           setSelectedStatus(v);
           setPage(1);
+          setQueryParams({ status: v });
+        }}
+        selectedOwnerId={selectedOwnerId}
+        onOwnerChange={(v) => {
+          setSelectedOwnerId(v);
+          setPage(1);
+          setQueryParams({ ownerId: v });
+        }}
+        owners={teamUsers}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateRangeChange={({ dateFrom: df, dateTo: dt }) => {
+          setDateFrom(df || null);
+          setDateTo(dt || null);
+          setPage(1);
+          setQueryParams({ dateFrom: df, dateTo: dt });
         }}
         onReset={handleResetFilters}
       />
@@ -265,10 +298,14 @@ export default function LeadsPage() {
         isLoading={isLoading}
         currentUserId={currentUserId}
         pagination={pagination}
-        onPageChange={(p) => setPage(p)}
+        onPageChange={(p) => {
+          setPage(p);
+          setQueryParams({ page: p }, { resetPage: false });
+        }}
         onLimitChange={(l) => {
           setLimit(l);
           setPage(1);
+          setQueryParams({ limit: l, page: 1 });
         }}
         onViewLead={handleViewLead}
         onEditLead={handleEditLead}

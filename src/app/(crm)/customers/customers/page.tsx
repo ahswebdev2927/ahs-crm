@@ -3,31 +3,37 @@
 import * as React from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Plus, Users, Sparkles, Link as LinkIcon, RefreshCw } from "lucide-react";
-import { CustomerFilters } from "@/features/customers/components/customer-filters";
+import { Plus, RefreshCw } from "lucide-react";
+import { CustomerFilters, type ServiceOption } from "@/features/customers/components/customer-filters";
 import { CustomerTable } from "@/features/customers/components/customer-table";
 import { CustomerDialog } from "@/features/customers/components/customer-dialog";
 import type { CustomerItem, UserSummary } from "@/features/customers/types/customer.types";
+import { useTableQueryParams } from "@/lib/hooks/use-table-query-params";
 
 export default function CustomersPage() {
+  const { getParam, getNumberParam, setQueryParams, resetFilters } = useTableQueryParams();
+
   const [customers, setCustomers] = React.useState<CustomerItem[]>([]);
   const [owners, setOwners] = React.useState<UserSummary[]>([]);
+  const [services, setServices] = React.useState<ServiceOption[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState<boolean>(false);
   const [customerToEdit, setCustomerToEdit] = React.useState<CustomerItem | null>(null);
 
-  // Filter States
-  const [search, setSearch] = React.useState<string>("");
-  const [selectedStatus, setSelectedStatus] = React.useState<string>("all");
-  const [selectedOrigin, setSelectedOrigin] = React.useState<string>("all");
-  const [selectedOwnerId, setSelectedOwnerId] = React.useState<string>("all");
+  // Filter States initialized from URL
+  const [search, setSearch] = React.useState<string>(getParam("search", ""));
+  const [selectedStatus, setSelectedStatus] = React.useState<string>(getParam("status", "all"));
+  const [selectedOrigin, setSelectedOrigin] = React.useState<string>(getParam("origin", "all"));
+  const [selectedOwnerId, setSelectedOwnerId] = React.useState<string>(getParam("ownerId", "all"));
+  const [selectedServiceId, setSelectedServiceId] = React.useState<string>(getParam("serviceId", "all"));
+  const [dateFrom, setDateFrom] = React.useState<string | null>(getParam("dateFrom", "") || null);
+  const [dateTo, setDateTo] = React.useState<string | null>(getParam("dateTo", "") || null);
 
   // Pagination State
   const [pagination, setPagination] = React.useState({
     total: 0,
-    page: 1,
-    limit: 10,
+    page: getNumberParam("page", 1),
+    limit: getNumberParam("limit", 10),
     totalPages: 1,
   });
 
@@ -43,6 +49,9 @@ export default function CustomersPage() {
       if (selectedStatus !== "all") params.append("status", selectedStatus);
       if (selectedOrigin !== "all") params.append("origin", selectedOrigin);
       if (selectedOwnerId !== "all") params.append("ownerId", selectedOwnerId);
+      if (selectedServiceId !== "all") params.append("serviceId", selectedServiceId);
+      if (dateFrom) params.append("dateFrom", dateFrom);
+      if (dateTo) params.append("dateTo", dateTo);
 
       const res = await fetch(`/api/customers?${params.toString()}`);
       const data = await res.json();
@@ -62,7 +71,7 @@ export default function CustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [pagination.page, pagination.limit, search, selectedStatus, selectedOrigin, selectedOwnerId]);
+  }, [pagination.page, pagination.limit, search, selectedStatus, selectedOrigin, selectedOwnerId, selectedServiceId, dateFrom, dateTo]);
 
   const fetchOwners = React.useCallback(async () => {
     try {
@@ -74,9 +83,25 @@ export default function CustomersPage() {
     } catch (_err) {}
   }, []);
 
+  const fetchServices = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/services?limit=100");
+      const data = await res.json();
+      if (res.ok && data?.data?.items) {
+        setServices(
+          data.data.items.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+          }))
+        );
+      }
+    } catch (_err) {}
+  }, []);
+
   React.useEffect(() => {
     fetchOwners();
-  }, [fetchOwners]);
+    fetchServices();
+  }, [fetchOwners, fetchServices]);
 
   React.useEffect(() => {
     fetchCustomers();
@@ -87,7 +112,11 @@ export default function CustomersPage() {
     setSelectedStatus("all");
     setSelectedOrigin("all");
     setSelectedOwnerId("all");
+    setSelectedServiceId("all");
+    setDateFrom(null);
+    setDateTo(null);
     setPagination((prev) => ({ ...prev, page: 1 }));
+    resetFilters();
   };
 
   return (
@@ -133,23 +162,42 @@ export default function CustomersPage() {
         onSearchChange={(val) => {
           setSearch(val);
           setPagination((prev) => ({ ...prev, page: 1 }));
+          setQueryParams({ search: val });
         }}
         selectedStatus={selectedStatus}
         onStatusChange={(val) => {
           setSelectedStatus(val);
           setPagination((prev) => ({ ...prev, page: 1 }));
+          setQueryParams({ status: val });
         }}
         selectedOrigin={selectedOrigin}
         onOriginChange={(val) => {
           setSelectedOrigin(val);
           setPagination((prev) => ({ ...prev, page: 1 }));
+          setQueryParams({ origin: val });
         }}
         selectedOwnerId={selectedOwnerId}
         onOwnerChange={(val) => {
           setSelectedOwnerId(val);
           setPagination((prev) => ({ ...prev, page: 1 }));
+          setQueryParams({ ownerId: val });
         }}
         owners={owners}
+        selectedServiceId={selectedServiceId}
+        onServiceChange={(val) => {
+          setSelectedServiceId(val);
+          setPagination((prev) => ({ ...prev, page: 1 }));
+          setQueryParams({ serviceId: val });
+        }}
+        services={services}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateRangeChange={({ dateFrom: df, dateTo: dt }) => {
+          setDateFrom(df || null);
+          setDateTo(dt || null);
+          setPagination((prev) => ({ ...prev, page: 1 }));
+          setQueryParams({ dateFrom: df, dateTo: dt });
+        }}
         onReset={handleResetFilters}
       />
 
@@ -158,8 +206,14 @@ export default function CustomersPage() {
         customers={customers}
         isLoading={isLoading}
         pagination={pagination}
-        onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
-        onLimitChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
+        onPageChange={(page) => {
+          setPagination((prev) => ({ ...prev, page }));
+          setQueryParams({ page }, { resetPage: false });
+        }}
+        onLimitChange={(limit) => {
+          setPagination((prev) => ({ ...prev, limit, page: 1 }));
+          setQueryParams({ limit, page: 1 });
+        }}
         onEditCustomer={(c) => {
           setCustomerToEdit(c);
           setIsAddDialogOpen(true);

@@ -121,5 +121,18 @@ describe("Customer Schemas Unit Tests", () => {
         assert.equal(convertedQuery.data.origin, "converted");
       }
     });
+    test("supports service subscription and date range filtering", () => {
+      const query = customerQuerySchema.safeParse({
+        serviceId: "5",
+        dateFrom: "2026-10-01T00:00:00.000Z",
+        dateTo: "2026-10-31T23:59:59.999Z",
+      });
+      assert.equal(query.success, true);
+      if (query.success) {
+        assert.equal(query.data.serviceId, 5);
+        assert.equal(query.data.dateFrom, "2026-10-01T00:00:00.000Z");
+        assert.equal(query.data.dateTo, "2026-10-31T23:59:59.999Z");
+      }
+    });
   });
 });

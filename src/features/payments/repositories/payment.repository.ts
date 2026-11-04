@@ -15,9 +15,10 @@ export const findPayments = async (
     invoiceId?: string;
     customerId?: string;
     paymentMethod?: string;
+    status?: string;
     search?: string;
-    dateFrom?: number;
-    dateTo?: number;
+    dateFrom?: number | string;
+    dateTo?: number | string;
   },
   visibility?: {
     allowedCustomerIds?: string[];
@@ -25,7 +26,7 @@ export const findPayments = async (
     userId?: string;
   }
 ): Promise<{ items: PaymentItem[]; total: number; page: number; limit: number }> => {
-  const { page, limit, invoiceId, customerId, paymentMethod, search, dateFrom, dateTo } = params;
+  const { page, limit, invoiceId, customerId, paymentMethod, status, search, dateFrom, dateTo } = params;
   const offset = (page - 1) * limit;
 
   const conditions = [];
@@ -33,6 +34,11 @@ export const findPayments = async (
   if (invoiceId) conditions.push(eq(payments.invoiceId, invoiceId));
   if (customerId) conditions.push(eq(payments.customerId, customerId));
   if (paymentMethod) conditions.push(eq(payments.paymentMethod, paymentMethod));
+  if (status && status !== "all") {
+    conditions.push(
+      eq(payments.status, status as "completed" | "pending" | "failed" | "refunded")
+    );
+  }
   if (dateFrom) conditions.push(gte(payments.paymentDate, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(payments.paymentDate, new Date(dateTo)));
 
@@ -118,12 +124,12 @@ export const findPayments = async (
     customerId: r.customerId,
     amount: r.amount,
     paymentDate: r.paymentDate instanceof Date ? r.paymentDate.getTime() : Number(r.paymentDate),
-    paymentMethod: r.paymentMethod as any,
+    paymentMethod: r.paymentMethod as PaymentItem["paymentMethod"],
     transactionReference: r.transactionReference,
     receiptUrl: r.receiptUrl,
     receiptPublicId: r.receiptPublicId,
     notes: r.notes,
-    status: r.status as any,
+    status: r.status as PaymentItem["status"],
     receivedById: r.receivedById,
     createdAt: r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt),
     updatedAt: r.updatedAt instanceof Date ? r.updatedAt.getTime() : Number(r.updatedAt),
@@ -200,12 +206,12 @@ export const findPaymentById = async (id: string): Promise<PaymentItem | null> =
     customerId: r.customerId,
     amount: r.amount,
     paymentDate: r.paymentDate instanceof Date ? r.paymentDate.getTime() : Number(r.paymentDate),
-    paymentMethod: r.paymentMethod as any,
+    paymentMethod: r.paymentMethod as PaymentItem["paymentMethod"],
     transactionReference: r.transactionReference,
     receiptUrl: r.receiptUrl,
     receiptPublicId: r.receiptPublicId,
     notes: r.notes,
-    status: r.status as any,
+    status: r.status as PaymentItem["status"],
     receivedById: r.receivedById,
     createdAt: r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt),
     updatedAt: r.updatedAt instanceof Date ? r.updatedAt.getTime() : Number(r.updatedAt),

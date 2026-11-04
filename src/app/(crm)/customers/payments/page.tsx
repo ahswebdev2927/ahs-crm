@@ -3,18 +3,22 @@
 import * as React from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { CreditCard, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { PaymentKpiCards } from "@/features/payments/components/payment-kpis";
-import { PaymentFilters } from "@/features/payments/components/payment-filters";
+import { PaymentFilters, type CustomerOption } from "@/features/payments/components/payment-filters";
 import { PaymentTable } from "@/features/payments/components/payment-table";
 import { RecordPaymentDialog } from "@/features/payments/components/record-payment-dialog";
 import { InvoiceDetailDialog } from "@/features/invoices/components/invoice-detail-dialog";
 import { InvoicePrintPreview } from "@/features/invoices/components/invoice-print-preview";
 import type { PaymentItem, PaymentKpis } from "@/features/payments/types/payment.types";
 import type { InvoiceDetail } from "@/features/invoices/types/invoice.types";
+import { useTableQueryParams } from "@/lib/hooks/use-table-query-params";
 
 export default function PaymentsPage() {
+  const { getParam, getNumberParam, setQueryParams, resetFilters } = useTableQueryParams();
+
   const [payments, setPayments] = React.useState<PaymentItem[]>([]);
+  const [customers, setCustomers] = React.useState<CustomerOption[]>([]);
   const [stats, setStats] = React.useState<PaymentKpis>({
     totalCollected: 0,
     todayCollected: 0,
@@ -24,12 +28,16 @@ export default function PaymentsPage() {
   });
   const [loading, setLoading] = React.useState(true);
   const [totalCount, setTotalCount] = React.useState(0);
-  const [currentPage, setCurrentPage] = React.useState(1);
+  const [currentPage, setCurrentPage] = React.useState(getNumberParam("page", 1));
   const [totalPages, setTotalPages] = React.useState(1);
 
-  // Filters
-  const [search, setSearch] = React.useState("");
-  const [method, setMethod] = React.useState("all");
+  // Filters from URL
+  const [search, setSearch] = React.useState(getParam("search", ""));
+  const [method, setMethod] = React.useState(getParam("paymentMethod", "all"));
+  const [status, setStatus] = React.useState(getParam("status", "all"));
+  const [selectedCustomerId, setSelectedCustomerId] = React.useState(getParam("customerId", "all"));
+  const [dateFrom, setDateFrom] = React.useState<string | null>(getParam("dateFrom", "") || null);
+  const [dateTo, setDateTo] = React.useState<string | null>(getParam("dateTo", "") || null);
 
   // Invoice Inspection Modal
   const [selectedInvoice, setSelectedInvoice] = React.useState<InvoiceDetail | null>(null);
@@ -45,6 +53,10 @@ export default function PaymentsPage() {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       if (method && method !== "all") params.set("paymentMethod", method);
+      if (status && status !== "all") params.set("status", status);
+      if (selectedCustomerId && selectedCustomerId !== "all") params.set("customerId", selectedCustomerId);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
       params.set("page", String(currentPage));
       params.set("limit", "20");
 
@@ -71,11 +83,41 @@ export default function PaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, method, currentPage]);
+  }, [search, method, status, selectedCustomerId, dateFrom, dateTo, currentPage]);
+
+  const fetchCustomers = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/customers?limit=100");
+      const data = await res.json();
+      if (res.ok && data?.data?.items) {
+        setCustomers(
+          data.data.items.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+          }))
+        );
+      }
+    } catch (_err) {}
+  }, []);
+
+  React.useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   React.useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setMethod("all");
+    setStatus("all");
+    setSelectedCustomerId("all");
+    setDateFrom(null);
+    setDateTo(null);
+    setCurrentPage(1);
+    resetFilters();
+  };
 
   const handleViewInvoice = async (invoiceId: string) => {
     try {
@@ -107,7 +149,7 @@ export default function PaymentsPage() {
             size="sm"
             onClick={fetchPayments}
             variant="outline"
-            className="text-xs h-8 gap-1.5"
+            className="text-xs h-8 gap-1.5 cursor-pointer"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             <span>Refresh Ledger</span>
@@ -124,17 +166,36 @@ export default function PaymentsPage() {
         onSearchChange={(val) => {
           setSearch(val);
           setCurrentPage(1);
+          setQueryParams({ search: val });
         }}
         method={method}
         onMethodChange={(val) => {
           setMethod(val);
           setCurrentPage(1);
+          setQueryParams({ paymentMethod: val });
         }}
-        onReset={() => {
-          setSearch("");
-          setMethod("all");
+        status={status}
+        onStatusChange={(val) => {
+          setStatus(val);
           setCurrentPage(1);
+          setQueryParams({ status: val });
         }}
+        selectedCustomerId={selectedCustomerId}
+        onCustomerChange={(val) => {
+          setSelectedCustomerId(val);
+          setCurrentPage(1);
+          setQueryParams({ customerId: val });
+        }}
+        customers={customers}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateRangeChange={({ dateFrom: df, dateTo: dt }) => {
+          setDateFrom(df || null);
+          setDateTo(dt || null);
+          setCurrentPage(1);
+          setQueryParams({ dateFrom: df, dateTo: dt });
+        }}
+        onReset={handleResetFilters}
       />
 
       {/* Transactions Table */}
@@ -144,7 +205,10 @@ export default function PaymentsPage() {
         totalCount={totalCount}
         currentPage={currentPage}
         totalPages={totalPages}
-        onPageChange={setCurrentPage}
+        onPageChange={(page) => {
+          setCurrentPage(page);
+          setQueryParams({ page }, { resetPage: false });
+        }}
         onViewInvoice={handleViewInvoice}
         onPaymentUpdated={fetchPayments}
       />
