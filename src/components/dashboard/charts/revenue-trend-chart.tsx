@@ -17,17 +17,22 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import type { DashboardRevenueTrendPoint } from "@/features/dashboard/types/dashboard-scope.types";
+import type { DashboardRevenueTrendPoint, DashboardDateRange } from "@/features/dashboard/types/dashboard-scope.types";
+import { formatINR, formatAxisINR } from "@/lib/formatters";
 
 interface RevenueTrendChartProps {
   data: DashboardRevenueTrendPoint[];
+  activePreset?: DashboardDateRange;
+  onPresetSelect?: (preset: DashboardDateRange) => void;
 }
 
 export type PresetRange = "7d" | "30d" | "this_month" | "3m" | "6m" | "12m" | "custom";
 
-export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
+export function RevenueTrendChart({ data, activePreset: controlledPreset, onPresetSelect }: RevenueTrendChartProps) {
   const [chartType, setChartType] = React.useState<"area" | "line">("area");
-  const [activePreset, setActivePreset] = React.useState<PresetRange>("30d");
+  const [internalPreset, setInternalPreset] = React.useState<PresetRange>("30d");
+
+  const currentPreset = controlledPreset || internalPreset;
 
   // Date Range Picker state
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(() => {
@@ -39,7 +44,10 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
   });
 
   const handlePresetSelect = (preset: PresetRange) => {
-    setActivePreset(preset);
+    setInternalPreset(preset);
+    if (preset !== "custom" && onPresetSelect) {
+      onPresetSelect(preset as DashboardDateRange);
+    }
     const now = new Date();
     let fromDate: Date;
 
@@ -72,7 +80,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
   const handleCustomRangeChange = (range?: DateRange) => {
     setDateRange(range);
     if (range?.from && range?.to) {
-      setActivePreset("custom");
+      setInternalPreset("custom");
     }
   };
 
@@ -101,7 +109,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                 "6m": "6M",
                 "12m": "12M",
               };
-              const isSelected = activePreset === p;
+              const isSelected = currentPreset === p;
 
               return (
                 <button
@@ -176,8 +184,12 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={formatAxisINR} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
                   <Tooltip
+                    formatter={(value: any, name: any) => [
+                      formatINR(Number(value || 0) * 100),
+                      name === "Billed Revenue (₹)" || name === "Billed Revenue" ? "Billed Revenue" : "Collected",
+                    ]}
                     contentStyle={{
                       backgroundColor: "var(--background)",
                       borderColor: "var(--border)",
@@ -191,7 +203,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                     stroke="#3b82f6"
                     fillOpacity={1}
                     fill="url(#colorRevenue)"
-                    name="Billed Revenue (₹)"
+                    name="Billed Revenue"
                   />
                   <Area
                     type="monotone"
@@ -199,15 +211,19 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                     stroke="#10b981"
                     fillOpacity={1}
                     fill="url(#colorCollected)"
-                    name="Collected (₹)"
+                    name="Collected"
                   />
                 </AreaChart>
               ) : (
                 <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={formatAxisINR} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
                   <Tooltip
+                    formatter={(value: any, name: any) => [
+                      formatINR(Number(value || 0) * 100),
+                      name === "Billed Revenue (₹)" || name === "Billed Revenue" ? "Billed Revenue" : "Collected",
+                    ]}
                     contentStyle={{
                       backgroundColor: "var(--background)",
                       borderColor: "var(--border)",
@@ -221,7 +237,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                     stroke="#3b82f6"
                     strokeWidth={2}
                     dot={{ r: 3 }}
-                    name="Billed Revenue (₹)"
+                    name="Billed Revenue"
                   />
                   <Line
                     type="monotone"
@@ -229,7 +245,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
                     stroke="#10b981"
                     strokeWidth={2}
                     dot={{ r: 3 }}
-                    name="Collected (₹)"
+                    name="Collected"
                   />
                 </LineChart>
               )}

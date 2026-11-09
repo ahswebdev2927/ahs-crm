@@ -141,7 +141,11 @@ export function DashboardShell() {
 
           {/* Row 1: Revenue Trend (2 cols) & Lead Funnel (1 col) */}
           <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-3">
-            <RevenueTrendChart data={data.revenueTrend} />
+            <RevenueTrendChart
+              data={data.revenueTrend}
+              activePreset={dateRange}
+              onPresetSelect={(preset) => setDateRange(preset)}
+            />
             <LeadConversionChart data={data.leadConversion} />
           </div>
 

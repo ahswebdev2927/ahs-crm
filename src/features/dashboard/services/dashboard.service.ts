@@ -5,6 +5,7 @@ import { getSalesMetrics } from "./metrics/sales-metrics.service";
 import { getCustomerMetrics } from "./metrics/customer-metrics.service";
 import { getPaymentMetrics } from "./metrics/payment-metrics.service";
 import { getActivityMetrics } from "./metrics/activity-metrics.service";
+import { formatINR } from "@/lib/formatters";
 import type {
   DashboardDataResponse,
   DashboardDateRange,
@@ -55,9 +56,9 @@ export const getDashboardData = async (
       {
         id: "total_revenue",
         title: "Revenue",
-        value: `₹${paymentData.totalRevenue.toLocaleString("en-IN")}`,
+        value: formatINR(paymentData.totalRevenue),
         rawNumericValue: paymentData.totalRevenue,
-        description: "Organization total billed",
+        description: "Total payments collected",
         status: "positive",
       },
       {
@@ -90,15 +91,15 @@ export const getDashboardData = async (
       {
         id: "team_revenue",
         title: "Team Revenue",
-        value: `₹${paymentData.totalRevenue.toLocaleString("en-IN")}`,
+        value: formatINR(paymentData.totalRevenue),
         rawNumericValue: paymentData.totalRevenue,
-        description: "Total team generated revenue",
+        description: "Total payments collected by team",
         status: "positive",
       },
       {
         id: "pending_collections",
         title: "Pending Collections",
-        value: `₹${paymentData.pendingPayments.toLocaleString("en-IN")}`,
+        value: formatINR(paymentData.pendingPayments),
         rawNumericValue: paymentData.pendingPayments,
         description: "Outstanding team invoices",
         status: paymentData.pendingPayments > 0 ? "warning" : "positive",
@@ -134,9 +135,9 @@ export const getDashboardData = async (
       {
         id: "my_revenue",
         title: "My Revenue",
-        value: `₹${paymentData.totalRevenue.toLocaleString("en-IN")}`,
+        value: formatINR(paymentData.totalRevenue),
         rawNumericValue: paymentData.totalRevenue,
-        description: "Personal sales revenue",
+        description: "Personal payments collected",
         status: "positive",
       }
     );

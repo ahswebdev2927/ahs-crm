@@ -7,6 +7,7 @@ import { getPaymentMetrics } from "./payment-metrics.service";
 import { getLeadMetrics } from "./lead-metrics.service";
 import { getSalesMetrics } from "./sales-metrics.service";
 import { getActivityMetrics } from "./activity-metrics.service";
+import { formatINR, formatAxisINR } from "@/lib/formatters";
 import type { ResolvedDashboardScopeContext } from "../dashboard-authorization.service";
 
 describe("Dashboard Metric Providers Audit", () => {
@@ -48,6 +49,45 @@ describe("Dashboard Metric Providers Audit", () => {
 
       assert.strictEqual(totalCollected, 35000, "Collected should be ₹35,000");
       assert.strictEqual(outstanding, 15000, "Outstanding should be ₹15,000");
+    });
+
+    it("verifies formatINR dynamic decimal formatting across whole and fractional amounts", () => {
+      // Whole amounts without decimals
+      assert.strictEqual(formatINR(2241800), "₹22,418");
+      assert.strictEqual(formatINR(0), "₹0");
+      assert.strictEqual(formatINR(null), "₹0");
+
+      // Fractional paise amounts retain two decimals
+      assert.strictEqual(formatINR(2241882), "₹22,418.82");
+      assert.strictEqual(formatINR(2241850), "₹22,418.50");
+
+      // Optional forceDecimals preserves .00 when explicitly requested
+      assert.strictEqual(formatINR(2241800, { forceDecimals: true }), "₹22,418.00");
+    });
+
+    it("verifies formatAxisINR compact label formatting without currency symbols", () => {
+      assert.strictEqual(formatAxisINR(0), "0");
+      assert.strictEqual(formatAxisINR(500), "0.5k");
+      assert.strictEqual(formatAxisINR(1000), "1k");
+      assert.strictEqual(formatAxisINR(2000), "2k");
+      assert.strictEqual(formatAxisINR(20000), "20k");
+      assert.strictEqual(formatAxisINR(100000), "1L");
+      assert.strictEqual(formatAxisINR(2000000), "20L");
+      assert.strictEqual(formatAxisINR(5000000), "50L");
+      assert.strictEqual(formatAxisINR(10000000), "1Cr");
+    });
+
+    it("verifies revenue trend time-series buckets for 7d and 3m intervals", async () => {
+      const metrics7d = await getPaymentMetrics(mockContext, "7d");
+      assert.strictEqual(metrics7d.revenueTrend.length, 7, "7d should have 7 daily points");
+      assert.match(metrics7d.revenueTrend[0].date, /^\d{2} [A-Z][a-z]{2}$/, "Daily label should match DD MMM format");
+
+      const metrics3m = await getPaymentMetrics(mockContext, "3m");
+      assert.strictEqual(metrics3m.revenueTrend.length, 3, "3m should have 3 monthly points");
+      assert.match(metrics3m.revenueTrend[0].date, /^[A-Z][a-z]{2} \d{4}$/, "Monthly label should match MMM YYYY format");
+
+      // Revenue equals totalCollected
+      assert.strictEqual(metrics7d.totalRevenue, metrics7d.paymentCollections.totalCollected);
     });
   });
 

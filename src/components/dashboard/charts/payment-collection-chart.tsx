@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import type { DashboardPaymentCollectionSummary } from "@/features/dashboard/types/dashboard-scope.types";
+import { formatINR, formatAxisINR } from "@/lib/formatters";
 
 interface PaymentCollectionChartProps {
   data: DashboardPaymentCollectionSummary;
@@ -11,10 +12,10 @@ interface PaymentCollectionChartProps {
 
 export function PaymentCollectionChart({ data }: PaymentCollectionChartProps) {
   const chartData = [
-    { name: "Billed", amount: data.totalBilled, fill: "#3b82f6" },
-    { name: "Collected", amount: data.totalCollected, fill: "#10b981" },
-    { name: "Outstanding", amount: data.outstanding, fill: "#f59e0b" },
-    { name: "Overdue", amount: data.overdue, fill: "#ef4444" },
+    { name: "Billed", amount: Math.round(data.totalBilled / 100), fill: "#3b82f6" },
+    { name: "Collected", amount: Math.round(data.totalCollected / 100), fill: "#10b981" },
+    { name: "Outstanding", amount: Math.round(data.outstanding / 100), fill: "#f59e0b" },
+    { name: "Overdue", amount: Math.round(data.overdue / 100), fill: "#ef4444" },
   ];
 
   const hasData = data.totalBilled > 0 || data.totalCollected > 0;
@@ -41,9 +42,9 @@ export function PaymentCollectionChart({ data }: PaymentCollectionChartProps) {
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={formatAxisINR} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <Tooltip
-                  formatter={(value: any) => [`₹${Number(value || 0).toLocaleString("en-IN")}`, "Amount"]}
+                  formatter={(value: any) => [formatINR(Number(value || 0) * 100), "Amount"]}
                   contentStyle={{
                     backgroundColor: "var(--background)",
                     borderColor: "var(--border)",

@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { DashboardTeamMemberPerformance } from "@/features/dashboard/types/dashboard-scope.types";
+import { formatINR } from "@/lib/formatters";
 
 export type TeamPerformancePreset = "7d" | "30d" | "this_month" | "3m" | "6m" | "12m" | "custom";
 
@@ -154,7 +155,7 @@ export function TeamPerformanceTable({ data, onDateRangeChange }: TeamPerformanc
                     <TableCell className="text-right">{member.leadsCount}</TableCell>
                     <TableCell className="text-right">{member.wonCount}</TableCell>
                     <TableCell className="text-right font-semibold">
-                      ₹{member.revenue.toLocaleString("en-IN")}
+                      {formatINR(member.revenue)}
                     </TableCell>
                     <TableCell className="text-right">{member.conversionRate}%</TableCell>
                   </TableRow>
