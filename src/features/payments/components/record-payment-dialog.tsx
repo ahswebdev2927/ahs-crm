@@ -54,7 +54,7 @@ export function RecordPaymentDialog({
   React.useEffect(() => {
     if (!open || !invoice) return;
 
-    const remainingDueRupees = Math.max(0, Math.round(invoice.amountDue / 100));
+    const remainingDueRupees = Math.max(0, Math.ceil(invoice.amountDue / 100));
     setAmountRupees(remainingDueRupees);
     setPaymentDate(new Date().toISOString().split("T")[0]);
     setPaymentMethod("bank_transfer");
@@ -70,7 +70,7 @@ export function RecordPaymentDialog({
     e.preventDefault();
     setErrorMsg(null);
 
-    const amountInPaise = Math.round(Number(amountRupees || 0) * 100);
+    const amountInPaise = Math.ceil(Number(amountRupees || 0)) * 100;
 
     if (amountInPaise <= 0) {
       setErrorMsg("Payment amount must be greater than zero.");
@@ -175,7 +175,7 @@ export function RecordPaymentDialog({
               </label>
               <button
                 type="button"
-                onClick={() => setAmountRupees(Math.round(invoice.amountDue / 100))}
+                onClick={() => setAmountRupees(Math.ceil(invoice.amountDue / 100))}
                 className="text-[11px] text-emerald-700 hover:underline font-medium"
               >
                 Pay Full Balance
@@ -184,7 +184,7 @@ export function RecordPaymentDialog({
             <Input
               type="number"
               min="1"
-              step="any"
+              step="1"
               value={amountRupees}
               onChange={(e) => setAmountRupees(parseFloat(e.target.value) || 0)}
               required

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ceilToWholeRupeePaise } from "@/lib/formatters";
 
 export const PAYMENT_METHODS = [
   "cash",
@@ -38,8 +39,8 @@ export const recordPaymentSchema = z.object({
   invoiceId: z.string().uuid("A valid invoice ID is required."),
   amount: z
     .number({ invalid_type_error: "Payment amount must be a number." })
-    .int("Payment amount must be in paise.")
-    .positive("Payment amount must be greater than zero."),
+    .transform((val) => ceilToWholeRupeePaise(val))
+    .refine((val) => val > 0, "Payment amount must be greater than zero."),
   paymentDate: dateCoercionSchema.default(() => Date.now()),
   paymentMethod: z.enum(PAYMENT_METHODS, {
     errorMap: () => ({ message: "Please select a valid payment method." }),

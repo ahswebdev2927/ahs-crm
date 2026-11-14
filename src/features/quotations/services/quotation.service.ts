@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { ceilToWholeRupeePaise } from "@/lib/formatters";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   recordAuditLog,
@@ -51,7 +52,9 @@ export const calculateQuotationFinancials = (
   const discount = Math.min(subtotal, Math.max(0, Math.round(discountInput)));
   const taxable = subtotal - discount;
   const tax = Math.round((taxable * Math.max(0, taxRate)) / 100);
-  const total = taxable + tax;
+  const rawTotal = taxable + tax;
+  // Ceiling round total to nearest whole Rupee (in paise)
+  const total = ceilToWholeRupeePaise(rawTotal);
 
   return { subtotal, discount, tax, total };
 };

@@ -81,3 +81,13 @@ export function formatFinancialDate(timestamp: number | string | Date | undefine
     year: "numeric",
   });
 }
+
+/**
+ * Rounds an amount in paise up to the nearest whole Rupee (in paise).
+ * E.g., 2,241,882 paise (₹22,418.82) -> 2,241,900 paise (₹22,419.00)
+ */
+export function ceilToWholeRupeePaise(paise: number): number {
+  if (isNaN(paise) || !isFinite(paise)) return 0;
+  return Math.ceil(paise / 100) * 100;
+}
+

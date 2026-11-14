@@ -22,6 +22,17 @@ describe("Payments Feature Unit Tests", () => {
       assert.equal(valid.transactionReference, "UPI-REF-998877");
     });
 
+    test("ceiling rounds fractional paise amounts to next whole Rupee (e.g. ₹22,418.82 -> ₹22,419)", () => {
+      // 2,241,882 paise (₹22,418.82) should be ceiling rounded to 2,241,900 paise (₹22,419)
+      const parsed = recordPaymentSchema.parse({
+        invoiceId: "44444444-4444-4444-8444-444444444444",
+        amount: 2241882,
+        paymentMethod: "bank_transfer",
+      });
+
+      assert.equal(parsed.amount, 2241900);
+    });
+
     test("fails validation when amount is zero or negative", () => {
       assert.throws(() => {
         recordPaymentSchema.parse({

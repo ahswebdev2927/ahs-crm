@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatINR } from "@/lib/formatters";
+import { formatINR, ceilToWholeRupeePaise } from "@/lib/formatters";
 import type { InvoiceDetail } from "../types/invoice.types";
 import type { QuotationItem, QuotationDetail } from "@/features/quotations/types/quotation.types";
 
@@ -229,7 +229,7 @@ export function InvoiceDialog({
 
   const taxableAmountPaise = Math.max(0, subtotalPaise - discountPaise);
   const taxPaise = Math.round((taxableAmountPaise * taxRate) / 100);
-  const totalPaise = taxableAmountPaise + taxPaise;
+  const totalPaise = ceilToWholeRupeePaise(taxableAmountPaise + taxPaise);
 
   const handleAddItem = () => {
     setItems((prev) => [...prev, { description: "", quantity: 1, unitPriceRupees: 0 }]);

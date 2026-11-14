@@ -60,6 +60,20 @@ describe("Quotations Feature Unit Tests", () => {
       assert.equal(res.tax, 0);
       assert.equal(res.total, 300000);
     });
+
+    test("ceiling rounds total amount with fractional GST to next whole Rupee (e.g. ₹22,418.82 -> ₹22,419)", () => {
+      // Subtotal ₹19,000 (1,900,000 paise), Discount ₹1 (100 paise) => Taxable = ₹18,999 (1,899,900 paise)
+      // 18% GST of 18,999 = ₹3,419.82 (341,982 paise)
+      // Raw total = 18,999 + 3,419.82 = ₹22,418.82 (2,241,882 paise)
+      // Ceiling rounded = ₹22,419.00 (2,241,900 paise)
+      const items = [{ description: "Consulting Service", quantity: 1, unitPrice: 1900000 }];
+      const res = calculateQuotationFinancials(items, 100, 18);
+
+      assert.equal(res.subtotal, 1900000);
+      assert.equal(res.discount, 100);
+      assert.equal(res.tax, 341982);
+      assert.equal(res.total, 2241900); // 2,241,900 paise = ₹22,419
+    });
   });
 
   describe("Zod Validation Schemas", () => {

@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatINR } from "@/lib/formatters";
+import { formatINR, ceilToWholeRupeePaise } from "@/lib/formatters";
 import type { QuotationDetail } from "../types/quotation.types";
 
 interface QuotationDialogProps {
@@ -235,8 +235,8 @@ export function QuotationDialog({
   }, [taxablePaise, taxRate]);
 
   const grandTotalPaise = React.useMemo(() => {
-    return taxablePaise + taxPaise;
-  }, [taxablePaise, taxRate, taxPaise]);
+    return ceilToWholeRupeePaise(taxablePaise + taxPaise);
+  }, [taxablePaise, taxPaise]);
 
   // Line item handlers
   const handleAddItem = () => {
