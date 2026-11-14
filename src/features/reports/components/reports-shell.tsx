@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,17 +50,33 @@ const DATE_PRESETS: Array<{ label: string; value: ReportDatePreset }> = [
 export function ReportsShell() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  // URL state synchronization
-  const initialTab = (searchParams.get("tab") as ReportTab) || "sales";
+  const isRep = user?.roleCode === "inside_sales" || user?.roleCode === "field_sales";
+
+  // URL state synchronization with role awareness
+  const defaultTab: ReportTab = isRep ? "salesperson" : "sales";
+  const requestedTab = searchParams.get("tab") as ReportTab | null;
+  const initialTab: ReportTab = isRep ? "salesperson" : requestedTab || defaultTab;
+
   const initialPreset = (searchParams.get("preset") as ReportDatePreset) || "30d";
   const initialTeamId = searchParams.get("teamId") ? Number(searchParams.get("teamId")) : undefined;
-  const initialUserId = searchParams.get("userId") || undefined;
+  const initialUserId = isRep ? user?.id : (searchParams.get("userId") || undefined);
 
   const [activeTab, setActiveTab] = React.useState<ReportTab>(initialTab);
   const [preset, setPreset] = React.useState<ReportDatePreset>(initialPreset);
   const [teamId, setTeamId] = React.useState<number | undefined>(initialTeamId);
   const [userId, setUserId] = React.useState<string | undefined>(initialUserId);
+
+  // Synchronize when user auth state loads
+  React.useEffect(() => {
+    if (isRep) {
+      setActiveTab("salesperson");
+      if (user?.id) {
+        setUserId(user.id);
+      }
+    }
+  }, [isRep, user?.id]);
 
   // Custom date range state
   const [customRange, setCustomRange] = React.useState<DateRange | undefined>(() => {
@@ -227,8 +244,8 @@ export function ReportsShell() {
               />
             )}
 
-            {/* Team Selector (if permitted) */}
-            {filterOptions.teams.length > 1 && (
+            {/* Team Selector (if permitted and not locked to rep) */}
+            {!isRep && filterOptions.teams.length > 1 && (
               <Select
                 value={teamId ? String(teamId) : "all"}
                 onValueChange={(val) => setTeamId(val === "all" ? undefined : Number(val))}
@@ -247,8 +264,8 @@ export function ReportsShell() {
               </Select>
             )}
 
-            {/* Salesperson Selector (if permitted) */}
-            {filterOptions.users.length > 1 && (
+            {/* Salesperson Selector (if permitted and not locked to rep) */}
+            {!isRep && filterOptions.users.length > 1 && (
               <Select
                 value={userId || "all"}
                 onValueChange={(val) => setUserId(val === "all" ? undefined : val || undefined)}
@@ -280,26 +297,32 @@ export function ReportsShell() {
         {/* Tabbed Navigation */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-muted/60 p-1 rounded-lg">
-            <TabsTrigger value="sales" className="text-xs gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" />
-              Sales
-            </TabsTrigger>
+            {!isRep && (
+              <TabsTrigger value="sales" className="text-xs gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Sales
+              </TabsTrigger>
+            )}
             <TabsTrigger value="salesperson" className="text-xs gap-1.5">
               <UserSquare2 className="h-3.5 w-3.5" />
               Salesperson
             </TabsTrigger>
-            <TabsTrigger value="manager" className="text-xs gap-1.5">
-              <Users className="h-3.5 w-3.5" />
-              Manager & Team
-            </TabsTrigger>
-            <TabsTrigger value="customer" className="text-xs gap-1.5">
-              <Briefcase className="h-3.5 w-3.5" />
-              Customers
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="text-xs gap-1.5">
-              <Wallet className="h-3.5 w-3.5" />
-              Payments
-            </TabsTrigger>
+            {!isRep && (
+              <>
+                <TabsTrigger value="manager" className="text-xs gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  Manager & Team
+                </TabsTrigger>
+                <TabsTrigger value="customer" className="text-xs gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  Customers
+                </TabsTrigger>
+                <TabsTrigger value="payments" className="text-xs gap-1.5">
+                  <Wallet className="h-3.5 w-3.5" />
+                  Payments
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* Loading Skeletons */}
