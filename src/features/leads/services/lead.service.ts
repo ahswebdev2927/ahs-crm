@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
+import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { sendNotification } from "@/features/notifications/services/notification.service";
 import {
   checkPermission,
@@ -151,6 +152,25 @@ export const createLead = async (
     },
   }).catch(() => {});
 
+  // 7. Record immutable audit log
+  recordAuditLog({
+    userId: user.id,
+    action: "lead:created",
+    entityType: "lead",
+    entityId: createdLead.id,
+    newData: {
+      name: createdLead.name,
+      company: createdLead.company,
+      email: createdLead.email,
+      phone: createdLead.phone,
+      source: createdLead.source,
+      priority: createdLead.priority,
+      stageId: createdLead.stageId,
+      stageName: stage.name,
+      ownerId,
+    },
+  }).catch(() => {});
+
   return createdLead;
 };
 
@@ -199,11 +219,39 @@ export const updateLead = async (
       },
     }).catch(() => {});
 
+    recordAuditLog({
+      userId: user.id,
+      action: "lead:stage_changed",
+      entityType: "lead",
+      entityId: leadId,
+      oldData: { stageId: existing.stageId, stageName: existing.stage?.name },
+      newData: { stageId: validated.stageId, stageName: targetStage.name, reason: "Lead stage updated via lead edit form" },
+    }).catch(() => {});
+
     return updated;
   }
 
   // 5. Execute normal lead properties update
-  return await updateLeadRecord(leadId, validated);
+  const updatedLead = await updateLeadRecord(leadId, validated);
+
+  recordAuditLog({
+    userId: user.id,
+    action: "lead:updated",
+    entityType: "lead",
+    entityId: leadId,
+    oldData: {
+      name: existing.name,
+      company: existing.company,
+      email: existing.email,
+      phone: existing.phone,
+      source: existing.source,
+      priority: existing.priority,
+      status: existing.status,
+    },
+    newData: validated,
+  }).catch(() => {});
+
+  return updatedLead;
 };
 
 export const assignLead = async (
@@ -226,7 +274,17 @@ export const assignLead = async (
   // 4. Reassign lead owner
   const updated = await repoReassignLeadOwner(leadId, validated.ownerId);
 
-  // 5. Dispatch notification to newly assigned owner (fail-safe)
+  // 5. Record immutable audit log
+  recordAuditLog({
+    userId: user.id,
+    action: existing.ownerId ? "lead:transferred" : "lead:assigned",
+    entityType: "lead",
+    entityId: leadId,
+    oldData: { ownerId: existing.ownerId, ownerName: existing.owner?.name },
+    newData: { ownerId: validated.ownerId, leadName: existing.name },
+  }).catch(() => {});
+
+  // 6. Dispatch notification to newly assigned owner (fail-safe)
   sendNotification({
     recipientId: validated.ownerId,
     title: "Lead Assigned",
@@ -289,6 +347,15 @@ export const changeLeadStage = async (
       toStageColor: targetStage.color,
       stageReason: validated.reason,
     },
+  }).catch(() => {});
+
+  recordAuditLog({
+    userId: user.id,
+    action: "lead:stage_changed",
+    entityType: "lead",
+    entityId: leadId,
+    oldData: { stageId: existing.stageId, stageName: existing.stage?.name },
+    newData: { stageId: targetStage.id, stageName: targetStage.name, reason: validated.reason ?? null },
   }).catch(() => {});
 
   return updated;
@@ -385,6 +452,15 @@ export const moveLeadStage = async (
       toStageColor: targetStage.color,
       stageReason: validated.reason,
     },
+  }).catch(() => {});
+
+  recordAuditLog({
+    userId: user.id,
+    action: "lead:stage_changed",
+    entityType: "lead",
+    entityId: validated.leadId,
+    oldData: { stageId: existing.stageId, stageName: existing.stage?.name },
+    newData: { stageId: targetStage.id, stageName: targetStage.name, reason: validated.reason ?? "Moved via Sales Pipeline Kanban" },
   }).catch(() => {});
 
   return updated;

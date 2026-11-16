@@ -158,6 +158,23 @@ export const createQuotation = async (
     },
   }).catch(() => {});
 
+  recordAuditLog({
+    userId: user.id,
+    action: "quotation:created",
+    entityType: "quotation",
+    entityId: created.id,
+    newData: {
+      quoteNumber: created.quoteNumber,
+      leadId: created.leadId,
+      customerId: created.customerId,
+      total: created.total,
+      subtotal: created.subtotal,
+      discount: created.discount,
+      tax: created.tax,
+      itemsCount: created.items?.length,
+    },
+  }).catch(() => {});
+
   return created;
 };
 
@@ -207,7 +224,7 @@ export const updateQuotation = async (
     validated.taxRate || 18
   );
 
-  return updateQuotationRecord(id, {
+  const updated = await updateQuotationRecord(id, {
     validUntil: validated.validUntil,
     subtotal,
     discount,
@@ -217,6 +234,27 @@ export const updateQuotation = async (
     terms: validated.terms,
     items: validated.items,
   });
+
+  recordAuditLog({
+    userId: user.id,
+    action: "quotation:updated",
+    entityType: "quotation",
+    entityId: id,
+    oldData: {
+      subtotal: existing.subtotal,
+      discount: existing.discount,
+      tax: existing.tax,
+      total: existing.total,
+    },
+    newData: {
+      subtotal,
+      discount,
+      tax,
+      total,
+    },
+  }).catch(() => {});
+
+  return updated;
 };
 
 /**

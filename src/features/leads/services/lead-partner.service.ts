@@ -1,7 +1,8 @@
 import { db } from "@/db";
 import { eq } from "drizzle-orm";
-import { users, auditLogs } from "@/db/schema";
+import { users } from "@/db/schema";
 import { AppError } from "@/lib/errors/AppError";
+import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { checkLeadAccess } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
@@ -142,24 +143,19 @@ export const addLeadPartner = async (
   });
 
   // Record audit log
-  try {
-    await db.insert(auditLogs).values({
-      userId: currentUser.id,
-      action: "LEAD_PARTNER_ADDED",
-      entityType: "lead_partner",
-      entityId: newPartner.id,
-      newData: JSON.stringify({
-        leadId,
-        partnerId: input.partnerId,
-        partnerName: partnerUser.name,
-        percentage: input.percentage,
-        role: input.role,
-      }),
-      createdAt: new Date(),
-    });
-  } catch (_e) {
-    // Audit logging failsafe
-  }
+  recordAuditLog({
+    userId: currentUser.id,
+    action: "lead_partner:added",
+    entityType: "lead_partner",
+    entityId: newPartner.id,
+    newData: {
+      leadId,
+      partnerId: input.partnerId,
+      partnerName: partnerUser.name,
+      percentage: input.percentage,
+      role: input.role,
+    },
+  }).catch(() => {});
 
   return newPartner;
 };
@@ -216,25 +212,20 @@ export const updateLeadPartner = async (
   );
 
   // Record audit log
-  try {
-    await db.insert(auditLogs).values({
-      userId: currentUser.id,
-      action: "LEAD_PARTNER_UPDATED",
-      entityType: "lead_partner",
-      entityId: partnerRecordId,
-      oldData: JSON.stringify({
-        percentage: existingPartner.percentage,
-        role: existingPartner.role,
-      }),
-      newData: JSON.stringify({
-        percentage: updatedPartner.percentage,
-        role: updatedPartner.role,
-      }),
-      createdAt: new Date(),
-    });
-  } catch (_e) {
-    // Audit logging failsafe
-  }
+  recordAuditLog({
+    userId: currentUser.id,
+    action: "lead_partner:updated",
+    entityType: "lead_partner",
+    entityId: partnerRecordId,
+    oldData: {
+      percentage: existingPartner.percentage,
+      role: existingPartner.role,
+    },
+    newData: {
+      percentage: updatedPartner.percentage,
+      role: updatedPartner.role,
+    },
+  }).catch(() => {});
 
   return updatedPartner;
 };
@@ -275,28 +266,23 @@ export const removeLeadPartner = async (
   );
 
   // Record audit log
-  try {
-    await db.insert(auditLogs).values({
-      userId: currentUser.id,
-      action: "LEAD_PARTNER_REMOVED",
-      entityType: "lead_partner",
-      entityId: partnerRecordId,
-      oldData: JSON.stringify({
-        partnerId: existingPartner.partnerId,
-        partnerName: existingPartner.partner?.name,
-        percentage: existingPartner.percentage,
-        role: existingPartner.role,
-      }),
-      newData: JSON.stringify({
-        status: "removed",
-        removedById: currentUser.id,
-        removalReason: input.removalReason ?? null,
-      }),
-      createdAt: new Date(),
-    });
-  } catch (_e) {
-    // Audit logging failsafe
-  }
+  recordAuditLog({
+    userId: currentUser.id,
+    action: "lead_partner:removed",
+    entityType: "lead_partner",
+    entityId: partnerRecordId,
+    oldData: {
+      partnerId: existingPartner.partnerId,
+      partnerName: existingPartner.partner?.name,
+      percentage: existingPartner.percentage,
+      role: existingPartner.role,
+    },
+    newData: {
+      status: "removed",
+      removedById: currentUser.id,
+      removalReason: input.removalReason ?? null,
+    },
+  }).catch(() => {});
 
   return removedPartner;
 };

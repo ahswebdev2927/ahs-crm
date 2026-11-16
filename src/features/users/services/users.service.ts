@@ -1,9 +1,8 @@
 import crypto from "crypto";
 import * as bcrypt from "bcryptjs";
-import { db } from "@/db";
-import { auditLogs } from "@/db/schema";
 import { AppError } from "@/lib/errors/AppError";
 import { logger } from "@/lib/logger";
+import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { checkPermission, requireAuth } from "@/features/auth/services/authorization.service";
 import { UsersRepository } from "../repositories/users.repository";
 import type {
@@ -123,13 +122,13 @@ export class UsersService {
       await UsersRepository.setUserPermissions(newUserId, input.permissions);
     }
 
-    // 6. Audit Log Entry
-    await db.insert(auditLogs).values({
+    // 6. Record immutable audit log
+    recordAuditLog({
       userId: actor.id,
-      action: "USER_CREATED",
+      action: "user:created",
       entityType: "user",
       entityId: newUserId,
-      newData: JSON.stringify({
+      newData: {
         name: input.name,
         email: input.email,
         roleId: input.roleId,
@@ -137,8 +136,8 @@ export class UsersService {
         teamId: input.teamId,
         managerId: effectiveManagerId,
         dataVisibility: input.dataVisibility,
-      }),
-    });
+      },
+    }).catch(() => {});
 
     logger.info(
       { actorId: actor.id, newUserId, email: input.email },
@@ -234,23 +233,31 @@ export class UsersService {
 
       if (input.permissions !== undefined) {
         await UsersRepository.setUserPermissions(id, input.permissions);
+
+        recordAuditLog({
+          userId: actor.id,
+          action: "user:permissions_changed",
+          entityType: "user",
+          entityId: id,
+          newData: { permissions: input.permissions },
+        }).catch(() => {});
       }
     }
 
-    // Audit Log Entry
-    await db.insert(auditLogs).values({
+    // Record immutable audit log
+    recordAuditLog({
       userId: actor.id,
-      action: "USER_UPDATED",
+      action: "user:updated",
       entityType: "user",
       entityId: id,
-      oldData: JSON.stringify({
+      oldData: {
         name: user.name,
         email: user.email,
         dataVisibility: user.dataVisibility,
         status: user.status,
-      }),
-      newData: JSON.stringify(input),
-    });
+      },
+      newData: input,
+    }).catch(() => {});
 
     logger.info({ actorId: actor.id, targetUserId: id }, `Team member updated by manager/admin: ${id}`);
 
@@ -274,13 +281,13 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(input.password, 10);
     await UsersRepository.updatePassword(id, passwordHash);
 
-    // Audit Log Entry
-    await db.insert(auditLogs).values({
+    // Record immutable audit log
+    recordAuditLog({
       userId: actor.id,
-      action: "USER_PASSWORD_RESET",
+      action: "user:password_reset",
       entityType: "user",
       entityId: id,
-    });
+    }).catch(() => {});
 
     logger.info(
       { actorId: actor.id, targetUserId: id },
@@ -343,15 +350,15 @@ export class UsersService {
 
     await UsersRepository.updateUserStatus(id, input.status);
 
-    // Audit Log Entry
-    await db.insert(auditLogs).values({
+    // Record immutable audit log
+    recordAuditLog({
       userId: actor.id,
-      action: `USER_STATUS_${input.status.toUpperCase()}`,
+      action: "user:status_changed",
       entityType: "user",
       entityId: id,
-      oldData: JSON.stringify({ status: user.status }),
-      newData: JSON.stringify({ status: input.status }),
-    });
+      oldData: { status: user.status },
+      newData: { status: input.status },
+    }).catch(() => {});
 
     logger.info(
       { actorId: actor.id, targetUserId: id, newStatus: input.status },

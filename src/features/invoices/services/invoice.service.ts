@@ -124,7 +124,7 @@ export const createInvoice = async (
     validated.taxRate
   );
 
-  return createInvoiceRecord(
+  const created = await createInvoiceRecord(
     {
       customerId: validated.customerId,
       quotationId: validated.quotationId,
@@ -140,6 +140,23 @@ export const createInvoice = async (
     },
     user.id
   );
+
+  recordAuditLog({
+    userId: user.id,
+    action: "invoice:created",
+    entityType: "invoice",
+    entityId: created.id,
+    newData: {
+      invoiceNumber: created.invoiceNumber,
+      customerId: created.customerId,
+      quotationId: created.quotationId,
+      total: created.total,
+      subtotal: created.subtotal,
+      dueDate: created.dueDate,
+    },
+  }).catch(() => {});
+
+  return created;
 };
 
 /**
@@ -229,6 +246,20 @@ export const convertQuotationToInvoice = async (
     newData: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, customerId },
   }).catch(() => {});
 
+  recordAuditLog({
+    userId: user.id,
+    action: "invoice:created",
+    entityType: "invoice",
+    entityId: invoice.id,
+    newData: {
+      invoiceNumber: invoice.invoiceNumber,
+      customerId,
+      quotationId,
+      total: invoice.total,
+      dueDate: invoice.dueDate,
+    },
+  }).catch(() => {});
+
   if (quote.leadId) {
     recordLeadActivityIfApplicable(
       quote.leadId,
@@ -293,7 +324,7 @@ export const updateInvoice = async (
     validated.taxRate || 18
   );
 
-  return updateInvoiceRecord(id, {
+  const updated = await updateInvoiceRecord(id, {
     dueDate: validated.dueDate,
     subtotal,
     discount,
@@ -303,6 +334,29 @@ export const updateInvoice = async (
     terms: validated.terms,
     items: validated.items,
   });
+
+  recordAuditLog({
+    userId: user.id,
+    action: "invoice:updated",
+    entityType: "invoice",
+    entityId: id,
+    oldData: {
+      subtotal: existing.subtotal,
+      discount: existing.discount,
+      tax: existing.tax,
+      total: existing.total,
+      dueDate: existing.dueDate,
+    },
+    newData: {
+      subtotal,
+      discount,
+      tax,
+      total,
+      dueDate: validated.dueDate,
+    },
+  }).catch(() => {});
+
+  return updated;
 };
 
 /**
@@ -329,7 +383,18 @@ export const updateInvoiceStatus = async (
     );
   }
 
-  return updateInvoiceStatusRecord(id, validated.status);
+  const updated = await updateInvoiceStatusRecord(id, validated.status);
+
+  recordAuditLog({
+    userId: user.id,
+    action: "invoice:status_changed",
+    entityType: "invoice",
+    entityId: id,
+    oldData: { status: existing.status },
+    newData: { status: validated.status },
+  }).catch(() => {});
+
+  return updated;
 };
 
 /**

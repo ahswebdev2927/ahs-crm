@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
+import { recordAuditLog } from "@/features/audit/services/audit.service";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -103,11 +104,28 @@ export const createCustomer = async (
   const ownerId = validated.ownerId && validated.ownerId.trim() !== "" ? validated.ownerId.trim() : user.id;
 
   // 4. Create customer record
-  return await createCustomerRecord({
+  const created = await createCustomerRecord({
     ...validated,
     id: crypto.randomUUID(),
     ownerId,
   });
+
+  // 5. Record immutable audit log
+  recordAuditLog({
+    userId: user.id,
+    action: "customer:created",
+    entityType: "customer",
+    entityId: created.id,
+    newData: {
+      name: created.name,
+      company: created.company,
+      email: created.email,
+      phone: created.phone,
+      ownerId: created.ownerId,
+    },
+  }).catch(() => {});
+
+  return created;
 };
 
 export const updateCustomer = async (
@@ -128,7 +146,26 @@ export const updateCustomer = async (
   }
 
   // 4. Execute update
-  return await updateCustomerRecord(customerId, validated);
+  const updated = await updateCustomerRecord(customerId, validated);
+
+  // 5. Record immutable audit log
+  recordAuditLog({
+    userId: user.id,
+    action: "customer:updated",
+    entityType: "customer",
+    entityId: customerId,
+    oldData: {
+      name: existing.name,
+      company: existing.company,
+      email: existing.email,
+      phone: existing.phone,
+      address: existing.address,
+      ownerId: existing.ownerId,
+    },
+    newData: validated,
+  }).catch(() => {});
+
+  return updated;
 };
 
 export const convertLeadToCustomer = async (
@@ -159,7 +196,21 @@ export const convertLeadToCustomer = async (
     user.id
   );
 
-  // 5. Log system lifecycle conversion event
+  // 5. Record immutable audit log
+  recordAuditLog({
+    userId: user.id,
+    action: "customer:converted_from_lead",
+    entityType: "customer",
+    entityId: customer.id,
+    newData: {
+      leadId: validated.leadId,
+      customerName: customer.name,
+      company: customer.company,
+      ownerId: customer.ownerId,
+    },
+  }).catch(() => {});
+
+  // 6. Log system lifecycle conversion event
   logSystemEvent({
     leadId: validated.leadId,
     customerId: customer.id,

@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { AppError } from "@/lib/errors/AppError";
+import { recordAuditLog } from "@/features/audit/services/audit.service";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -79,7 +80,23 @@ export const createCatalogItem = async (
     );
   }
 
-  return createCatalogServiceRecord(validated);
+  const created = await createCatalogServiceRecord(validated);
+
+  recordAuditLog({
+    userId: user.id,
+    action: "service:created",
+    entityType: "service",
+    entityId: String(created.id),
+    newData: {
+      name: created.name,
+      code: created.code,
+      billingModel: created.billingModel,
+      price: created.price,
+      status: created.status,
+    },
+  }).catch(() => {});
+
+  return created;
 };
 
 export const updateCatalogItem = async (
@@ -110,6 +127,21 @@ export const updateCatalogItem = async (
   if (!updated) {
     throw new AppError("Failed to update service.", 500, "INTERNAL_ERROR");
   }
+
+  recordAuditLog({
+    userId: user.id,
+    action: validated.status === "inactive" ? "service:archived" : "service:updated",
+    entityType: "service",
+    entityId: String(id),
+    oldData: {
+      name: existing.name,
+      code: existing.code,
+      price: existing.price,
+      status: existing.status,
+      billingModel: existing.billingModel,
+    },
+    newData: validated,
+  }).catch(() => {});
 
   return updated;
 };
@@ -149,7 +181,7 @@ export const assignService = async (
   const subscriptionId = randomUUID();
 
   // Immutable historical snapshots (PRD FR-12 / Architecture §25)
-  return assignServiceToCustomerRecord({
+  const assigned = await assignServiceToCustomerRecord({
     id: subscriptionId,
     customerId: validated.customerId,
     serviceId: catalogService.id,
@@ -169,6 +201,23 @@ export const assignService = async (
     endDate: validated.endDate ?? null,
     createdById: user.id,
   });
+
+  recordAuditLog({
+    userId: user.id,
+    action: "service:assigned_to_customer",
+    entityType: "customer_service",
+    entityId: subscriptionId,
+    newData: {
+      customerId: validated.customerId,
+      serviceId: catalogService.id,
+      serviceName: catalogService.name,
+      price: unitPrice,
+      quantity,
+      totalPrice,
+    },
+  }).catch(() => {});
+
+  return assigned;
 };
 
 export const updateSubscription = async (
@@ -203,6 +252,25 @@ export const updateSubscription = async (
   if (!updated) {
     throw new AppError("Failed to update subscription.", 500, "INTERNAL_ERROR");
   }
+
+  recordAuditLog({
+    userId: user.id,
+    action: "service:subscription_updated",
+    entityType: "customer_service",
+    entityId: assignmentId,
+    oldData: {
+      price: existing.price,
+      quantity: existing.quantity,
+      totalPrice: existing.totalPrice,
+      status: existing.status,
+    },
+    newData: {
+      price,
+      quantity,
+      totalPrice,
+      status: validated.status,
+    },
+  }).catch(() => {});
 
   return updated;
 };

@@ -133,7 +133,7 @@ export async function recordLeadActivityIfApplicable(
  */
 export async function getAuditLogs(
   user: AuthenticatedUserPayload,
-  params: AuditQueryInput
+  params: Partial<AuditQueryInput>
 ): Promise<AuditQueryResponse> {
   assertSuperAdmin(user);
   const validated = auditQuerySchema.parse(params);
