@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   experimental: {
     scrollRestoration: true,
+    turbopackPluginRuntimeStrategy: "workerThreads",
   },
   async headers() {
     const cspHeader = `

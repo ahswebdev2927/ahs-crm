@@ -5,7 +5,7 @@ import { errorResponse } from "./response";
 import { logger } from "../logger";
 
 type RouteHandlerContext = {
-  params?: Promise<Record<string, string | string[]>> | Record<string, string | string[]>;
+  params: Promise<Record<string, string | string[]>>;
 };
 
 type RouteHandler = (

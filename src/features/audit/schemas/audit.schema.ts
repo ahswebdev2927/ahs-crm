@@ -15,6 +15,7 @@ export const auditQuerySchema = z.object({
 });
 
 export type AuditQueryInput = z.infer<typeof auditQuerySchema>;
+export type AuditQueryRawInput = z.input<typeof auditQuerySchema>;
 
 /**
  * User / Actor representation attached to an audit entry

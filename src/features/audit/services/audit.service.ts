@@ -6,6 +6,7 @@ import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.ser
 import {
   auditQuerySchema,
   type AuditQueryInput,
+  type AuditQueryRawInput,
   type AuditQueryResponse,
   type AuditFilterOptions,
 } from "../schemas/audit.schema";
@@ -133,7 +134,7 @@ export async function recordLeadActivityIfApplicable(
  */
 export async function getAuditLogs(
   user: AuthenticatedUserPayload,
-  params: Partial<AuditQueryInput>
+  params: AuditQueryRawInput
 ): Promise<AuditQueryResponse> {
   assertSuperAdmin(user);
   const validated = auditQuerySchema.parse(params);
@@ -157,7 +158,7 @@ export async function getAuditLogs(
  */
 export async function exportAuditLogsCsv(
   user: AuthenticatedUserPayload,
-  params: Partial<AuditQueryInput>
+  params: AuditQueryRawInput
 ): Promise<{ filename: string; csv: string; count: number }> {
   assertSuperAdmin(user);
   const validated = auditQuerySchema.parse(params);
