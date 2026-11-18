@@ -4,6 +4,7 @@ import { AppError } from "@/lib/errors/AppError";
 import { logger } from "@/lib/logger";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { checkPermission, requireAuth } from "@/features/auth/services/authorization.service";
+import { BCRYPT_SALT_ROUNDS } from "@/features/auth/services/auth.service";
 import {
   findUsers,
   findUserById,
@@ -112,7 +113,7 @@ export const createTeamMember = async (input: CreateUserInput) => {
   }
 
   // 3. Hash initial password
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
   const newUserId = `user-${crypto.randomUUID()}`;
 
   // 4. Create user
@@ -291,7 +292,7 @@ export const resetMemberPassword = async (id: string, input: ResetUserPasswordIn
     throw new AppError("Team member not found.", 404, "NOT_FOUND");
   }
 
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
   await updatePassword(id, passwordHash);
 
   // Record immutable audit log

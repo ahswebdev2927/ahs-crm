@@ -431,7 +431,7 @@ export const findUsers = async (params: UserFilterParams) => {
   }
 
   /**
-   * Updates a user's password hash
+   * Updates a user's password hash and invalidates all existing active sessions
    */
   export const updatePassword = async (id: string, passwordHash: string) => {
     const [updated] = await db
@@ -442,6 +442,9 @@ export const findUsers = async (params: UserFilterParams) => {
       })
       .where(eq(users.id, id))
       .returning();
+
+    // Invalidate all active user sessions across devices upon password reset/change
+    await db.delete(sessions).where(eq(sessions.userId, id));
 
     return updated;
   };

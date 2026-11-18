@@ -3,6 +3,7 @@ import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { validateCronSecret, CRON_RESPONSE_HEADERS } from "@/lib/cron-auth";
 import { executeNotificationCron } from "@/features/notifications/services/notification-cron.service";
 import { executeRateLimitCleanup } from "@/features/security/services/rate-limit-cleanup.service";
+import { executeSessionCleanup } from "@/features/security/services/session-cleanup.service";
 
 /**
  * Consolidated master cron handler for Cron-job.org and remote schedulers.
@@ -12,14 +13,16 @@ import { executeRateLimitCleanup } from "@/features/security/services/rate-limit
  * 3. Overdue follow-up alerts
  * 4. 60-day read notifications auto-purge
  * 5. Expired rate limits cleanup
+ * 6. Expired sessions cleanup
  */
 async function handleMasterCron(request: NextRequest) {
   validateCronSecret(request);
   const startTime = Date.now();
 
-  const [notifications, rateLimits] = await Promise.all([
+  const [notifications, rateLimits, sessions] = await Promise.all([
     executeNotificationCron(),
     executeRateLimitCleanup(),
+    executeSessionCleanup(),
   ]);
 
   const durationMs = Date.now() - startTime;
@@ -33,6 +36,7 @@ async function handleMasterCron(request: NextRequest) {
         timestamp: new Date().toISOString(),
         notifications,
         rateLimits,
+        sessions,
       },
     },
     {

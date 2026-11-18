@@ -1,4 +1,4 @@
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { users, sessions, roles, rolePermissions, permissions, userPermissions } from "@/db/schema";
 
@@ -41,6 +41,33 @@ export const createSession = async (params: {
  */
 export const deleteSession = async (sessionId: string) => {
   return await db.delete(sessions).where(eq(sessions.id, sessionId));
+};
+
+/**
+ * Invalidate/Delete all active sessions for a specific user ID
+ */
+export const deleteSessionsByUserId = async (userId: string) => {
+  return await db.delete(sessions).where(eq(sessions.userId, userId));
+};
+
+/**
+ * Update session expiry timestamp in the database (for sliding renewal)
+ */
+export const updateSessionExpiry = async (sessionId: string, newExpiresAt: number) => {
+  return await db
+    .update(sessions)
+    .set({
+      expiresAt: newExpiresAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(sessions.id, sessionId));
+};
+
+/**
+ * Delete all sessions that have expired
+ */
+export const deleteExpiredSessions = async (now: number = Date.now()) => {
+  return await db.delete(sessions).where(lte(sessions.expiresAt, now));
 };
 
 /**

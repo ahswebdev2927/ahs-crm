@@ -33,12 +33,15 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     ipAddress
   );
 
+  const isProduction =
+    process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
+
   const cookieStore = await cookies();
   cookieStore.set({
     name: "session_token",
     value: token,
     httpOnly: true,
-    secure: process.env.APP_ENV === "production",
+    secure: isProduction,
     sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
     path: "/",
