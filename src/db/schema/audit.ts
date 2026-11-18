@@ -18,6 +18,8 @@ export const auditLogs = sqliteTable('audit_logs', {
   index('audit_logs_user_id_idx').on(t.userId),
   index('audit_logs_action_idx').on(t.action),
   index('audit_logs_entity_idx').on(t.entityType, t.entityId),
+  index('audit_logs_created_at_idx').on(t.createdAt),
+  index('audit_logs_entity_created_idx').on(t.entityType, t.entityId, t.createdAt),
 ]);
 
 // Relational Definitions

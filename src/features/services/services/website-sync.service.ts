@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors/AppError";
 import { logger } from "@/lib/logger";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { assertUserPermission } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import { upsertCatalogItemsFromSync } from "../repositories/service.repository";
@@ -125,6 +126,9 @@ export const syncServicesFromWebsite = async (
 
   const { catalogItems } = parseResult.data.data;
   const syncResult = await upsertCatalogItemsFromSync(catalogItems);
+
+  // Instantly invalidate services catalog cache
+  CacheService.invalidateTags(CACHE_TAGS.SERVICES);
 
   logger.info(
     {

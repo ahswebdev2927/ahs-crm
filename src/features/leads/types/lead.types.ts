@@ -83,6 +83,7 @@ export interface LeadItem {
 export interface PipelineStageColumn extends LeadStageItem {
   leads: LeadItem[];
   totalCount: number;
+  hasMore?: boolean;
 }
 
 export interface PipelineBoardData {

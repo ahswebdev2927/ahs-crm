@@ -25,6 +25,8 @@ export const followUps = sqliteTable('follow_ups', {
   index('follow_ups_assigned_to_id_idx').on(t.assignedToId),
   index('follow_ups_scheduled_at_idx').on(t.scheduledAt),
   index('follow_ups_status_idx').on(t.status),
+  index('follow_ups_status_scheduled_idx').on(t.status, t.scheduledAt),
+  index('follow_ups_created_at_idx').on(t.createdAt),
 ]);
 
 export const appointments = sqliteTable('appointments', {
@@ -49,6 +51,8 @@ export const appointments = sqliteTable('appointments', {
   index('appointments_assigned_to_id_idx').on(t.assignedToId),
   index('appointments_start_time_idx').on(t.startTime),
   index('appointments_status_idx').on(t.status),
+  index('appointments_status_start_time_idx').on(t.status, t.startTime),
+  index('appointments_created_at_idx').on(t.createdAt),
 ]);
 
 export const fieldVisits = sqliteTable('field_visits', {
@@ -77,6 +81,8 @@ export const fieldVisits = sqliteTable('field_visits', {
   index('field_visits_assigned_to_id_idx').on(t.assignedToId),
   index('field_visits_status_idx').on(t.status),
   index('field_visits_visit_date_idx').on(t.visitDate),
+  index('field_visits_status_date_idx').on(t.status, t.visitDate),
+  index('field_visits_created_at_idx').on(t.createdAt),
 ]);
 
 export const fieldVisitMedia = sqliteTable('field_visit_media', {

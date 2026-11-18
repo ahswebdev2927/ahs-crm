@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { ceilToWholeRupeePaise } from "@/lib/formatters";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
@@ -40,6 +41,16 @@ import type {
  * Authoritative financial math helper.
  * Calculates subtotal, discount, tax, and total strictly in integer minor units (paise).
  */
+const invalidateQuotationCaches = (user: AuthenticatedUserPayload): void => {
+  const tags: string[] = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.FINANCIAL_STATS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tags.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  CacheService.invalidateTags(tags);
+};
+
 export const calculateQuotationFinancials = (
   items: QuotationItemInput[],
   discountInput = 0,
@@ -175,6 +186,8 @@ export const createQuotation = async (
     },
   }).catch(() => {});
 
+  invalidateQuotationCaches(user);
+
   return created;
 };
 
@@ -254,6 +267,8 @@ export const updateQuotation = async (
     },
   }).catch(() => {});
 
+  invalidateQuotationCaches(user);
+
   return updated;
 };
 
@@ -322,6 +337,8 @@ export const updateQuotationStatus = async (
       amountPaise: existing.total,
     },
   }).catch(() => {});
+
+  invalidateQuotationCaches(user);
 
   return updated;
 };

@@ -574,16 +574,115 @@ export const findPipelineBoardData = async (
 
   const stageColumns: PipelineStageColumn[] = stages.map((s) => {
     const stageLeads = leadsByStageMap.get(s.id) || [];
+    const initialLimit = 25;
+    const sliced = stageLeads.slice(0, initialLimit);
     return {
       ...s,
-      leads: stageLeads,
+      leads: sliced,
       totalCount: stageLeads.length,
+      hasMore: stageLeads.length > sliced.length,
     };
   });
 
   return {
     stages: stageColumns,
     totalLeads: leadItems.length,
+  };
+};
+
+export const findStageLeads = async (
+  stageId: number,
+  visibilityFilter: any,
+  params: LeadQueryInput,
+  offset: number = 0,
+  limit: number = 25
+): Promise<{ leads: LeadItem[]; totalCount: number; hasMore: boolean }> => {
+  const conditions: any[] = [eq(leads.stageId, stageId)];
+
+  if (visibilityFilter) {
+    conditions.push(visibilityFilter);
+  }
+
+  conditions.push(eq(leads.status, (params.status as LeadStatus) || "active"));
+
+  if (params.priority) {
+    conditions.push(eq(leads.priority, params.priority as LeadPriority));
+  }
+
+  if (params.source) {
+    conditions.push(eq(leads.source, params.source));
+  }
+
+  if (params.ownerId) {
+    conditions.push(eq(leads.ownerId, params.ownerId));
+  }
+
+  if (params.dateFrom) {
+    const fromDate = new Date(params.dateFrom);
+    if (!isNaN(fromDate.getTime())) {
+      conditions.push(gte(leads.createdAt, fromDate));
+    }
+  }
+
+  if (params.dateTo) {
+    const toDate = new Date(params.dateTo);
+    if (!isNaN(toDate.getTime())) {
+      conditions.push(lte(leads.createdAt, toDate));
+    }
+  }
+
+  if (params.search && params.search.trim() !== "") {
+    const searchPattern = `%${params.search.trim()}%`;
+    conditions.push(
+      or(
+        like(leads.name, searchPattern),
+        like(leads.company, searchPattern),
+        like(leads.phone, searchPattern),
+        like(leads.email, searchPattern)
+      )
+    );
+  }
+
+  const whereClause = and(...conditions);
+
+  const totalRes = await db
+    .select({ count: count() })
+    .from(leads)
+    .where(whereClause)
+    .get();
+  const totalCount = totalRes?.count ?? 0;
+
+  const rows = await db
+    .select({
+      lead: leads,
+      stage: leadStages,
+      owner: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(leads)
+    .leftJoin(leadStages, eq(leads.stageId, leadStages.id))
+    .leftJoin(users, eq(leads.ownerId, users.id))
+    .where(whereClause)
+    .orderBy(asc(leads.position), desc(leads.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const leadItems: LeadItem[] = rows.map((r) => ({
+    ...r.lead,
+    priority: r.lead.priority as LeadPriority,
+    status: r.lead.status as LeadStatus,
+    stage: r.stage ? { ...r.stage } : null,
+    owner: r.owner && r.owner.id ? { ...r.owner } : null,
+    createdBy: null,
+  }));
+
+  return {
+    leads: leadItems,
+    totalCount,
+    hasMore: totalCount > offset + leadItems.length,
   };
 };
 

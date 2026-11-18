@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
-import { UsersService } from "@/features/users/services/users.service";
+import { getTeamMember, updateTeamMember } from "@/features/users/services/users.service";
 import { updateUserSchema } from "@/features/users/schemas/user.schema";
 
 export const GET = withErrorHandling(
@@ -9,7 +9,7 @@ export const GET = withErrorHandling(
     const rawParams = await context?.params;
     const id = Array.isArray(rawParams?.id) ? rawParams.id[0] : rawParams?.id || "";
 
-    const user = await UsersService.getTeamMember(id);
+    const user = await getTeamMember(id);
 
     return successResponse({
       statusCode: 200,
@@ -26,7 +26,7 @@ export const PATCH = withErrorHandling(
     const body = await request.json();
 
     const validatedInput = updateUserSchema.parse(body);
-    const updatedUser = await UsersService.updateTeamMember(id, validatedInput);
+    const updatedUser = await updateTeamMember(id, validatedInput);
 
     return successResponse({
       statusCode: 200,

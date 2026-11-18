@@ -57,6 +57,57 @@ export function PipelineBoard({
   const [historyDialogOpen, setHistoryDialogOpen] = React.useState(false)
   const [selectedLeadForHistory, setSelectedLeadForHistory] = React.useState<LeadItem | null>(null)
 
+  // Column-level pagination state
+  const [loadingMoreStageId, setLoadingMoreStageId] = React.useState<number | null>(null)
+
+  const handleLoadMoreStage = async (stageId: number) => {
+    const stage = stages.find((s) => s.id === stageId)
+    if (!stage || loadingMoreStageId !== null) return
+
+    setLoadingMoreStageId(stageId)
+    try {
+      const query = new URLSearchParams()
+      query.set("stageId", stageId.toString())
+      query.set("offset", stage.leads.length.toString())
+      query.set("limit", "25")
+      if (filters.search) query.set("search", filters.search)
+      if (filters.ownerId) query.set("ownerId", filters.ownerId)
+      if (filters.priority) query.set("priority", filters.priority)
+      if (filters.source) query.set("source", filters.source)
+
+      const res = await fetch(`/api/leads/pipeline/stage-leads?${query.toString()}`)
+      const data = await res.json()
+
+      if (!res.ok || (!data.status && !data.success)) {
+        throw new Error(data.message || "Failed to load more leads.")
+      }
+
+      const newLeads: LeadItem[] = data.data.leads || []
+      const totalCount: number = data.data.totalCount ?? stage.totalCount
+
+      setStages((prevStages) => {
+        const next = prevStages.map((s) => {
+          if (s.id !== stageId) return s
+          const existingIds = new Set(s.leads.map((l) => l.id))
+          const filteredNew = newLeads.filter((l) => !existingIds.has(l.id))
+          const updatedLeads = [...s.leads, ...filteredNew]
+          return {
+            ...s,
+            leads: updatedLeads,
+            totalCount,
+            hasMore: totalCount > updatedLeads.length,
+          }
+        })
+        snapshotRef.current = next
+        return next
+      })
+    } catch (err: any) {
+      setError(err.message || "Failed to load additional leads.")
+    } finally {
+      setLoadingMoreStageId(null)
+    }
+  }
+
   // Fetch pipeline data when filters change
   const fetchBoardData = React.useCallback(async (filterValues: PipelineFilterValues) => {
     setLoading(true)
@@ -385,15 +436,39 @@ export function PipelineBoard({
                     <p className="text-xs font-medium text-muted-foreground/60">No leads in stage</p>
                   </div>
                 ) : (
-                  stage.leads.map((lead) => (
-                    <PipelineLeadCard
-                      key={lead.id}
-                      lead={lead}
-                      onViewLead={onViewLead}
-                      onEdit={handleOpenEdit}
-                      onViewHistory={handleOpenHistory}
-                    />
-                  ))
+                  <>
+                    {stage.leads.map((lead) => (
+                      <PipelineLeadCard
+                        key={lead.id}
+                        lead={lead}
+                        onViewLead={onViewLead}
+                        onEdit={handleOpenEdit}
+                        onViewHistory={handleOpenHistory}
+                      />
+                    ))}
+                    {stage.hasMore && (
+                      <button
+                        type="button"
+                        disabled={loadingMoreStageId === stage.id}
+                        onClick={() => handleLoadMoreStage(stage.id)}
+                        className="w-full py-2 px-3 mt-1.5 rounded-lg border border-dashed border-border/80 hover:border-primary/50 bg-background/50 hover:bg-muted/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {loadingMoreStageId === stage.id ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>Loading leads...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Load More</span>
+                            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full font-mono font-semibold">
+                              +{stage.totalCount - stage.leads.length}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </>
                 )}
               </KanbanColumn>
             ))}

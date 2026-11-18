@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { sendNotification } from "@/features/notifications/services/notification.service";
@@ -146,6 +147,18 @@ export const recordPayment = async (
     createdAt: validated.paymentDate ? new Date(validated.paymentDate) : new Date(),
   }).catch(() => {});
 
+  // Instantly invalidate financial stats & dashboard caches
+  const tagsToInvalidate = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.FINANCIAL_STATS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tagsToInvalidate.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  if (invoice.createdById && invoice.createdById !== user.id) {
+    tagsToInvalidate.push(CACHE_TAGS.DASHBOARD_USER(invoice.createdById));
+  }
+  CacheService.invalidateTags(tagsToInvalidate);
+
   return payment;
 };
 
@@ -182,6 +195,15 @@ export const updatePaymentStatus = async (
     oldData: { status: existing.status },
     newData: { status: validated.status, reason: validated.reason },
   }).catch(() => {});
+
+  // Instantly invalidate financial stats & dashboard caches
+  const tagsToInvalidate = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.FINANCIAL_STATS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tagsToInvalidate.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  CacheService.invalidateTags(tagsToInvalidate);
 
   return updated;
 };

@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { sendNotification } from "@/features/notifications/services/notification.service";
@@ -20,6 +21,7 @@ import {
   createLeadStageRecord,
   updateLeadStageOrders as repoUpdateLeadStageOrders,
   findPipelineBoardData,
+  findStageLeads,
   updateLeadStageAndPositionInRepo,
   updateLeadPositionsInStage,
   createLeadActivityRecord,
@@ -59,6 +61,25 @@ import type {
  * Lead Business Logic Service
  * Enforces server-side authentication, authorization, Zod validation, and stage governance.
  */
+
+export const invalidateLeadCaches = (
+  user: AuthenticatedUserPayload,
+  ownerId?: string | null
+): void => {
+  const tags: string[] = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+    CACHE_TAGS.PIPELINE_BOARD(user.id),
+  ];
+  if (user.teamId) {
+    tags.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  }
+  if (ownerId && ownerId !== user.id) {
+    tags.push(CACHE_TAGS.DASHBOARD_USER(ownerId));
+    tags.push(CACHE_TAGS.PIPELINE_BOARD(ownerId));
+  }
+  CacheService.invalidateTags(tags);
+};
 
 export const getLeads = async (
   user: AuthenticatedUserPayload,
@@ -171,6 +192,9 @@ export const createLead = async (
     },
   }).catch(() => {});
 
+  // 8. Instantly invalidate affected lead & dashboard caches
+  invalidateLeadCaches(user, ownerId);
+
   return createdLead;
 };
 
@@ -251,6 +275,12 @@ export const updateLead = async (
     newData: validated,
   }).catch(() => {});
 
+  // Instantly invalidate affected lead & dashboard caches
+  invalidateLeadCaches(user, existing.ownerId);
+  if (updatedLead.ownerId && updatedLead.ownerId !== existing.ownerId) {
+    invalidateLeadCaches(user, updatedLead.ownerId);
+  }
+
   return updatedLead;
 };
 
@@ -294,6 +324,10 @@ export const assignLead = async (
     actionUrl: `/leads/${leadId}`,
     referenceId: leadId,
   }).catch(() => {});
+
+  // Instantly invalidate affected lead & dashboard caches
+  invalidateLeadCaches(user, existing.ownerId);
+  invalidateLeadCaches(user, validated.ownerId);
 
   return updated;
 };
@@ -358,6 +392,9 @@ export const changeLeadStage = async (
     newData: { stageId: targetStage.id, stageName: targetStage.name, reason: validated.reason ?? null },
   }).catch(() => {});
 
+  // Instantly invalidate affected lead & dashboard caches
+  invalidateLeadCaches(user, existing.ownerId);
+
   return updated;
 };
 
@@ -365,7 +402,11 @@ export const getLeadStages = async (
   user: AuthenticatedUserPayload
 ): Promise<LeadStageItem[]> => {
   await checkPermission("leads:view");
-  return await findLeadStages();
+  return await CacheService.wrap(
+    "lead:stages:all",
+    { tags: [CACHE_TAGS.LEAD_STAGES] },
+    async () => await findLeadStages()
+  );
 };
 
 export const createLeadStage = async (
@@ -378,7 +419,9 @@ export const createLeadStage = async (
   }
 
   const validated = createLeadStageSchema.parse(input);
-  return await createLeadStageRecord(validated);
+  const created = await createLeadStageRecord(validated);
+  CacheService.invalidateTags(CACHE_TAGS.LEAD_STAGES);
+  return created;
 };
 
 export const reorderLeadStages = async (
@@ -391,7 +434,9 @@ export const reorderLeadStages = async (
   }
 
   const validated = reorderLeadStagesSchema.parse(input);
-  return await repoUpdateLeadStageOrders(validated);
+  const updated = await repoUpdateLeadStageOrders(validated);
+  CacheService.invalidateTags(CACHE_TAGS.LEAD_STAGES);
+  return updated;
 };
 
 export const getPipelineBoard = async (
@@ -411,6 +456,26 @@ export const getPipelineBoard = async (
   );
 
   return await findPipelineBoardData(visibilityFilter, validatedParams);
+};
+
+export const getStageLeads = async (
+  user: AuthenticatedUserPayload,
+  stageId: number,
+  params: LeadQueryInput,
+  offset: number = 0,
+  limit: number = 25
+): Promise<{ leads: LeadItem[]; totalCount: number; hasMore: boolean }> => {
+  await checkPermission("leads:view");
+  const validatedParams = leadQuerySchema.parse(params);
+
+  const visibilityFilter = getLeadVisibilityFilter(
+    user.id,
+    user.role.code,
+    "own",
+    user.teamId
+  );
+
+  return await findStageLeads(stageId, visibilityFilter, validatedParams, offset, limit);
 };
 
 export const moveLeadStage = async (
@@ -463,6 +528,9 @@ export const moveLeadStage = async (
     newData: { stageId: targetStage.id, stageName: targetStage.name, reason: validated.reason ?? "Moved via Sales Pipeline Kanban" },
   }).catch(() => {});
 
+  // Instantly invalidate affected lead & dashboard caches
+  invalidateLeadCaches(user, existing.ownerId);
+
   return updated;
 };
 
@@ -480,6 +548,9 @@ export const reorderStageLeads = async (
   }
 
   await updateLeadPositionsInStage(validated.stageId, validated.leadOrders);
+
+  // Instantly invalidate affected lead & dashboard caches
+  invalidateLeadCaches(user, null);
 };
 
 export const addLeadActivity = async (

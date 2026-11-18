@@ -1,5 +1,6 @@
 import { requireAuth } from "@/features/auth/services/authorization.service";
 import { resolveAuthorizedDashboardScope } from "./dashboard-authorization.service";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { getLeadMetrics } from "./metrics/lead-metrics.service";
 import { getSalesMetrics } from "./metrics/sales-metrics.service";
 import { getCustomerMetrics } from "./metrics/customer-metrics.service";
@@ -23,14 +24,23 @@ export const getDashboardData = async (
   // 2. Server Authorization & Scope Resolution (throws AppError 403 if unauthorized scope requested)
   const scopeCtx = resolveAuthorizedDashboardScope(user, requestedScope);
 
-  // 3. Parallel fetch of authoritative metrics
-  const [leadData, salesData, customerData, paymentData, activityData] = await Promise.all([
-    getLeadMetrics(scopeCtx, dateRange),
-    getSalesMetrics(scopeCtx, dateRange),
-    getCustomerMetrics(scopeCtx, dateRange),
-    getPaymentMetrics(scopeCtx, dateRange),
-    getActivityMetrics(scopeCtx, dateRange),
-  ]);
+  const cacheKey = `dashboard:${scopeCtx.scope}:${scopeCtx.teamId ?? "noteam"}:${scopeCtx.userId}:${dateRange}`;
+  const tag =
+    scopeCtx.scope === "business"
+      ? CACHE_TAGS.DASHBOARD_BUSINESS
+      : scopeCtx.scope === "team" && scopeCtx.teamId
+      ? CACHE_TAGS.DASHBOARD_TEAM(scopeCtx.teamId)
+      : CACHE_TAGS.DASHBOARD_USER(scopeCtx.userId);
+
+  return CacheService.wrap(cacheKey, { tags: [tag], ttlSeconds: 180 }, async () => {
+    // 3. Parallel fetch of authoritative metrics
+    const [leadData, salesData, customerData, paymentData, activityData] = await Promise.all([
+      getLeadMetrics(scopeCtx, dateRange),
+      getSalesMetrics(scopeCtx, dateRange),
+      getCustomerMetrics(scopeCtx, dateRange),
+      getPaymentMetrics(scopeCtx, dateRange),
+      getActivityMetrics(scopeCtx, dateRange),
+    ]);
 
   // 4. Build Scope-Aware KPI Cards
   const kpis: DashboardKpiMetric[] = [];
@@ -143,19 +153,20 @@ export const getDashboardData = async (
     );
   }
 
-  return {
-    scope: scopeCtx.scope,
-    dateRange,
-    kpis,
-    revenueTrend: paymentData.revenueTrend,
-    leadConversion: leadData.leadConversion,
-    pipelineDistribution: salesData.pipelineDistribution,
-    leadSources: leadData.leadSources,
-    teamPerformance: salesData.teamPerformance,
-    customerGrowth: customerData.customerGrowth,
-    paymentCollections: paymentData.paymentCollections,
-    followups: activityData.followups,
-    appointments: activityData.appointments,
-    priorityItems: activityData.priorityItems,
-  };
+    return {
+      scope: scopeCtx.scope,
+      dateRange,
+      kpis,
+      revenueTrend: paymentData.revenueTrend,
+      leadConversion: leadData.leadConversion,
+      pipelineDistribution: salesData.pipelineDistribution,
+      leadSources: leadData.leadSources,
+      teamPerformance: salesData.teamPerformance,
+      customerGrowth: customerData.customerGrowth,
+      paymentCollections: paymentData.paymentCollections,
+      followups: activityData.followups,
+      appointments: activityData.appointments,
+      priorityItems: activityData.priorityItems,
+    };
+  });
 };

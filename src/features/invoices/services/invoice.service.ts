@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { customers, invoices } from "@/db/schema";
 import { eq, and, notInArray } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { ceilToWholeRupeePaise } from "@/lib/formatters";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
@@ -46,6 +47,16 @@ import type {
  * Authoritative financial math helper for invoices.
  * Calculates subtotal, discount, tax, and total in integer minor units (paise).
  */
+const invalidateInvoiceCaches = (user: AuthenticatedUserPayload): void => {
+  const tags: string[] = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.FINANCIAL_STATS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tags.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  CacheService.invalidateTags(tags);
+};
+
 export const calculateInvoiceFinancials = (
   items: InvoiceItemInput[],
   discountInput = 0,
@@ -155,6 +166,8 @@ export const createInvoice = async (
       dueDate: created.dueDate,
     },
   }).catch(() => {});
+
+  invalidateInvoiceCaches(user);
 
   return created;
 };
@@ -283,6 +296,8 @@ export const convertQuotationToInvoice = async (
     },
   }).catch(() => {});
 
+  invalidateInvoiceCaches(user);
+
   return invoice;
 };
 
@@ -356,6 +371,8 @@ export const updateInvoice = async (
     },
   }).catch(() => {});
 
+  invalidateInvoiceCaches(user);
+
   return updated;
 };
 
@@ -393,6 +410,8 @@ export const updateInvoiceStatus = async (
     oldData: { status: existing.status },
     newData: { status: validated.status },
   }).catch(() => {});
+
+  invalidateInvoiceCaches(user);
 
   return updated;
 };

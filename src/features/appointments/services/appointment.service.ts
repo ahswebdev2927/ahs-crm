@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
 import { leadActivities } from "@/db/schema";
@@ -86,6 +87,18 @@ async function logLeadActivity(
     console.error("Failed to log lead activity:", err);
   }
 }
+
+const invalidateAppointmentCaches = (user: AuthenticatedUserPayload, assignedToId?: string): void => {
+  const tags: string[] = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tags.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  if (assignedToId && assignedToId !== user.id) {
+    tags.push(CACHE_TAGS.DASHBOARD_USER(assignedToId));
+  }
+  CacheService.invalidateTags(tags);
+};
 
 export const getAppointments = async (
   user: AuthenticatedUserPayload,
@@ -204,6 +217,8 @@ export const createAppointment = async (
     createdAt: created.createdAt,
   }).catch(() => {});
 
+  invalidateAppointmentCaches(user, created.assignedToId);
+
   return created;
 };
 
@@ -245,6 +260,8 @@ export const updateAppointment = async (
     );
   }
 
+  invalidateAppointmentCaches(user, updated.assignedToId);
+
   return updated;
 };
 
@@ -279,6 +296,8 @@ export const updateAppointmentStatus = async (
       `Appointment Status Changed: ${updated.title} is now ${updated.status}. ${validatedInput.notes ? `Notes: ${validatedInput.notes}` : ''}`
     );
   }
+
+  invalidateAppointmentCaches(user, updated.assignedToId);
 
   return updated;
 };
@@ -335,6 +354,8 @@ export const rescheduleAppointment = async (
     );
   }
 
+  invalidateAppointmentCaches(user, updated.assignedToId);
+
   return updated;
 };
 
@@ -369,6 +390,8 @@ export const cancelAppointment = async (
       `Cancelled Appointment: ${updated.title}. Reason: ${validatedInput.cancellationReason}`
     );
   }
+
+  invalidateAppointmentCaches(user, updated.assignedToId);
 
   return updated;
 };

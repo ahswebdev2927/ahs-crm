@@ -1,0 +1,26 @@
+CREATE INDEX `leads_created_at_idx` ON `leads` (`created_at`);--> statement-breakpoint
+CREATE INDEX `leads_status_created_idx` ON `leads` (`status`,`created_at`);--> statement-breakpoint
+CREATE INDEX `leads_owner_status_created_idx` ON `leads` (`owner_id`,`status`,`created_at`);--> statement-breakpoint
+CREATE INDEX `leads_deleted_created_idx` ON `leads` (`deleted_at`,`created_at`);--> statement-breakpoint
+CREATE INDEX `leads_stage_deleted_position_idx` ON `leads` (`stage_id`,`deleted_at`,`position`);--> statement-breakpoint
+CREATE INDEX `leads_phone_idx` ON `leads` (`phone`);--> statement-breakpoint
+CREATE INDEX `leads_email_idx` ON `leads` (`email`);--> statement-breakpoint
+CREATE INDEX `appointments_status_start_time_idx` ON `appointments` (`status`,`start_time`);--> statement-breakpoint
+CREATE INDEX `appointments_created_at_idx` ON `appointments` (`created_at`);--> statement-breakpoint
+CREATE INDEX `field_visits_status_date_idx` ON `field_visits` (`status`,`visit_date`);--> statement-breakpoint
+CREATE INDEX `field_visits_created_at_idx` ON `field_visits` (`created_at`);--> statement-breakpoint
+CREATE INDEX `follow_ups_status_scheduled_idx` ON `follow_ups` (`status`,`scheduled_at`);--> statement-breakpoint
+CREATE INDEX `follow_ups_created_at_idx` ON `follow_ups` (`created_at`);--> statement-breakpoint
+CREATE INDEX `customers_created_at_idx` ON `customers` (`created_at`);--> statement-breakpoint
+CREATE INDEX `customers_status_created_idx` ON `customers` (`status`,`created_at`);--> statement-breakpoint
+CREATE INDEX `customers_deleted_created_idx` ON `customers` (`deleted_at`,`created_at`);--> statement-breakpoint
+CREATE INDEX `customers_phone_idx` ON `customers` (`phone`);--> statement-breakpoint
+CREATE INDEX `customers_email_idx` ON `customers` (`email`);--> statement-breakpoint
+CREATE INDEX `invoices_created_at_idx` ON `invoices` (`created_at`);--> statement-breakpoint
+CREATE INDEX `invoices_status_due_created_idx` ON `invoices` (`status`,`due_date`,`created_at`);--> statement-breakpoint
+CREATE INDEX `payments_created_at_idx` ON `payments` (`created_at`);--> statement-breakpoint
+CREATE INDEX `payments_status_date_idx` ON `payments` (`status`,`payment_date`);--> statement-breakpoint
+CREATE INDEX `quotations_created_at_idx` ON `quotations` (`created_at`);--> statement-breakpoint
+CREATE INDEX `quotations_status_created_idx` ON `quotations` (`status`,`created_at`);--> statement-breakpoint
+CREATE INDEX `audit_logs_created_at_idx` ON `audit_logs` (`created_at`);--> statement-breakpoint
+CREATE INDEX `audit_logs_entity_created_idx` ON `audit_logs` (`entity_type`,`entity_id`,`created_at`);

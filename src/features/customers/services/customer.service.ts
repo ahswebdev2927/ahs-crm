@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import {
@@ -36,6 +37,15 @@ import type {
  * Enforces server-side authentication, authorization, Zod validation,
  * and atomic lead-to-customer conversion governance.
  */
+
+const invalidateCustomerCaches = (user: AuthenticatedUserPayload): void => {
+  const tags: string[] = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tags.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  CacheService.invalidateTags(tags);
+};
 
 export const getCustomers = async (
   user: AuthenticatedUserPayload,
@@ -125,6 +135,8 @@ export const createCustomer = async (
     },
   }).catch(() => {});
 
+  invalidateCustomerCaches(user);
+
   return created;
 };
 
@@ -164,6 +176,8 @@ export const updateCustomer = async (
     },
     newData: validated,
   }).catch(() => {});
+
+  invalidateCustomerCaches(user);
 
   return updated;
 };
@@ -223,6 +237,9 @@ export const convertLeadToCustomer = async (
       customerCompany: customer.company,
     },
   }).catch(() => {});
+
+  invalidateCustomerCaches(user);
+  CacheService.invalidateTags([CACHE_TAGS.PIPELINE_BOARD(user.id)]);
 
   return customer;
 };

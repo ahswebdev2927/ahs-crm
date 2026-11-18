@@ -37,6 +37,13 @@ export const leads = sqliteTable('leads', {
   index('leads_stage_id_idx').on(t.stageId),
   index('leads_status_idx').on(t.status),
   index('leads_stage_position_idx').on(t.stageId, t.position),
+  index('leads_created_at_idx').on(t.createdAt),
+  index('leads_status_created_idx').on(t.status, t.createdAt),
+  index('leads_owner_status_created_idx').on(t.ownerId, t.status, t.createdAt),
+  index('leads_deleted_created_idx').on(t.deletedAt, t.createdAt),
+  index('leads_stage_deleted_position_idx').on(t.stageId, t.deletedAt, t.position),
+  index('leads_phone_idx').on(t.phone),
+  index('leads_email_idx').on(t.email),
 ]);
 
 export const leadStageHistory = sqliteTable('lead_stage_history', {

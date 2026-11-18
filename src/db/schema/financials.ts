@@ -29,6 +29,8 @@ export const quotations = sqliteTable('quotations', {
   index('quotations_customer_id_idx').on(t.customerId),
   index('quotations_quote_number_idx').on(t.quoteNumber),
   index('quotations_status_idx').on(t.status),
+  index('quotations_created_at_idx').on(t.createdAt),
+  index('quotations_status_created_idx').on(t.status, t.createdAt),
 ]);
 
 export const quotationItems = sqliteTable('quotation_items', {
@@ -69,6 +71,8 @@ export const invoices = sqliteTable('invoices', {
   index('invoices_invoice_number_idx').on(t.invoiceNumber),
   index('invoices_status_idx').on(t.status),
   index('invoices_due_date_idx').on(t.dueDate),
+  index('invoices_created_at_idx').on(t.createdAt),
+  index('invoices_status_due_created_idx').on(t.status, t.dueDate, t.createdAt),
 ]);
 
 export const invoiceItems = sqliteTable('invoice_items', {
@@ -105,6 +109,8 @@ export const payments = sqliteTable('payments', {
   index('payments_customer_id_idx').on(t.customerId),
   index('payments_received_by_id_idx').on(t.receivedById),
   index('payments_payment_date_idx').on(t.paymentDate),
+  index('payments_created_at_idx').on(t.createdAt),
+  index('payments_status_date_idx').on(t.status, t.paymentDate),
 ]);
 
 // Relational Definitions

@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import {
   assertUserPermission,
@@ -49,7 +50,14 @@ export const getCatalog = async (
 ): Promise<{ items: CatalogServiceItem[]; total: number }> => {
   assertUserPermission(user, "services:view");
   const validatedParams = serviceQuerySchema.parse(params);
-  return findCatalogServices(validatedParams);
+
+  // If standard list without complex search, serve from cache
+  const cacheKey = `services:catalog:${JSON.stringify(validatedParams)}`;
+  return CacheService.wrap(
+    cacheKey,
+    { tags: [CACHE_TAGS.SERVICES] },
+    async () => findCatalogServices(validatedParams)
+  );
 };
 
 export const getCatalogItem = async (
@@ -95,6 +103,9 @@ export const createCatalogItem = async (
       status: created.status,
     },
   }).catch(() => {});
+
+  // Instantly invalidate services catalog cache
+  CacheService.invalidateTags(CACHE_TAGS.SERVICES);
 
   return created;
 };
@@ -142,6 +153,9 @@ export const updateCatalogItem = async (
     },
     newData: validated,
   }).catch(() => {});
+
+  // Instantly invalidate services catalog cache
+  CacheService.invalidateTags(CACHE_TAGS.SERVICES);
 
   return updated;
 };

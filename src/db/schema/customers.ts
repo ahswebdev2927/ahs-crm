@@ -21,6 +21,11 @@ export const customers = sqliteTable('customers', {
   index('customers_owner_id_idx').on(t.ownerId),
   index('customers_lead_id_idx').on(t.leadId),
   index('customers_status_idx').on(t.status),
+  index('customers_created_at_idx').on(t.createdAt),
+  index('customers_status_created_idx').on(t.status, t.createdAt),
+  index('customers_deleted_created_idx').on(t.deletedAt, t.createdAt),
+  index('customers_phone_idx').on(t.phone),
+  index('customers_email_idx').on(t.email),
 ]);
 
 export const services = sqliteTable('services', {

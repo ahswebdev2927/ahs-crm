@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
@@ -34,6 +35,18 @@ import type { FollowUpItem, FollowUpListResponse } from "../types/followup.types
  * Follow-up Business Logic Service
  * Enforces authentication, authorization, Zod validation, and activity logging.
  */
+
+const invalidateFollowUpCaches = (user: AuthenticatedUserPayload, assignedToId?: string): void => {
+  const tags: string[] = [
+    CACHE_TAGS.DASHBOARD_BUSINESS,
+    CACHE_TAGS.DASHBOARD_USER(user.id),
+  ];
+  if (user.teamId) tags.push(CACHE_TAGS.DASHBOARD_TEAM(user.teamId));
+  if (assignedToId && assignedToId !== user.id) {
+    tags.push(CACHE_TAGS.DASHBOARD_USER(assignedToId));
+  }
+  CacheService.invalidateTags(tags);
+};
 
 export const getFollowUps = async (
   user: AuthenticatedUserPayload,
@@ -113,6 +126,8 @@ export const createFollowUp = async (
     });
   }
 
+  invalidateFollowUpCaches(user, created.assignedToId);
+
   return created;
 };
 
@@ -145,6 +160,8 @@ export const updateFollowUp = async (
       `Rescheduled follow-up (${updated.type.toUpperCase()}) to ${formattedDate}.`
     ).catch(() => {});
   }
+
+  invalidateFollowUpCaches(user, updated.assignedToId);
 
   return updated;
 };
@@ -206,6 +223,8 @@ export const completeFollowUp = async (
     }).catch(() => {});
   }
 
+  invalidateFollowUpCaches(user, result.completed.assignedToId);
+
   return result;
 };
 
@@ -240,6 +259,8 @@ export const cancelFollowUp = async (
       }`
     ).catch(() => {});
   }
+
+  invalidateFollowUpCaches(user, updated.assignedToId);
 
   return updated;
 };

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
-import { UsersService } from "@/features/users/services/users.service";
+import { changeMemberStatus } from "@/features/users/services/users.service";
 import { updateUserStatusSchema } from "@/features/users/schemas/user.schema";
 
 export const PATCH = withErrorHandling(
@@ -11,7 +11,7 @@ export const PATCH = withErrorHandling(
     const body = await request.json();
 
     const validatedInput = updateUserStatusSchema.parse(body);
-    const updatedUser = await UsersService.changeMemberStatus(id, validatedInput);
+    const updatedUser = await changeMemberStatus(id, validatedInput);
 
     return successResponse({
       statusCode: 200,

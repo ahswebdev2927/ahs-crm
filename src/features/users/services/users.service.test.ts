@@ -1,10 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { UsersRepository } from "../repositories/users.repository";
+import {
+  getRoles,
+  getAvailableManagers,
+  createUser,
+  updateUser,
+} from "../repositories/users.repository";
 
 describe("Users Repository & Service Unit Tests", () => {
   it("fetches roles with attached default permissions and permissionIds", async () => {
-    const rolesList = await UsersRepository.getRoles();
+    const rolesList = await getRoles();
     assert.ok(rolesList.length > 0);
 
     const superAdmin = rolesList.find((r) => r.code === "super_admin");
@@ -24,7 +29,7 @@ describe("Users Repository & Service Unit Tests", () => {
   });
 
   it("retrieves available managers with role and team details", async () => {
-    const managers = await UsersRepository.getAvailableManagers();
+    const managers = await getAvailableManagers();
     assert.ok(Array.isArray(managers));
     const marcus = managers.find((m) => m.name === "Marcus Vance");
     assert.ok(marcus);
@@ -32,12 +37,12 @@ describe("Users Repository & Service Unit Tests", () => {
   });
 
   it("ensures SuperAdmin (MD) has null managerId and 'all' dataVisibility on creation & update", async () => {
-    const rolesList = await UsersRepository.getRoles();
+    const rolesList = await getRoles();
     const superAdminRole = rolesList.find((r) => r.code === "super_admin");
     assert.ok(superAdminRole);
 
     const testAdminId = `test-admin-${Date.now()}`;
-    const created = await UsersRepository.createUser({
+    const created = await createUser({
       id: testAdminId,
       name: "Executive MD Test",
       email: `${testAdminId}@ahs-crm.com`,
@@ -50,7 +55,7 @@ describe("Users Repository & Service Unit Tests", () => {
     assert.strictEqual(created.managerId, null, "SuperAdmin must never have an assigned manager");
     assert.strictEqual(created.dataVisibility, "all", "SuperAdmin must have 'all' data visibility");
 
-    const updated = await UsersRepository.updateUser(testAdminId, {
+    const updated = await updateUser(testAdminId, {
       name: "Executive MD Updated",
       managerId: "should-be-stripped-again",
       dataVisibility: "team",

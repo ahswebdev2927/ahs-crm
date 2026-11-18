@@ -21,11 +21,10 @@ export interface UserFilterParams extends UserQueryInput {
 
 const managerUsers: any = alias(users, "manager_users");
 
-export class UsersRepository {
-  /**
-   * Finds users matching optional filters with pagination
-   */
-  static async findUsers(params: UserFilterParams) {
+/**
+ * Finds users matching optional filters with pagination
+ */
+export const findUsers = async (params: UserFilterParams) => {
     const {
       search,
       roleId,
@@ -156,7 +155,7 @@ export class UsersRepository {
   /**
    * Finds a user by ID with role, department, team, manager, and custom user permissions
    */
-  static async findUserById(id: string) {
+  export const findUserById = async (id: string) => {
     const user = await db
       .select({
         id: users.id,
@@ -209,18 +208,18 @@ export class UsersRepository {
   /**
    * Finds a user record by email
    */
-  static async findUserByEmail(email: string) {
+  export const findUserByEmail = async (email: string) => {
     return await db
       .select()
       .from(users)
       .where(eq(users.email, email.toLowerCase().trim()))
       .get();
-  }
+  };
 
   /**
    * Fetches available Managers (users whose role has isManager = true)
    */
-  static async getAvailableManagers(departmentId?: number) {
+  export const getAvailableManagers = async (departmentId?: number) => {
     const conditions = [eq(roles.isManager, true), eq(users.status, "active")];
     if (departmentId) {
       conditions.push(eq(users.departmentId, departmentId));
@@ -240,14 +239,14 @@ export class UsersRepository {
       .leftJoin(teams, eq(users.teamId, teams.id))
       .where(and(...conditions))
       .orderBy(users.name);
-  }
+  };
 
   /**
    * Creates a new user record.
    * - If user's role has isManager === true, automatically provisions a team entity for them.
    * - If user's role has isManager === false and managerId is provided, attaches member to manager's team.
    */
-  static async createUser(data: {
+  export const createUser = async (data: {
     id: string;
     name: string;
     email: string;
@@ -259,7 +258,7 @@ export class UsersRepository {
     teamName?: string;
     dataVisibility?: "own" | "shared" | "partnered" | "team" | "all";
     status?: "active" | "inactive" | "suspended";
-  }) {
+  }) => {
     // 1. Fetch role info to check isManager and super_admin flag
     const targetRole = await db.select().from(roles).where(eq(roles.id, data.roleId)).get();
     const isSuperAdminRole = targetRole?.code === "super_admin";
@@ -326,7 +325,7 @@ export class UsersRepository {
   /**
    * Updates user record attributes
    */
-  static async updateUser(
+  export const updateUser = async (
     id: string,
     data: {
       name?: string;
@@ -340,7 +339,7 @@ export class UsersRepository {
       status?: "active" | "inactive" | "suspended";
       updatedAt?: Date;
     }
-  ) {
+  ) => {
     const updatePayload: Record<string, any> = {
       updatedAt: data.updatedAt ?? new Date(),
     };
@@ -434,7 +433,7 @@ export class UsersRepository {
   /**
    * Updates a user's password hash
    */
-  static async updatePassword(id: string, passwordHash: string) {
+  export const updatePassword = async (id: string, passwordHash: string) => {
     const [updated] = await db
       .update(users)
       .set({
@@ -445,12 +444,12 @@ export class UsersRepository {
       .returning();
 
     return updated;
-  }
+  };
 
   /**
    * Updates user account status ('active', 'inactive', 'suspended')
    */
-  static async updateUserStatus(id: string, status: "active" | "inactive" | "suspended") {
+  export const updateUserStatus = async (id: string, status: "active" | "inactive" | "suspended") => {
     const [updated] = await db
       .update(users)
       .set({
@@ -466,15 +465,15 @@ export class UsersRepository {
     }
 
     return updated;
-  }
+  };
 
   /**
    * Replaces user custom permission overrides
    */
-  static async setUserPermissions(
+  export const setUserPermissions = async (
     userId: string,
     overrides: { permissionId: number; type: "allow" | "deny" }[]
-  ) {
+  ) => {
     // Delete existing custom permissions for user
     await db.delete(userPermissions).where(eq(userPermissions.userId, userId));
 
@@ -487,19 +486,19 @@ export class UsersRepository {
         }))
       );
     }
-  }
+  };
 
   /**
    * Fetches all departments
    */
-  static async getDepartments() {
+  export const getDepartments = async () => {
     return await db.select().from(departments).orderBy(departments.name);
-  }
+  };
 
   /**
    * Fetches all roles with their assigned role permissions
    */
-  static async getRoles() {
+  export const getRoles = async () => {
     const rolesList = await db.select().from(roles).orderBy(roles.id);
     const rolePerms = await db
       .select({
@@ -518,19 +517,19 @@ export class UsersRepository {
         permissionIds: assigned.map((a) => a.permissionId),
       };
     });
-  }
+  };
 
   /**
    * Fetches all system permissions
    */
-  static async getPermissions() {
+  export const getPermissions = async () => {
     return await db.select().from(permissions).orderBy(permissions.id);
-  }
+  };
 
   /**
    * Counts active SuperAdmins to prevent accidental lockouts
    */
-  static async countSuperAdmins() {
+  export const countSuperAdmins = async () => {
     const superAdminRole = await db
       .select({ id: roles.id })
       .from(roles)
@@ -551,5 +550,26 @@ export class UsersRepository {
       .get();
 
     return result?.total ?? 0;
-  }
-}
+  };
+
+/**
+ * Functional object for convenient namespaced usage and full backwards compatibility.
+ */
+export const usersRepository = {
+  findUsers,
+  findUserById,
+  findUserByEmail,
+  getAvailableManagers,
+  createUser,
+  updateUser,
+  updatePassword,
+  updateUserStatus,
+  setUserPermissions,
+  getDepartments,
+  getRoles,
+  getPermissions,
+  countSuperAdmins,
+};
+
+// Backwards-compatible alias for existing imports
+export const UsersRepository = usersRepository;
