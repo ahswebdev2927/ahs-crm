@@ -7,7 +7,10 @@ import { sendNotification } from "@/features/notifications/services/notification
 import {
   checkPermission,
   checkAppointmentAccess,
-  getLeadVisibilityFilter,
+  checkLeadAccess,
+  checkCustomerAccess,
+  getAppointmentVisibilityFilter,
+  getFollowUpVisibilityFilter,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
@@ -108,7 +111,7 @@ export const getAppointments = async (
 
   const validatedParams = appointmentQuerySchema.parse(params);
 
-  const visibilityFilter = getLeadVisibilityFilter(
+  const visibilityFilter = getAppointmentVisibilityFilter(
     user.id,
     user.role.code,
     user.dataVisibility,
@@ -139,7 +142,7 @@ export const getAppointmentById = async (
   id: string
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:view");
-  await checkAppointmentAccess(id, "view");
+  await checkAppointmentAccess(id, "view", user);
 
   const appointment = await findAppointmentById(id);
   if (!appointment) {
@@ -154,7 +157,7 @@ export const getAppointmentWithVisitById = async (
   id: string
 ): Promise<AppointmentWithVisit> => {
   await checkPermission("leads:view");
-  await checkAppointmentAccess(id, "view");
+  await checkAppointmentAccess(id, "view", user);
 
   const appointmentWithVisit = await findAppointmentWithFieldVisit(id);
   if (!appointmentWithVisit) {
@@ -171,6 +174,14 @@ export const createAppointment = async (
   await checkPermission("leads:edit");
 
   const validatedInput = createAppointmentSchema.parse(input);
+
+  // Cross-entity IDOR verification: Ensure user has access to referenced Lead or Customer
+  if (validatedInput.leadId) {
+    await checkLeadAccess(validatedInput.leadId, "view", user);
+  }
+  if (validatedInput.customerId) {
+    await checkCustomerAccess(validatedInput.customerId, "view", user);
+  }
 
   const created = await createAppointmentRecord(validatedInput, user.id);
 
@@ -228,6 +239,7 @@ export const updateAppointment = async (
   input: UpdateAppointmentInput
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
+  await checkAppointmentAccess(id, "edit", user);
 
   const existing = await findAppointmentById(id);
   if (!existing) {
@@ -271,6 +283,7 @@ export const updateAppointmentStatus = async (
   input: UpdateAppointmentStatusInput
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
+  await checkAppointmentAccess(id, "edit", user);
 
   const existing = await findAppointmentById(id);
   if (!existing) {
@@ -308,6 +321,7 @@ export const rescheduleAppointment = async (
   input: RescheduleAppointmentInput
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
+  await checkAppointmentAccess(id, "edit", user);
 
   const existing = await findAppointmentById(id);
   if (!existing) {
@@ -365,6 +379,7 @@ export const cancelAppointment = async (
   input: CancelAppointmentInput
 ): Promise<AppointmentItem> => {
   await checkPermission("leads:edit");
+  await checkAppointmentAccess(id, "edit", user);
 
   const existing = await findAppointmentById(id);
   if (!existing) {
@@ -399,7 +414,7 @@ export const cancelAppointment = async (
 export const getFieldSalesUsers = async (
   user: AuthenticatedUserPayload
 ): Promise<FieldSalesUser[]> => {
-  await checkPermission("leads:view");
+  await checkPermission("leads:view", user);
   return getFieldSalesUsersRepo();
 };
 
@@ -410,7 +425,14 @@ export const getCalendarEvents = async (
 ): Promise<CalendarEvent[]> => {
   await checkPermission("leads:view");
 
-  const visibilityFilter = getLeadVisibilityFilter(
+  const appointmentFilter = getAppointmentVisibilityFilter(
+    user.id,
+    user.role.code,
+    user.dataVisibility,
+    user.teamId
+  );
+
+  const followUpFilter = getFollowUpVisibilityFilter(
     user.id,
     user.role.code,
     user.dataVisibility,
@@ -418,7 +440,7 @@ export const getCalendarEvents = async (
   );
 
   // Query appointments within date range
-  const { items: appointments } = await findAppointments(visibilityFilter, {
+  const { items: appointments } = await findAppointments(appointmentFilter, {
     page: 1,
     limit: 500,
     startDate,
@@ -426,7 +448,7 @@ export const getCalendarEvents = async (
   });
 
   // Query follow-ups within date range
-  const { items: followUps } = await findFollowUps(visibilityFilter, {
+  const { items: followUps } = await findFollowUps(followUpFilter, {
     page: 1,
     limit: 500,
     timeframe: "all",

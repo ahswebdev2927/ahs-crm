@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { payments, invoices, customers, users } from "@/db/schema";
-import { eq, and, or, sql, like, inArray, gte, lte, desc } from "drizzle-orm";
+import { eq, and, or, sql, like, inArray, gte, lte, desc, exists } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type { PaymentItem, PaymentKpis } from "../types/payment.types";
 import type { RecordPaymentInput } from "../schemas/payment.schema";
@@ -24,6 +24,7 @@ export const findPayments = async (
     allowedCustomerIds?: string[];
     isUnrestricted?: boolean;
     userId?: string;
+    teamId?: number | null;
   }
 ): Promise<{ items: PaymentItem[]; total: number; page: number; limit: number }> => {
   const { page, limit, invoiceId, customerId, paymentMethod, status, search, dateFrom, dateTo } = params;
@@ -47,6 +48,21 @@ export const findPayments = async (
     const visConditions = [];
     if (visibility.userId) {
       visConditions.push(eq(payments.receivedById, visibility.userId));
+    }
+    if (visibility.teamId) {
+      visConditions.push(
+        exists(
+          db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, payments.receivedById),
+                eq(users.teamId, visibility.teamId)
+              )
+            )
+        )
+      );
     }
     if (visibility.allowedCustomerIds && visibility.allowedCustomerIds.length > 0) {
       visConditions.push(inArray(payments.customerId, visibility.allowedCustomerIds));
@@ -429,6 +445,7 @@ export const getPaymentsKpis = async (
     allowedCustomerIds?: string[];
     isUnrestricted?: boolean;
     userId?: string;
+    teamId?: number | null;
   }
 ): Promise<PaymentKpis> => {
   const conditions = [];
@@ -436,6 +453,21 @@ export const getPaymentsKpis = async (
   if (visibility && !visibility.isUnrestricted) {
     const visConditions = [];
     if (visibility.userId) visConditions.push(eq(payments.receivedById, visibility.userId));
+    if (visibility.teamId) {
+      visConditions.push(
+        exists(
+          db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, payments.receivedById),
+                eq(users.teamId, visibility.teamId)
+              )
+            )
+        )
+      );
+    }
     if (visibility.allowedCustomerIds && visibility.allowedCustomerIds.length > 0) {
       visConditions.push(inArray(payments.customerId, visibility.allowedCustomerIds));
     }

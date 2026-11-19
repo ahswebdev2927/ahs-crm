@@ -6,6 +6,7 @@ import { users, sessions, leads, leadPartners, leadStages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse, errorResponse } from "@/lib/api/response";
+import { AppError } from "@/lib/errors/AppError";
 import {
   requireAuth,
   checkPermission,
@@ -15,6 +16,10 @@ import {
 const JWT_SECRET = process.env.JWT_SECRET || "local_development_jwt_access_secret_key_long_enough";
 
 export const GET = withErrorHandling(async (request: NextRequest) => {
+  if (process.env.NODE_ENV === "production" || process.env.APP_ENV === "production") {
+    throw new AppError("Endpoint not found.", 404, "NOT_FOUND");
+  }
+
   const { searchParams } = new URL(request.url);
   const endpoint = searchParams.get("endpoint");
 

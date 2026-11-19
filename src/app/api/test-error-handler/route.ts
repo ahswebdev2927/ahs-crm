@@ -10,6 +10,10 @@ const testSchema = z.object({
 });
 
 export const GET = withErrorHandling(async (request: NextRequest) => {
+  if (process.env.NODE_ENV === "production" || process.env.APP_ENV === "production") {
+    throw new AppError("Endpoint not found.", 404, "NOT_FOUND");
+  }
+
   const { searchParams } = new URL(request.url);
   const scenario = searchParams.get("scenario") || "success";
 

@@ -12,6 +12,8 @@ import {
 import {
   assertUserPermission,
   checkCustomerAccess,
+  checkInvoiceAccess,
+  checkQuotationAccess,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import { findQuotationById } from "@/features/quotations/repositories/quotation.repository";
@@ -86,12 +88,13 @@ export const getInvoices = async (
   assertUserPermission(user, "invoices:view");
   const validated = invoiceQuerySchema.parse(params);
 
-  const isUnrestricted =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  const isUnrestricted = user.role.code === "super_admin";
+  const teamId = user.role.code === "sales_manager" ? user.teamId : undefined;
 
   return findInvoices(validated, {
     isUnrestricted,
     userId: user.id,
+    teamId,
   });
 };
 
@@ -103,15 +106,11 @@ export const getInvoice = async (
   id: string
 ): Promise<InvoiceDetail> => {
   assertUserPermission(user, "invoices:view");
+  await checkInvoiceAccess(id, "view", user);
+
   const invoice = await findInvoiceById(id);
   if (!invoice) {
     throw new AppError("Invoice not found.", 404, "NOT_FOUND");
-  }
-
-  const isSuper =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
-  if (!isSuper && invoice.createdById !== user.id) {
-    await checkCustomerAccess(invoice.customerId, "view", user);
   }
 
   return invoice;
@@ -181,6 +180,7 @@ export const convertQuotationToInvoice = async (
   input: ConvertQuotationToInvoiceInput
 ): Promise<InvoiceDetail> => {
   assertUserPermission(user, "invoices:create");
+  await checkQuotationAccess(quotationId, "view", user);
   const validated = convertQuotationToInvoiceSchema.parse(input);
 
   const quote = await findQuotationById(quotationId);
@@ -310,6 +310,7 @@ export const updateInvoice = async (
   input: UpdateInvoiceInput
 ): Promise<InvoiceDetail> => {
   assertUserPermission(user, "invoices:create");
+  await checkInvoiceAccess(id, "edit", user);
   const validated = updateInvoiceSchema.parse(input);
 
   const existing = await findInvoiceById(id);
@@ -385,6 +386,7 @@ export const updateInvoiceStatus = async (
   input: UpdateInvoiceStatusInput
 ): Promise<InvoiceDetail> => {
   assertUserPermission(user, "invoices:create");
+  await checkInvoiceAccess(id, "edit", user);
   const validated = updateInvoiceStatusSchema.parse(input);
 
   const existing = await findInvoiceById(id);
@@ -423,11 +425,12 @@ export const getInvoicesStats = async (
   user: AuthenticatedUserPayload
 ): Promise<InvoiceKpis> => {
   assertUserPermission(user, "invoices:view");
-  const isUnrestricted =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  const isUnrestricted = user.role.code === "super_admin";
+  const teamId = user.role.code === "sales_manager" ? user.teamId : undefined;
 
   return getInvoicesKpis({
     isUnrestricted,
     userId: user.id,
+    teamId,
   });
 };

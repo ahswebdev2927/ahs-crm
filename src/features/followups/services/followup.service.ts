@@ -3,7 +3,10 @@ import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
-  getLeadVisibilityFilter,
+  checkFollowUpAccess,
+  checkLeadAccess,
+  checkCustomerAccess,
+  getFollowUpVisibilityFilter,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
@@ -56,7 +59,7 @@ export const getFollowUps = async (
 
   const validatedParams = followUpQuerySchema.parse(params);
 
-  const visibilityFilter = getLeadVisibilityFilter(
+  const visibilityFilter = getFollowUpVisibilityFilter(
     user.id,
     user.role.code,
     user.dataVisibility,
@@ -87,6 +90,7 @@ export const getFollowUpById = async (
   id: string
 ): Promise<FollowUpItem> => {
   await checkPermission("leads:view");
+  await checkFollowUpAccess(id, "view", user);
 
   const followUp = await findFollowUpById(id);
   if (!followUp) {
@@ -103,6 +107,14 @@ export const createFollowUp = async (
   await checkPermission("leads:edit");
 
   const validatedInput = createFollowUpSchema.parse(input);
+
+  // Cross-entity IDOR verification: Ensure user has access to referenced Lead or Customer
+  if (validatedInput.leadId) {
+    await checkLeadAccess(validatedInput.leadId, "view", user);
+  }
+  if (validatedInput.customerId) {
+    await checkCustomerAccess(validatedInput.customerId, "view", user);
+  }
 
   const created = await createFollowUpRecord(validatedInput, user.id);
 
@@ -137,6 +149,7 @@ export const updateFollowUp = async (
   input: UpdateFollowUpInput
 ): Promise<FollowUpItem> => {
   await checkPermission("leads:edit");
+  await checkFollowUpAccess(id, "edit", user);
 
   const existing = await findFollowUpById(id);
   if (!existing) {
@@ -172,6 +185,7 @@ export const completeFollowUp = async (
   input: CompleteFollowUpInput
 ): Promise<{ completed: FollowUpItem; nextFollowUp?: FollowUpItem }> => {
   await checkPermission("leads:edit");
+  await checkFollowUpAccess(id, "edit", user);
 
   const existing = await findFollowUpById(id);
   if (!existing) {
@@ -234,6 +248,7 @@ export const cancelFollowUp = async (
   input?: CancelFollowUpInput
 ): Promise<FollowUpItem> => {
   await checkPermission("leads:edit");
+  await checkFollowUpAccess(id, "edit", user);
 
   const existing = await findFollowUpById(id);
   if (!existing) {

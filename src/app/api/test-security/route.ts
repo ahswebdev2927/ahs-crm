@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { successResponse } from "@/lib/api/response";
+import { AppError } from "@/lib/errors/AppError";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { validateAllowlist } from "@/lib/security/validation";
 import { db } from "@/db";
@@ -8,6 +9,10 @@ import { rateLimits } from "@/db/schema/security";
 import { eq } from "drizzle-orm";
 
 export const GET = withErrorHandling(async (request: NextRequest) => {
+  if (process.env.NODE_ENV === "production" || process.env.APP_ENV === "production") {
+    throw new AppError("Endpoint not found.", 404, "NOT_FOUND");
+  }
+
   const { searchParams } = new URL(request.url);
   const endpoint = searchParams.get("endpoint");
 

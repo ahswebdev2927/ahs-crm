@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { quotations, quotationItems, leads, customers, users, invoices } from "@/db/schema";
-import { eq, and, or, sql, like, inArray, notInArray, gte, lte, desc } from "drizzle-orm";
+import { eq, and, or, sql, like, inArray, notInArray, gte, lte, desc, exists } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type {
   QuotationItem,
@@ -10,10 +10,12 @@ import type {
 } from "../types/quotation.types";
 import type { QuotationItemInput } from "../schemas/quotation.schema";
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Generates a standard chronological sequential quote number: QT-YYYYMM-XXXX
  */
-export const generateNextQuoteNumber = async (tx?: any): Promise<string> => {
+export const generateNextQuoteNumber = async (tx?: DbTransaction): Promise<string> => {
   const runner = tx || db;
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -59,6 +61,7 @@ export const findQuotations = async (
     allowedCustomerIds?: string[];
     isUnrestricted?: boolean;
     userId?: string;
+    teamId?: number | null;
   }
 ): Promise<{ items: QuotationItem[]; total: number; page: number; limit: number }> => {
   const { page, limit, status, leadId, customerId, search, dateFrom, dateTo } = params;
@@ -68,7 +71,7 @@ export const findQuotations = async (
 
   // Status Filter
   if (status && status !== "all") {
-    conditions.push(eq(quotations.status, status as any));
+    conditions.push(eq(quotations.status, status as QuotationStatus));
   }
 
   // Lead / Customer ID Filter
@@ -92,6 +95,21 @@ export const findQuotations = async (
     const visConditions = [];
     if (visibility.userId) {
       visConditions.push(eq(quotations.createdById, visibility.userId));
+    }
+    if (visibility.teamId) {
+      visConditions.push(
+        exists(
+          db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, quotations.createdById),
+                eq(users.teamId, visibility.teamId)
+              )
+            )
+        )
+      );
     }
     if (visibility.allowedLeadIds && visibility.allowedLeadIds.length > 0) {
       visConditions.push(inArray(quotations.leadId, visibility.allowedLeadIds));
@@ -418,7 +436,7 @@ export const updateQuotationRecord = async (
   }
 ): Promise<QuotationDetail> => {
   await db.transaction(async (tx) => {
-    const updateValues: Record<string, any> = {
+    const updateValues: Record<string, unknown> = {
       subtotal: data.subtotal,
       discount: data.discount,
       tax: data.tax,
@@ -463,7 +481,7 @@ export const updateQuotationStatusRecord = async (
   id: string,
   status: QuotationStatus
 ): Promise<QuotationDetail> => {
-  const updateValues: Record<string, any> = {
+  const updateValues: Record<string, unknown> = {
     status,
     updatedAt: new Date(),
   };
@@ -492,6 +510,7 @@ export const getQuotationsKpis = async (
     allowedCustomerIds?: string[];
     isUnrestricted?: boolean;
     userId?: string;
+    teamId?: number | null;
   }
 ): Promise<QuotationKpis> => {
   const conditions = [];
@@ -499,6 +518,21 @@ export const getQuotationsKpis = async (
   if (visibility && !visibility.isUnrestricted) {
     const visConditions = [];
     if (visibility.userId) visConditions.push(eq(quotations.createdById, visibility.userId));
+    if (visibility.teamId) {
+      visConditions.push(
+        exists(
+          db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, quotations.createdById),
+                eq(users.teamId, visibility.teamId)
+              )
+            )
+        )
+      );
+    }
     if (visibility.allowedLeadIds && visibility.allowedLeadIds.length > 0) {
       visConditions.push(inArray(quotations.leadId, visibility.allowedLeadIds));
     }

@@ -6,6 +6,8 @@ import { sendNotification } from "@/features/notifications/services/notification
 import {
   assertUserPermission,
   checkCustomerAccess,
+  checkPaymentAccess,
+  checkInvoiceAccess,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import { findInvoiceById } from "@/features/invoices/repositories/invoice.repository";
@@ -36,12 +38,13 @@ export const getPayments = async (
   assertUserPermission(user, "payments:view");
   const validated = paymentQuerySchema.parse(params);
 
-  const isUnrestricted =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  const isUnrestricted = user.role.code === "super_admin";
+  const teamId = user.role.code === "sales_manager" ? user.teamId : undefined;
 
   return findPayments(validated, {
     isUnrestricted,
     userId: user.id,
+    teamId,
   });
 };
 
@@ -53,15 +56,11 @@ export const getPayment = async (
   id: string
 ): Promise<PaymentItem> => {
   assertUserPermission(user, "payments:view");
+  await checkPaymentAccess(id, "view", user);
+
   const payment = await findPaymentById(id);
   if (!payment) {
     throw new AppError("Payment transaction not found.", 404, "NOT_FOUND");
-  }
-
-  const isSuper =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
-  if (!isSuper && payment.receivedById !== user.id && payment.customerId) {
-    await checkCustomerAccess(payment.customerId, "view", user);
   }
 
   return payment;
@@ -76,6 +75,8 @@ export const recordPayment = async (
 ): Promise<PaymentItem> => {
   assertUserPermission(user, "payments:create");
   const validated = recordPaymentSchema.parse(input);
+
+  await checkInvoiceAccess(validated.invoiceId, "view", user);
 
   const invoice = await findInvoiceById(validated.invoiceId);
   if (!invoice) {
@@ -172,17 +173,12 @@ export const updatePaymentStatus = async (
   input: UpdatePaymentStatusInput
 ): Promise<PaymentItem> => {
   assertUserPermission(user, "payments:create");
+  await checkPaymentAccess(paymentId, "edit", user);
   const validated = updatePaymentStatusSchema.parse(input);
 
   const existing = await findPaymentById(paymentId);
   if (!existing) {
     throw new AppError("Payment transaction not found.", 404, "NOT_FOUND");
-  }
-
-  const isSuper =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
-  if (!isSuper && existing.receivedById !== user.id && existing.customerId) {
-    await checkCustomerAccess(existing.customerId, "view", user);
   }
 
   const updated = await updatePaymentStatusRecord(paymentId, validated.status, validated.reason);
@@ -215,12 +211,13 @@ export const getPaymentsStats = async (
   user: AuthenticatedUserPayload
 ): Promise<PaymentKpis> => {
   assertUserPermission(user, "payments:view");
-  const isUnrestricted =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  const isUnrestricted = user.role.code === "super_admin";
+  const teamId = user.role.code === "sales_manager" ? user.teamId : undefined;
 
   return getPaymentsKpis({
     isUnrestricted,
     userId: user.id,
+    teamId,
   });
 };
 

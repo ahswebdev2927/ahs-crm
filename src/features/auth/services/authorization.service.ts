@@ -29,7 +29,7 @@ export const getSessionUser = async (): Promise<AuthenticatedUserPayload | null>
     const token = cookieStore.get("session_token")?.value;
     if (!token) return null;
     return await verifySession(token);
-  } catch (_error) {
+  } catch {
     return null;
   }
 };
@@ -85,9 +85,10 @@ export const checkPermission = async (
  * Note: 'super_admin' bypasses all permission checks.
  */
 export const checkAnyPermission = async (
-  permissionCodes: string[]
+  permissionCodes: string[],
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
-  const user = await requireAuth();
+  const user = providedUser || (await requireAuth());
 
   if (user.role.code === "super_admin") {
     return user;
@@ -456,6 +457,598 @@ export const getTaskVisibilityFilter = (
 };
 
 /**
+ * Builds the data visibility SQL WHERE filter for Appointments.
+ * - Admin (super_admin): Sees ALL appointments across the company.
+ * - Manager (sales_manager): Sees appointments assigned to or created by team members, or linked to team leads/customers.
+ * - Sales Reps: Sees appointments assigned to them, created by them, or linked to their own/partnered leads or own customers.
+ */
+export const getAppointmentVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  dataVisibility?: string,
+  teamId?: number | null
+) => {
+  // 1. If dataVisibility is 'own', restrict strictly to appointments assigned to or created by the user
+  if (dataVisibility === "own") {
+    return or(
+      eq(appointments.assignedToId, userId),
+      eq(appointments.createdById, userId)
+    );
+  }
+
+  // 2. Super Admin with 'all' visibility sees all appointments
+  if (roleCode === "super_admin" && (dataVisibility === "all" || !dataVisibility)) {
+    return undefined;
+  }
+
+  // 3. Sales Manager with 'team' visibility
+  if (roleCode === "sales_manager" && (dataVisibility === "team" || !dataVisibility) && teamId) {
+    return or(
+      eq(appointments.assignedToId, userId),
+      eq(appointments.createdById, userId),
+      // Assigned to a team member
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              isNotNull(appointments.assignedToId),
+              eq(users.id, appointments.assignedToId),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      // Created by a team member
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, appointments.createdById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      // Linked to a lead owned by a team member
+      exists(
+        db
+          .select({ id: leads.id })
+          .from(leads)
+          .innerJoin(users, eq(users.id, leads.ownerId))
+          .where(
+            and(
+              isNotNull(appointments.leadId),
+              eq(leads.id, appointments.leadId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      // Linked to a customer owned by a team member
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              isNotNull(appointments.customerId),
+              eq(customers.id, appointments.customerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  // 4. Sales Reps / fallback: own assigned/created OR on own/partnered leads OR own customers
+  return or(
+    eq(appointments.assignedToId, userId),
+    eq(appointments.createdById, userId),
+    exists(
+      db
+        .select({ id: leads.id })
+        .from(leads)
+        .where(
+          and(
+            isNotNull(appointments.leadId),
+            eq(leads.id, appointments.leadId!),
+            or(
+              eq(leads.ownerId, userId),
+              eq(leads.createdById, userId),
+              exists(
+                db
+                  .select({ id: leadPartners.id })
+                  .from(leadPartners)
+                  .where(
+                    and(
+                      eq(leadPartners.leadId, leads.id),
+                      eq(leadPartners.partnerId, userId),
+                      eq(leadPartners.status, "active")
+                    )
+                  )
+              )
+            )
+          )
+        )
+    ),
+    exists(
+      db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            isNotNull(appointments.customerId),
+            eq(customers.id, appointments.customerId!),
+            eq(customers.ownerId, userId)
+          )
+        )
+    )
+  );
+};
+
+/**
+ * Builds the data visibility SQL WHERE filter for Follow-ups.
+ */
+export const getFollowUpVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  dataVisibility?: string,
+  teamId?: number | null
+) => {
+  if (dataVisibility === "own") {
+    return or(
+      eq(followUps.assignedToId, userId),
+      eq(followUps.createdById, userId)
+    );
+  }
+
+  if (roleCode === "super_admin" && (dataVisibility === "all" || !dataVisibility)) {
+    return undefined;
+  }
+
+  if (roleCode === "sales_manager" && (dataVisibility === "team" || !dataVisibility) && teamId) {
+    return or(
+      eq(followUps.assignedToId, userId),
+      eq(followUps.createdById, userId),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              isNotNull(followUps.assignedToId),
+              eq(users.id, followUps.assignedToId),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, followUps.createdById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: leads.id })
+          .from(leads)
+          .innerJoin(users, eq(users.id, leads.ownerId))
+          .where(
+            and(
+              isNotNull(followUps.leadId),
+              eq(leads.id, followUps.leadId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              isNotNull(followUps.customerId),
+              eq(customers.id, followUps.customerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  return or(
+    eq(followUps.assignedToId, userId),
+    eq(followUps.createdById, userId),
+    exists(
+      db
+        .select({ id: leads.id })
+        .from(leads)
+        .where(
+          and(
+            isNotNull(followUps.leadId),
+            eq(leads.id, followUps.leadId!),
+            or(
+              eq(leads.ownerId, userId),
+              eq(leads.createdById, userId),
+              exists(
+                db
+                  .select({ id: leadPartners.id })
+                  .from(leadPartners)
+                  .where(
+                    and(
+                      eq(leadPartners.leadId, leads.id),
+                      eq(leadPartners.partnerId, userId),
+                      eq(leadPartners.status, "active")
+                    )
+                  )
+              )
+            )
+          )
+        )
+    ),
+    exists(
+      db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            isNotNull(followUps.customerId),
+            eq(customers.id, followUps.customerId!),
+            eq(customers.ownerId, userId)
+          )
+        )
+    )
+  );
+};
+
+/**
+ * Builds the data visibility SQL WHERE filter for Field Visits.
+ */
+export const getFieldVisitVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  dataVisibility?: string,
+  teamId?: number | null
+) => {
+  if (dataVisibility === "own") {
+    return or(
+      eq(fieldVisits.assignedToId, userId),
+      eq(fieldVisits.createdById, userId)
+    );
+  }
+
+  if (roleCode === "super_admin" && (dataVisibility === "all" || !dataVisibility)) {
+    return undefined;
+  }
+
+  if (roleCode === "sales_manager" && (dataVisibility === "team" || !dataVisibility) && teamId) {
+    return or(
+      eq(fieldVisits.assignedToId, userId),
+      eq(fieldVisits.createdById, userId),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              isNotNull(fieldVisits.assignedToId),
+              eq(users.id, fieldVisits.assignedToId),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, fieldVisits.createdById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: leads.id })
+          .from(leads)
+          .innerJoin(users, eq(users.id, leads.ownerId))
+          .where(
+            and(
+              isNotNull(fieldVisits.leadId),
+              eq(leads.id, fieldVisits.leadId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              isNotNull(fieldVisits.customerId),
+              eq(customers.id, fieldVisits.customerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  return or(
+    eq(fieldVisits.assignedToId, userId),
+    eq(fieldVisits.createdById, userId),
+    exists(
+      db
+        .select({ id: leads.id })
+        .from(leads)
+        .where(
+          and(
+            isNotNull(fieldVisits.leadId),
+            eq(leads.id, fieldVisits.leadId!),
+            or(
+              eq(leads.ownerId, userId),
+              eq(leads.createdById, userId),
+              exists(
+                db
+                  .select({ id: leadPartners.id })
+                  .from(leadPartners)
+                  .where(
+                    and(
+                      eq(leadPartners.leadId, leads.id),
+                      eq(leadPartners.partnerId, userId),
+                      eq(leadPartners.status, "active")
+                    )
+                  )
+              )
+            )
+          )
+        )
+    ),
+    exists(
+      db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            isNotNull(fieldVisits.customerId),
+            eq(customers.id, fieldVisits.customerId!),
+            eq(customers.ownerId, userId)
+          )
+        )
+    )
+  );
+};
+
+/**
+ * Builds the data visibility SQL WHERE filter for Quotations.
+ * Strictly scopes Sales Managers to their assigned team members (and self).
+ */
+export const getQuotationVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  teamId?: number | null
+) => {
+  if (roleCode === "super_admin") {
+    return undefined;
+  }
+
+  if (roleCode === "sales_manager" && teamId) {
+    return or(
+      eq(quotations.createdById, userId),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, quotations.createdById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: leads.id })
+          .from(leads)
+          .innerJoin(users, eq(users.id, leads.ownerId))
+          .where(
+            and(
+              isNotNull(quotations.leadId),
+              eq(leads.id, quotations.leadId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              isNotNull(quotations.customerId),
+              eq(customers.id, quotations.customerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  return or(
+    eq(quotations.createdById, userId),
+    exists(
+      db
+        .select({ id: leads.id })
+        .from(leads)
+        .where(
+          and(
+            isNotNull(quotations.leadId),
+            eq(leads.id, quotations.leadId!),
+            or(
+              eq(leads.ownerId, userId),
+              eq(leads.createdById, userId),
+              exists(
+                db
+                  .select({ id: leadPartners.id })
+                  .from(leadPartners)
+                  .where(
+                    and(
+                      eq(leadPartners.leadId, leads.id),
+                      eq(leadPartners.partnerId, userId),
+                      eq(leadPartners.status, "active")
+                    )
+                  )
+              )
+            )
+          )
+        )
+    ),
+    exists(
+      db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            isNotNull(quotations.customerId),
+            eq(customers.id, quotations.customerId!),
+            eq(customers.ownerId, userId)
+          )
+        )
+    )
+  );
+};
+
+/**
+ * Builds the data visibility SQL WHERE filter for Invoices.
+ * Strictly scopes Sales Managers to invoices created by team members or for team customers.
+ */
+export const getInvoiceVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  teamId?: number | null
+) => {
+  if (roleCode === "super_admin") {
+    return undefined;
+  }
+
+  if (roleCode === "sales_manager" && teamId) {
+    return or(
+      eq(invoices.createdById, userId),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, invoices.createdById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              eq(customers.id, invoices.customerId),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  return or(
+    eq(invoices.createdById, userId),
+    exists(
+      db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.id, invoices.customerId),
+            eq(customers.ownerId, userId)
+          )
+        )
+    )
+  );
+};
+
+/**
+ * Builds the data visibility SQL WHERE filter for Payments.
+ * Strictly scopes Sales Managers to payments received by team members or for team customers.
+ */
+export const getPaymentVisibilityFilter = (
+  userId: string,
+  roleCode: string,
+  teamId?: number | null
+) => {
+  if (roleCode === "super_admin") {
+    return undefined;
+  }
+
+  if (roleCode === "sales_manager" && teamId) {
+    return or(
+      eq(payments.receivedById, userId),
+      exists(
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, payments.receivedById),
+              eq(users.teamId, teamId)
+            )
+          )
+      ),
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .innerJoin(users, eq(users.id, customers.ownerId))
+          .where(
+            and(
+              isNotNull(payments.customerId),
+              eq(customers.id, payments.customerId!),
+              eq(users.teamId, teamId)
+            )
+          )
+      )
+    );
+  }
+
+  return or(
+    eq(payments.receivedById, userId),
+    exists(
+      db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(
+          and(
+            isNotNull(payments.customerId),
+            eq(customers.id, payments.customerId!),
+            eq(customers.ownerId, userId)
+          )
+        )
+    )
+  );
+};
+
+/**
  * Checks if the user has permission and visibility to perform the requested action on a Lead.
  * BUSINESS RULE ENFORCED:
  * - VIEW: Admin sees all; Manager sees team + own/partnered; Members see own + partnered.
@@ -533,6 +1126,11 @@ export const checkLeadAccess = async (
       return user;
     }
 
+    logAuthzFailure({
+      userId: user.id,
+      requiredPermission: permCode,
+      reason: `User ${user.id} does not have visibility permissions for lead ${leadId}`,
+    });
     throw new AppError(
       "Access denied. You do not have visibility permissions for this lead.",
       403,
@@ -543,6 +1141,11 @@ export const checkLeadAccess = async (
   // MUTATION Actions (edit, delete, assign)
   // Enforce strict rule: Admin, Manager, and Reps can ONLY edit leads they own or co-partner on!
   if (!isDirectlyRelated) {
+    logAuthzFailure({
+      userId: user.id,
+      requiredPermission: permCode,
+      reason: `User ${user.id} attempted unauthorized mutation on lead ${leadId}`,
+    });
     throw new AppError(
       "Access denied. You can only edit, reassign, or archive leads that you own or co-partner on.",
       403,
@@ -555,6 +1158,7 @@ export const checkLeadAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Customer.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkCustomerAccess = async (
   customerId: string,
@@ -565,10 +1169,6 @@ export const checkCustomerAccess = async (
   const user = providedUser || (await checkPermission(permCode));
   if (providedUser) {
     assertUserPermission(providedUser, permCode);
-  }
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
   }
 
   const customer = await db
@@ -585,19 +1185,59 @@ export const checkCustomerAccess = async (
     throw new AppError("Customer not found.", 404, "NOT_FOUND");
   }
 
+  // SuperAdmin has company-wide access
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
+  // Direct owner access
   if (customer.ownerId === user.id) {
     return user;
   }
 
+  // Sales Manager with team scope: check if customer owner belongs to manager's team
+  if (user.role.code === "sales_manager" && user.teamId) {
+    if (customer.ownerId) {
+      const isTeamCustomer = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            eq(users.id, customer.ownerId),
+            eq(users.teamId, user.teamId)
+          )
+        )
+        .get();
+
+      if (isTeamCustomer) return user;
+    }
+
+    // Or check if customer's originating lead belonged to the manager's team
+    if (customer.leadId) {
+      try {
+        await checkLeadAccess(customer.leadId, "view", user);
+        return user;
+      } catch {
+        // Continue
+      }
+    }
+  }
+
+  // Sales Rep / fallback: check if converted from an owned/partnered lead
   if (customer.leadId) {
     try {
-      await checkLeadAccess(customer.leadId, action === "view" ? "view" : "edit");
+      await checkLeadAccess(customer.leadId, action === "view" ? "view" : "edit", user);
       return user;
-    } catch (_e) {
+    } catch {
       // Ignored
     }
   }
 
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have permissions for customer ${customerId}`,
+  });
   throw new AppError(
     "Access denied. You do not have permissions for this customer.",
     403,
@@ -607,16 +1247,17 @@ export const checkCustomerAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on an Appointment.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkAppointmentAccess = async (
   appointmentId: string,
-  action: "view" | "edit" | "delete"
+  action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
   const permCode = action === "view" ? "appointments:view" : "appointments:create";
-  const user = await checkPermission(permCode);
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
   }
 
   const appointment = await db
@@ -625,6 +1266,7 @@ export const checkAppointmentAccess = async (
       assignedToId: appointments.assignedToId,
       createdById: appointments.createdById,
       leadId: appointments.leadId,
+      customerId: appointments.customerId,
     })
     .from(appointments)
     .where(eq(appointments.id, appointmentId))
@@ -634,19 +1276,60 @@ export const checkAppointmentAccess = async (
     throw new AppError("Appointment not found.", 404, "NOT_FOUND");
   }
 
+  // SuperAdmin has company-wide access
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
+  // Direct assignee or creator access
   if (appointment.assignedToId === user.id || appointment.createdById === user.id) {
     return user;
   }
 
-  try {
-    if (appointment.leadId) {
-      await checkLeadAccess(appointment.leadId, "view");
-      return user;
-    }
-  } catch (_e) {
-    // Ignored
+  // Sales Manager with team scope: check if assigned to or created by a team member
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamAppointment = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          or(
+            eq(users.id, appointment.assignedToId),
+            eq(users.id, appointment.createdById)
+          ),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamAppointment) return user;
   }
 
+  // Check associated Lead access
+  if (appointment.leadId) {
+    try {
+      await checkLeadAccess(appointment.leadId, "view", user);
+      return user;
+    } catch {
+      // Continue
+    }
+  }
+
+  // Check associated Customer access
+  if (appointment.customerId) {
+    try {
+      await checkCustomerAccess(appointment.customerId, "view", user);
+      return user;
+    } catch {
+      // Continue
+    }
+  }
+
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for appointment ${appointmentId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this appointment.",
     403,
@@ -656,16 +1339,17 @@ export const checkAppointmentAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Follow-up.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkFollowUpAccess = async (
   followUpId: string,
-  action: "view" | "edit" | "delete"
+  action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
   const permCode = action === "view" ? "followups:view" : "followups:create";
-  const user = await checkPermission(permCode);
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
   }
 
   const followUp = await db
@@ -674,6 +1358,7 @@ export const checkFollowUpAccess = async (
       assignedToId: followUps.assignedToId,
       createdById: followUps.createdById,
       leadId: followUps.leadId,
+      customerId: followUps.customerId,
     })
     .from(followUps)
     .where(eq(followUps.id, followUpId))
@@ -683,19 +1368,55 @@ export const checkFollowUpAccess = async (
     throw new AppError("Follow-up not found.", 404, "NOT_FOUND");
   }
 
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
   if (followUp.assignedToId === user.id || followUp.createdById === user.id) {
     return user;
   }
 
-  try {
-    if (followUp.leadId) {
-      await checkLeadAccess(followUp.leadId, "view");
-      return user;
-    }
-  } catch (_e) {
-    // Ignored
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamFollowUp = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          or(
+            eq(users.id, followUp.assignedToId),
+            eq(users.id, followUp.createdById)
+          ),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamFollowUp) return user;
   }
 
+  if (followUp.leadId) {
+    try {
+      await checkLeadAccess(followUp.leadId, "view", user);
+      return user;
+    } catch {
+      // Continue
+    }
+  }
+
+  if (followUp.customerId) {
+    try {
+      await checkCustomerAccess(followUp.customerId, "view", user);
+      return user;
+    } catch {
+      // Continue
+    }
+  }
+
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for follow-up ${followUpId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this follow-up.",
     403,
@@ -705,16 +1426,17 @@ export const checkFollowUpAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Field Visit.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkFieldVisitAccess = async (
   fieldVisitId: string,
-  action: "view" | "edit" | "delete"
+  action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
   const permCode = action === "view" ? "appointments:view" : "appointments:create";
-  const user = await checkPermission(permCode);
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
   }
 
   const visit = await db
@@ -734,28 +1456,64 @@ export const checkFieldVisitAccess = async (
     throw new AppError("Field visit not found.", 404, "NOT_FOUND");
   }
 
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
   if (visit.assignedToId === user.id || visit.createdById === user.id) {
     return user;
   }
 
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamVisit = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          or(
+            eq(users.id, visit.assignedToId),
+            eq(users.id, visit.createdById)
+          ),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamVisit) return user;
+  }
+
   if (visit.appointmentId) {
     try {
-      await checkAppointmentAccess(visit.appointmentId, action);
+      await checkAppointmentAccess(visit.appointmentId, action, user);
       return user;
-    } catch (_e) {
+    } catch {
       // Continue to check lead/customer
     }
   }
 
   if (visit.leadId) {
     try {
-      await checkLeadAccess(visit.leadId, "view");
+      await checkLeadAccess(visit.leadId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
+  if (visit.customerId) {
+    try {
+      await checkCustomerAccess(visit.customerId, "view", user);
+      return user;
+    } catch {
+      // Continue
+    }
+  }
+
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for field visit ${fieldVisitId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this field visit.",
     403,
@@ -765,13 +1523,18 @@ export const checkFieldVisitAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Task.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkTaskAccess = async (
   taskId: string,
-  action: "view" | "edit" | "delete"
+  action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
   const permCode = action === "view" ? "tasks:view" : "tasks:create";
-  const user = await checkPermission(permCode);
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
+  }
 
   const task = await db
     .select({
@@ -790,7 +1553,7 @@ export const checkTaskAccess = async (
     throw new AppError("Task not found.", 404, "NOT_FOUND");
   }
 
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
+  if (user.role.code === "super_admin") {
     return user;
   }
 
@@ -798,24 +1561,49 @@ export const checkTaskAccess = async (
     return user;
   }
 
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamTask = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          task.assignedToId
+            ? or(
+                eq(users.id, task.assignedToId),
+                eq(users.id, task.createdById)
+              )
+            : eq(users.id, task.createdById),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamTask) return user;
+  }
+
   if (task.leadId) {
     try {
-      await checkLeadAccess(task.leadId, "view");
+      await checkLeadAccess(task.leadId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
   if (task.customerId) {
     try {
-      await checkCustomerAccess(task.customerId, "view");
+      await checkCustomerAccess(task.customerId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for task ${taskId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this task.",
     403,
@@ -825,16 +1613,17 @@ export const checkTaskAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Quotation.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkQuotationAccess = async (
   quotationId: string,
-  _action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
   const permCode = _action === "view" ? "quotations:view" : "quotations:create";
-  const user = await checkPermission(permCode);
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
   }
 
   const quotation = await db
@@ -852,28 +1641,52 @@ export const checkQuotationAccess = async (
     throw new AppError("Quotation not found.", 404, "NOT_FOUND");
   }
 
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
   if (quotation.createdById === user.id) {
     return user;
   }
 
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamQuote = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, quotation.createdById),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamQuote) return user;
+  }
+
   if (quotation.leadId) {
     try {
-      await checkLeadAccess(quotation.leadId, "view");
+      await checkLeadAccess(quotation.leadId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
   if (quotation.customerId) {
     try {
-      await checkCustomerAccess(quotation.customerId, "view");
+      await checkCustomerAccess(quotation.customerId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for quotation ${quotationId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this quotation.",
     403,
@@ -883,15 +1696,17 @@ export const checkQuotationAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on an Invoice.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkInvoiceAccess = async (
   invoiceId: string,
-  _action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
-  const user = await checkPermission("invoices:view");
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
+  const permCode = _action === "view" ? "invoices:view" : "invoices:create";
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
   }
 
   const invoice = await db
@@ -908,19 +1723,43 @@ export const checkInvoiceAccess = async (
     throw new AppError("Invoice not found.", 404, "NOT_FOUND");
   }
 
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
   if (invoice.createdById === user.id) {
     return user;
   }
 
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamInvoice = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, invoice.createdById),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamInvoice) return user;
+  }
+
   if (invoice.customerId) {
     try {
-      await checkCustomerAccess(invoice.customerId, "view");
+      await checkCustomerAccess(invoice.customerId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for invoice ${invoiceId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this invoice.",
     403,
@@ -930,15 +1769,17 @@ export const checkInvoiceAccess = async (
 
 /**
  * Checks if the user has permission and visibility to perform the requested action on a Payment.
+ * Strictly scopes Sales Managers to their assigned team members.
  */
 export const checkPaymentAccess = async (
   paymentId: string,
-  _action: "view" | "edit" | "delete"
+  _action: "view" | "edit" | "delete",
+  providedUser?: AuthenticatedUserPayload
 ): Promise<AuthenticatedUserPayload> => {
-  const user = await checkPermission("payments:view");
-
-  if (user.role.code === "super_admin" || user.role.code === "sales_manager") {
-    return user;
+  const permCode = _action === "view" ? "payments:view" : "payments:create";
+  const user = providedUser || (await checkPermission(permCode));
+  if (providedUser) {
+    assertUserPermission(providedUser, permCode);
   }
 
   const payment = await db
@@ -946,6 +1787,7 @@ export const checkPaymentAccess = async (
       id: payments.id,
       receivedById: payments.receivedById,
       invoiceId: payments.invoiceId,
+      customerId: payments.customerId,
     })
     .from(payments)
     .where(eq(payments.id, paymentId))
@@ -955,19 +1797,52 @@ export const checkPaymentAccess = async (
     throw new AppError("Payment not found.", 404, "NOT_FOUND");
   }
 
+  if (user.role.code === "super_admin") {
+    return user;
+  }
+
   if (payment.receivedById === user.id) {
     return user;
   }
 
+  if (user.role.code === "sales_manager" && user.teamId) {
+    const isTeamPayment = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, payment.receivedById),
+          eq(users.teamId, user.teamId)
+        )
+      )
+      .get();
+
+    if (isTeamPayment) return user;
+  }
+
   if (payment.invoiceId) {
     try {
-      await checkInvoiceAccess(payment.invoiceId, "view");
+      await checkInvoiceAccess(payment.invoiceId, "view", user);
       return user;
-    } catch (_e) {
-      // Ignored
+    } catch {
+      // Continue
     }
   }
 
+  if (payment.customerId) {
+    try {
+      await checkCustomerAccess(payment.customerId, "view", user);
+      return user;
+    } catch {
+      // Continue
+    }
+  }
+
+  logAuthzFailure({
+    userId: user.id,
+    requiredPermission: permCode,
+    reason: `User ${user.id} does not have visibility permissions for payment ${paymentId}`,
+  });
   throw new AppError(
     "Access denied. You do not have visibility permissions for this payment.",
     403,

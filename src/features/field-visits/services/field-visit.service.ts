@@ -6,9 +6,11 @@ import { sendNotification } from "@/features/notifications/services/notification
 import { eq } from "drizzle-orm";
 import {
   checkPermission,
-  getLeadVisibilityFilter,
+  getFieldVisitVisibilityFilter,
   checkFieldVisitAccess,
   checkAppointmentAccess,
+  checkLeadAccess,
+  checkCustomerAccess,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
@@ -95,7 +97,7 @@ export const getFieldVisits = async (
 
   const validatedParams = fieldVisitQuerySchema.parse(params);
 
-  const visibilityFilter = getLeadVisibilityFilter(
+  const visibilityFilter = getFieldVisitVisibilityFilter(
     user.id,
     user.role.code,
     user.dataVisibility,
@@ -126,7 +128,7 @@ export const getFieldVisitById = async (
   id: string
 ): Promise<FieldVisitItem> => {
   await checkPermission("leads:view");
-  await checkFieldVisitAccess(id, "view");
+  await checkFieldVisitAccess(id, "view", user);
 
   const visit = await findFieldVisitById(id);
   if (!visit) {
@@ -141,7 +143,7 @@ export const getVisitForAppointment = async (
   appointmentId: string
 ): Promise<FieldVisitItem | null> => {
   await checkPermission("leads:view");
-  await checkAppointmentAccess(appointmentId, "view");
+  await checkAppointmentAccess(appointmentId, "view", user);
 
   return await findFieldVisitByAppointmentId(appointmentId);
 };
@@ -152,7 +154,7 @@ export const startVisitFromAppointment = async (
   input?: StartVisitInput
 ): Promise<FieldVisitItem> => {
   await checkPermission("leads:edit");
-  await checkAppointmentAccess(appointmentId, "edit");
+  await checkAppointmentAccess(appointmentId, "edit", user);
 
   const appointment = await findAppointmentById(appointmentId);
   if (!appointment) {
@@ -226,6 +228,17 @@ export const createFieldVisit = async (
 
   const validatedInput = createFieldVisitSchema.parse(input);
 
+  // Cross-entity IDOR verification: Check access to referenced parent records
+  if (validatedInput.leadId) {
+    await checkLeadAccess(validatedInput.leadId, "view", user);
+  }
+  if (validatedInput.customerId) {
+    await checkCustomerAccess(validatedInput.customerId, "view", user);
+  }
+  if (validatedInput.appointmentId) {
+    await checkAppointmentAccess(validatedInput.appointmentId, "view", user);
+  }
+
   const created = await createFieldVisitRecord(validatedInput, user.id);
 
   const formattedDate = new Date(created.visitDate).toLocaleString("en-US", {
@@ -265,7 +278,7 @@ export const updateFieldVisit = async (
   input: UpdateFieldVisitInput
 ): Promise<FieldVisitItem> => {
   await checkPermission("leads:edit");
-  await checkFieldVisitAccess(id, "edit");
+  await checkFieldVisitAccess(id, "edit", user);
 
   const existing = await findFieldVisitById(id);
   if (!existing) {
@@ -301,7 +314,7 @@ export const completeFieldVisit = async (
   input: CompleteFieldVisitInput
 ): Promise<FieldVisitItem> => {
   await checkPermission("leads:edit");
-  await checkFieldVisitAccess(id, "edit");
+  await checkFieldVisitAccess(id, "edit", user);
 
   const existing = await findFieldVisitById(id);
   if (!existing) {
@@ -431,7 +444,7 @@ export const attachMediaToVisit = async (
   }
 ): Promise<FieldVisitMediaItem> => {
   await checkPermission("leads:edit");
-  await checkFieldVisitAccess(visitId, "edit");
+  await checkFieldVisitAccess(visitId, "edit", user);
 
   const visit = await findFieldVisitById(visitId);
   if (!visit) {
@@ -454,7 +467,7 @@ export const deleteMediaFromVisit = async (
   mediaId: string
 ): Promise<{ success: boolean }> => {
   await checkPermission("leads:edit");
-  await checkFieldVisitAccess(visitId, "edit");
+  await checkFieldVisitAccess(visitId, "edit", user);
 
   await deleteFieldVisitMediaRecord(mediaId);
   return { success: true };

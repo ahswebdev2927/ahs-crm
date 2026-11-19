@@ -10,6 +10,7 @@ import {
   assertUserPermission,
   checkLeadAccess,
   checkCustomerAccess,
+  checkQuotationAccess,
 } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
@@ -80,12 +81,13 @@ export const getQuotations = async (
   assertUserPermission(user, "quotations:view");
   const validated = quotationQuerySchema.parse(params);
 
-  const isUnrestricted =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  const isUnrestricted = user.role.code === "super_admin";
+  const teamId = user.role.code === "sales_manager" ? user.teamId : undefined;
 
   return findQuotations(validated, {
     isUnrestricted,
     userId: user.id,
+    teamId,
   });
 };
 
@@ -97,20 +99,11 @@ export const getQuotation = async (
   id: string
 ): Promise<QuotationDetail> => {
   assertUserPermission(user, "quotations:view");
+  await checkQuotationAccess(id, "view", user);
+
   const quote = await findQuotationById(id);
   if (!quote) {
     throw new AppError("Quotation not found.", 404, "NOT_FOUND");
-  }
-
-  // Check access to lead/customer or ownership
-  const isSuper =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
-  if (!isSuper && quote.createdById !== user.id) {
-    if (quote.leadId) {
-      await checkLeadAccess(quote.leadId, "view", user);
-    } else if (quote.customerId) {
-      await checkCustomerAccess(quote.customerId, "view", user);
-    }
   }
 
   return quote;
@@ -200,6 +193,7 @@ export const updateQuotation = async (
   input: UpdateQuotationInput
 ): Promise<QuotationDetail> => {
   assertUserPermission(user, "quotations:create");
+  await checkQuotationAccess(id, "edit", user);
   const validated = updateQuotationSchema.parse(input);
 
   const existing = await findQuotationById(id);
@@ -212,17 +206,6 @@ export const updateQuotation = async (
       `Cannot modify quotation in '${existing.status}' status. Only draft quotations can be edited.`,
       400,
       "INVALID_STATE"
-    );
-  }
-
-  // Authorization check
-  const isSuper =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
-  if (!isSuper && existing.createdById !== user.id) {
-    throw new AppError(
-      "You can only modify quotations created by yourself.",
-      403,
-      "FORBIDDEN"
     );
   }
 
@@ -281,6 +264,7 @@ export const updateQuotationStatus = async (
   input: UpdateQuotationStatusInput
 ): Promise<QuotationDetail> => {
   assertUserPermission(user, "quotations:create");
+  await checkQuotationAccess(id, "edit", user);
   const validated = updateQuotationStatusSchema.parse(input);
 
   const existing = await findQuotationById(id);
@@ -350,11 +334,12 @@ export const getQuotationsStats = async (
   user: AuthenticatedUserPayload
 ): Promise<QuotationKpis> => {
   assertUserPermission(user, "quotations:view");
-  const isUnrestricted =
-    user.role.code === "super_admin" || user.role.code === "sales_manager";
+  const isUnrestricted = user.role.code === "super_admin";
+  const teamId = user.role.code === "sales_manager" ? user.teamId : undefined;
 
   return getQuotationsKpis({
     isUnrestricted,
     userId: user.id,
+    teamId,
   });
 };

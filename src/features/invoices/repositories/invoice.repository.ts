@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { invoices, invoiceItems, payments, quotations, quotationItems, customers, users } from "@/db/schema";
-import { eq, and, or, sql, like, inArray, gte, lte, desc } from "drizzle-orm";
+import { eq, and, or, sql, like, inArray, gte, lte, desc, exists } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type {
   InvoiceItem,
@@ -11,10 +11,12 @@ import type {
 } from "../types/invoice.types";
 import type { InvoiceItemInput } from "../schemas/invoice.schema";
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Generates a sequential invoice number: INV-YYYYMM-XXXX
  */
-export const generateNextInvoiceNumber = async (tx?: any): Promise<string> => {
+export const generateNextInvoiceNumber = async (tx?: DbTransaction): Promise<string> => {
   const runner = tx || db;
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -59,6 +61,7 @@ export const findInvoices = async (
     allowedCustomerIds?: string[];
     isUnrestricted?: boolean;
     userId?: string;
+    teamId?: number | null;
   }
 ): Promise<{ items: InvoiceItem[]; total: number; page: number; limit: number }> => {
   const { page, limit, status, customerId, search, overdueOnly, dateFrom, dateTo } = params;
@@ -78,7 +81,7 @@ export const findInvoices = async (
       conditions.push(sql`${invoices.amountDue} > 0`);
       conditions.push(sql`${invoices.status} NOT IN ('cancelled', 'void')`);
     } else {
-      conditions.push(eq(invoices.status, status as any));
+      conditions.push(eq(invoices.status, status as InvoiceStatus));
     }
   }
 
@@ -100,6 +103,21 @@ export const findInvoices = async (
     const visConditions = [];
     if (visibility.userId) {
       visConditions.push(eq(invoices.createdById, visibility.userId));
+    }
+    if (visibility.teamId) {
+      visConditions.push(
+        exists(
+          db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, invoices.createdById),
+                eq(users.teamId, visibility.teamId)
+              )
+            )
+        )
+      );
     }
     if (visibility.allowedCustomerIds && visibility.allowedCustomerIds.length > 0) {
       visConditions.push(inArray(invoices.customerId, visibility.allowedCustomerIds));
@@ -499,7 +517,7 @@ export const updateInvoiceRecord = async (
   }
 ): Promise<InvoiceDetail> => {
   await db.transaction(async (tx) => {
-    const updateValues: Record<string, any> = {
+    const updateValues: Record<string, unknown> = {
       subtotal: data.subtotal,
       discount: data.discount,
       tax: data.tax,
@@ -561,6 +579,7 @@ export const getInvoicesKpis = async (
     allowedCustomerIds?: string[];
     isUnrestricted?: boolean;
     userId?: string;
+    teamId?: number | null;
   }
 ): Promise<InvoiceKpis> => {
   const conditions = [];
@@ -568,6 +587,21 @@ export const getInvoicesKpis = async (
   if (visibility && !visibility.isUnrestricted) {
     const visConditions = [];
     if (visibility.userId) visConditions.push(eq(invoices.createdById, visibility.userId));
+    if (visibility.teamId) {
+      visConditions.push(
+        exists(
+          db
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.id, invoices.createdById),
+                eq(users.teamId, visibility.teamId)
+              )
+            )
+        )
+      );
+    }
     if (visibility.allowedCustomerIds && visibility.allowedCustomerIds.length > 0) {
       visConditions.push(inArray(invoices.customerId, visibility.allowedCustomerIds));
     }
