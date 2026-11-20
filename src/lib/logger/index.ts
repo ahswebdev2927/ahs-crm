@@ -1,49 +1,96 @@
 import pino from "pino";
 
-const isProduction = process.env.NODE_ENV === "production";
-const logLevel = process.env.LOG_LEVEL || (isProduction ? "info" : "debug");
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
+const logLevel: pino.Level =
+  (process.env.LOG_LEVEL as pino.Level) || (isProduction ? "info" : "debug");
 
-const sensitivePaths = [
+// Base sensitive keys to be redacted across all payload depths
+export const SENSITIVE_KEYS = [
+  // Passwords
   "password",
   "confirmPassword",
   "newPassword",
   "currentPassword",
   "oldPassword",
+  // Tokens
   "token",
+  "sessionToken",
+  "session_token",
   "jwt",
   "refreshToken",
+  "refresh_token",
   "accessToken",
+  "access_token",
+  "csrfToken",
+  "csrf_token",
+  "idToken",
+  // Secrets
   "secret",
+  "jwtSecret",
+  "jwt_secret",
+  "cronSecret",
+  "cron_secret",
+  // API Keys
   "apiKey",
+  "api_key",
+  "cloudinaryApiKey",
+  "cloudinary_api_key",
+  "cloudinaryApiSecret",
+  "cloudinary_api_secret",
+  // Database & Connection strings
+  "dbUrl",
+  "db_url",
+  "databaseUrl",
+  "database_url",
+  "tursoAuthToken",
+  "turso_auth_token",
+  // Headers & Cookies
   "authorization",
   "cookie",
-  "dbUrl",
-  "*.password",
-  "*.confirmPassword",
-  "*.newPassword",
-  "*.token",
-  "*.jwt",
-  "*.refreshToken",
-  "*.accessToken",
-  "*.secret",
-  "*.apiKey",
-  "*.authorization",
-  "*.cookie",
-  "*.dbUrl",
-  "headers.authorization",
-  "headers.cookie",
-  "headers.set-cookie",
-  "req.headers.authorization",
-  "req.headers.cookie",
+  "set-cookie",
+  // Sensitive IDs & Payment details
+  "creditCard",
+  "cardNumber",
+  "cvv",
+  "panNumber",
+  "aadhaarNumber",
 ];
 
-// Configure multi-stream: normal logs -> stdout, error/fatal -> stderr
+// Generate multi-depth wildcard paths (depths 0 through 5) for fast-redact
+export function generateSensitivePaths(keys: string[], maxDepth: number = 5): string[] {
+  const paths: string[] = [];
+  for (const key of keys) {
+    paths.push(key);
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      paths.push(`${"*.".repeat(depth)}${key}`);
+    }
+  }
+
+  // Common explicit nested header patterns
+  paths.push(
+    "headers.authorization",
+    "headers.cookie",
+    "headers.set-cookie",
+    "headers['set-cookie']",
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "req.headers.set-cookie"
+  );
+
+  return Array.from(new Set(paths));
+}
+
+export const sensitivePaths = generateSensitivePaths(SENSITIVE_KEYS, 5);
+
+// Configure multi-stream: normal logs (debug, info, warn) -> stdout, errors (error, fatal) -> stderr
+// dedupe: true ensures messages are sent to the highest matching level stream without duplication
 const streams: pino.StreamEntry[] = [
-  { level: "info", stream: process.stdout },
+  { level: logLevel, stream: process.stdout },
   { level: "error", stream: process.stderr },
 ];
 
-const pinoOptions: pino.LoggerOptions = {
+export const pinoOptions: pino.LoggerOptions = {
   level: logLevel,
   base: {
     env: process.env.NODE_ENV || "development",
@@ -58,7 +105,7 @@ const pinoOptions: pino.LoggerOptions = {
 
 export const logger =
   typeof pino.multistream === "function"
-    ? pino(pinoOptions, pino.multistream(streams))
+    ? pino(pinoOptions, pino.multistream(streams, { dedupe: true }))
     : pino(pinoOptions);
 
 // --- Domain Observability Helpers ---
@@ -175,5 +222,30 @@ export function logExternalServiceFailure(details: {
       context: details.context,
     },
     `External service failure [${details.service}]: ${details.operation} failed - ${errMessage}`
+  );
+}
+
+/**
+ * Log general domain service errors
+ */
+export function logServiceError(details: {
+  service: string;
+  operation: string;
+  error: unknown;
+  context?: Record<string, unknown>;
+}) {
+  const errMessage = details.error instanceof Error ? details.error.message : String(details.error);
+  const errStack = details.error instanceof Error ? details.error.stack : undefined;
+
+  logger.error(
+    {
+      event: "SERVICE_ERROR",
+      service: details.service,
+      operation: details.operation,
+      errorMessage: errMessage,
+      stack: errStack,
+      context: details.context,
+    },
+    `Service error [${details.service}]: ${details.operation} failed - ${errMessage}`
   );
 }

@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logger } from "@/lib/logger";
 import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
@@ -64,7 +65,15 @@ async function dispatchAssignmentNotification(
       referenceId: appointmentId,
     });
   } catch (err) {
-    console.error("Failed to create appointment assignment notification:", err);
+    logger.error(
+      {
+        event: "APPOINTMENT_NOTIFICATION_FAILURE",
+        recipientId: assignedToId,
+        appointmentId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      "Failed to create appointment assignment notification"
+    );
   }
 }
 
@@ -87,7 +96,16 @@ async function logLeadActivity(
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error("Failed to log lead activity:", err);
+    logger.error(
+      {
+        event: "LEAD_ACTIVITY_LOG_FAILURE",
+        leadId,
+        userId,
+        type,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      "Failed to log lead activity"
+    );
   }
 }
 

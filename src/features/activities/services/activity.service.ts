@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logger } from "@/lib/logger";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
   checkLeadAccess,
@@ -339,6 +340,15 @@ export async function logSystemEvent(eventData: LogSystemEventInput): Promise<vo
     });
   } catch (err) {
     // Non-blocking error logging to protect main business transactions
-    console.error(`[ActivityService] Failed to log system event (${eventData.type}):`, err);
+    logger.error(
+      {
+        event: "ACTIVITY_LOG_FAILURE",
+        eventType: eventData.type,
+        leadId: eventData.leadId,
+        customerId: eventData.customerId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      `Failed to log system activity event (${eventData.type})`
+    );
   }
 }

@@ -1,5 +1,6 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
+import { logger } from "@/lib/logger";
 import * as schema from "./schema";
 
 const url = process.env.DATABASE_URL || "file:dev.db";
@@ -20,7 +21,13 @@ if (url.startsWith("file:")) {
       await client.execute("PRAGMA journal_mode = WAL;");
       await client.execute("PRAGMA foreign_keys = ON;");
     } catch (err) {
-      console.error("Failed to enable SQLite WAL / foreign_keys mode:", err);
+      logger.error(
+        {
+          event: "SQLITE_PRAGMA_ERROR",
+          err: err instanceof Error ? err.message : String(err),
+        },
+        "Failed to enable SQLite WAL / foreign_keys mode"
+      );
     }
   })();
 }

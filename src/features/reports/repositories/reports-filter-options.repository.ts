@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { logger } from "@/lib/logger";
 import { teams, users, roles } from "@/db/schema";
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import type { ReportsScopeContext, ReportsFilterOptions } from "../types/reports.types";
@@ -71,7 +72,15 @@ export const fetchReportsFilterOptions = async (
       permittedUsers = userRows;
     }
   } catch (err) {
-    console.error("fetchReportsFilterOptions error:", err);
+    logger.error(
+      {
+        event: "REPORTS_FILTER_FETCH_ERROR",
+        scope: ctx.scope,
+        userId: ctx.userId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      "fetchReportsFilterOptions error"
+    );
   }
 
   return {

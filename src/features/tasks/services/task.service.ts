@@ -3,6 +3,7 @@ import { leads, customers, users } from "@/db/schema";
 import { sendNotification } from "@/features/notifications/services/notification.service";
 import { eq, and, isNull } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
+import { logger } from "@/lib/logger";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
@@ -55,7 +56,15 @@ async function dispatchTaskAssignedNotification(
       referenceId: taskId,
     });
   } catch (err) {
-    console.error("Failed to dispatch task assigned notification:", err);
+    logger.error(
+      {
+        event: "TASK_ASSIGNED_NOTIFICATION_FAILURE",
+        recipientId: assignedToId,
+        taskId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      "Failed to dispatch task assigned notification"
+    );
   }
 }
 

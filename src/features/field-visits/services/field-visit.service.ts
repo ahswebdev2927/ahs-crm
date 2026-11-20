@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
+import { logger } from "@/lib/logger";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
 import { leadActivities, followUps, appointments } from "@/db/schema";
@@ -62,7 +63,15 @@ async function dispatchVisitNotification(
       actionUrl: `/field-visits/${referenceId}`,
     });
   } catch (err) {
-    console.error("Failed to create field visit notification:", err);
+    logger.error(
+      {
+        event: "FIELD_VISIT_NOTIFICATION_FAILURE",
+        recipientId,
+        referenceId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      "Failed to create field visit notification"
+    );
   }
 }
 
@@ -85,7 +94,16 @@ async function logLeadActivity(
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error("Failed to log lead activity for field visit:", err);
+    logger.error(
+      {
+        event: "FIELD_VISIT_LEAD_ACTIVITY_FAILURE",
+        leadId,
+        userId,
+        type,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      "Failed to log lead activity for field visit"
+    );
   }
 }
 
