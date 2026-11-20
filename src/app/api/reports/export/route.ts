@@ -3,12 +3,22 @@ import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { reportsFilterSchema } from "@/features/reports/schemas/reports-filter.schema";
 import { getReportsData } from "@/features/reports/services/reports.service";
 import { generateReportCsv } from "@/features/reports/services/reports-export.service";
+import { getClientIp, checkRateLimit } from "@/lib/security/rate-limit";
 
 /**
  * GET /api/reports/export
  * Downloads sanitized RFC 4180 CSV export files for the requested report tab.
  */
 export const GET = withErrorHandling(async (req: NextRequest) => {
+  const clientIp = await getClientIp();
+  await checkRateLimit({
+    key: "export-reports",
+    identifier: clientIp,
+    limit: 10,
+    windowMs: 60 * 1000,
+    message: "Report export rate limit exceeded. Please wait a minute before exporting again.",
+  });
+
   const { searchParams } = new URL(req.url);
 
   const rawParams = {

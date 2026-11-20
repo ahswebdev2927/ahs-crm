@@ -414,7 +414,7 @@ export const cancelAppointment = async (
 export const getFieldSalesUsers = async (
   user: AuthenticatedUserPayload
 ): Promise<FieldSalesUser[]> => {
-  await checkPermission("leads:view", user);
+  await checkPermission("leads:view");
   return getFieldSalesUsersRepo();
 };
 

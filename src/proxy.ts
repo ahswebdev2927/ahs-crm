@@ -21,7 +21,7 @@ const base64UrlToBuf = (str: string): Uint8Array => {
 /**
  * Edge-compatible JWT verification using native Web Crypto API (no Node.js crypto needed)
  */
-const verifyJwt = async (token: string, secret: string): Promise<any | null> => {
+const verifyJwt = async (token: string, secret: string): Promise<Record<string, unknown> | null> => {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
@@ -42,7 +42,7 @@ const verifyJwt = async (token: string, secret: string): Promise<any | null> => 
     );
 
     // Verify HMAC signature
-    const isValid = await crypto.subtle.verify("HMAC", key, sigBuf as any, data as any);
+    const isValid = await crypto.subtle.verify("HMAC", key, sigBuf as unknown as BufferSource, data as unknown as BufferSource);
     if (!isValid) return null;
 
     // Decode and parse payload
@@ -68,17 +68,23 @@ export const proxy = async (request: NextRequest) => {
 
     const origin = request.headers.get("origin");
     const method = request.method;
-    const isProduction = process.env.APP_ENV === "production";
-    
+    const isProduction =
+      process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
+
     // Whitelisted origins from environment variable
     const allowedOrigins = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+      ? process.env.ALLOWED_ORIGINS.split(",")
+          .map((o) => o.trim())
+          .filter(Boolean)
       : [];
-      
+
     const host = request.headers.get("host") || "";
     const protocol = request.headers.get("x-forwarded-proto") || "http";
     const hostOrigin = `${protocol}://${host}`;
-    
+
+    const isOriginAllowed =
+      !origin || origin === hostOrigin || allowedOrigins.includes(origin);
+
     // 1.1 CORS Verification
     if (origin && origin !== hostOrigin) {
       if (isProduction && !allowedOrigins.includes(origin)) {
@@ -96,12 +102,33 @@ export const proxy = async (request: NextRequest) => {
         );
       }
     }
-    
-    // 1.2 CSRF/Origin check on state-changing browser requests (POST/PUT/PATCH/DELETE)
+
+    // 1.2 Handle Preflight OPTIONS for API
+    if (method === "OPTIONS") {
+      if (!isOriginAllowed && isProduction) {
+        return new NextResponse(null, { status: 403 });
+      }
+
+      const headers: Record<string, string> = {
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+        "Access-Control-Max-Age": "86400",
+      };
+
+      if (origin && (isOriginAllowed || !isProduction)) {
+        headers["Access-Control-Allow-Origin"] = origin;
+        headers["Access-Control-Allow-Credentials"] = "true";
+      }
+
+      return new NextResponse(null, { status: 204, headers });
+    }
+
+    // 1.3 CSRF/Origin check on state-changing browser requests (POST/PUT/PATCH/DELETE)
     if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      const hasSession = request.cookies.has("session_token");
       const referer = request.headers.get("referer");
       let isSameOrigin = false;
-      
+
       if (origin) {
         isSameOrigin = origin === hostOrigin || allowedOrigins.includes(origin);
       } else if (referer) {
@@ -109,15 +136,15 @@ export const proxy = async (request: NextRequest) => {
           const refererUrl = new URL(referer);
           const refererOrigin = `${refererUrl.protocol}//${refererUrl.host}`;
           isSameOrigin = refererOrigin === hostOrigin || allowedOrigins.includes(refererOrigin);
-        } catch (e) {
+        } catch {
           isSameOrigin = false;
         }
       } else {
-        const hasSession = request.cookies.has("session_token");
+        // If no origin or referer header is present, allow only if no session cookie was attached
         isSameOrigin = !hasSession;
       }
-      
-      if (!isSameOrigin) {
+
+      if (hasSession && !isSameOrigin) {
         return new NextResponse(
           JSON.stringify({
             status: false,
@@ -132,8 +159,13 @@ export const proxy = async (request: NextRequest) => {
         );
       }
     }
-    
-    return NextResponse.next();
+
+    const response = NextResponse.next();
+    if (origin && (isOriginAllowed || !isProduction)) {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set("Access-Control-Allow-Credentials", "true");
+    }
+    return response;
   }
 
   // =============================================================

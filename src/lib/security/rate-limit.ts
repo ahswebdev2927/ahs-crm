@@ -5,11 +5,18 @@ import { AppError } from "@/lib/errors/AppError";
 import { logRateLimitViolation } from "@/lib/logger";
 import { eq, and, sql, count } from "drizzle-orm";
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   key: string;
   identifier: string;
   limit: number;
   windowMs: number;
+  message?: string;
+}
+
+export interface RateLimitResult {
+  limit: number;
+  remaining: number;
+  resetTime: number;
 }
 
 export async function getClientIp(): Promise<string> {
@@ -25,8 +32,8 @@ export async function getClientIp(): Promise<string> {
   return "127.0.0.1";
 }
 
-export async function checkRateLimit(config: RateLimitConfig): Promise<void> {
-  const { key, identifier, limit, windowMs } = config;
+export async function checkRateLimit(config: RateLimitConfig): Promise<RateLimitResult> {
+  const { key, identifier, limit, windowMs, message } = config;
   const fullKey = `${key}:${identifier}`;
   const now = Date.now();
   const cutoff = now - windowMs;
@@ -44,6 +51,8 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<void> {
     .get();
 
   const currentCount = countResult?.count ?? 0;
+  const remaining = Math.max(0, limit - currentCount - 1);
+  const resetTime = now + windowMs;
 
   if (currentCount >= limit) {
     logRateLimitViolation({
@@ -52,8 +61,14 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<void> {
       limit,
       windowMs,
     });
+
+    const defaultMsg =
+      windowMs >= 60000
+        ? `Too many requests. Please try again in ${Math.ceil(windowMs / 60000)} minutes.`
+        : "Too many requests. Please try again later.";
+
     throw new AppError(
-      "Too many login attempts. Please try again in 15 minutes.",
+      message || defaultMsg,
       429,
       "TOO_MANY_REQUESTS"
     );
@@ -63,6 +78,12 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<void> {
   await db.insert(rateLimits).values({
     key: fullKey,
     timestamp: now,
-    expiresAt: now + windowMs,
+    expiresAt: resetTime,
   });
+
+  return {
+    limit,
+    remaining,
+    resetTime,
+  };
 }

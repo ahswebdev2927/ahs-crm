@@ -87,9 +87,13 @@ export function withErrorHandling(handler: RouteHandler): RouteHandler {
       // 3. Handle unexpected errors (500 Internal Server Error)
       const errMessage = error instanceof Error ? error.message : "Unknown error";
       const errStack = error instanceof Error ? error.stack : undefined;
+      const errorObj = error as { cause?: { message?: string } | string } | undefined;
       const errCause =
-        (error as any)?.cause?.message ||
-        (typeof (error as any)?.cause === "string" ? (error as any).cause : undefined);
+        typeof errorObj?.cause === "object"
+          ? errorObj.cause?.message
+          : typeof errorObj?.cause === "string"
+          ? errorObj.cause
+          : undefined;
 
       logger.error(
         {
