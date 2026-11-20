@@ -1,0 +1,19 @@
+CREATE INDEX `sessions_expires_at_idx` ON `sessions` (`expires_at`);--> statement-breakpoint
+CREATE INDEX `users_status_idx` ON `users` (`status`);--> statement-breakpoint
+CREATE INDEX `users_deleted_at_idx` ON `users` (`deleted_at`);--> statement-breakpoint
+CREATE INDEX `lead_partners_lead_partner_status_idx` ON `lead_partners` (`lead_id`,`partner_id`,`status`);--> statement-breakpoint
+CREATE INDEX `lead_history_created_at_idx` ON `lead_stage_history` (`created_at`);--> statement-breakpoint
+CREATE INDEX `leads_created_by_idx` ON `leads` (`created_by_id`);--> statement-breakpoint
+CREATE INDEX `customer_services_created_by_idx` ON `customer_services` (`created_by_id`);--> statement-breakpoint
+CREATE INDEX `invoice_items_service_id_idx` ON `invoice_items` (`service_id`);--> statement-breakpoint
+CREATE INDEX `invoices_quotation_id_idx` ON `invoices` (`quotation_id`);--> statement-breakpoint
+CREATE INDEX `invoices_created_by_idx` ON `invoices` (`created_by_id`);--> statement-breakpoint
+CREATE INDEX `payments_status_idx` ON `payments` (`status`);--> statement-breakpoint
+CREATE INDEX `quotation_items_service_id_idx` ON `quotation_items` (`service_id`);--> statement-breakpoint
+CREATE INDEX `quotations_created_by_idx` ON `quotations` (`created_by_id`);--> statement-breakpoint
+CREATE INDEX `tasks_created_by_idx` ON `tasks` (`created_by_id`);--> statement-breakpoint
+CREATE INDEX `tasks_priority_idx` ON `tasks` (`priority`);--> statement-breakpoint
+CREATE INDEX `tasks_due_date_idx` ON `tasks` (`due_date`);--> statement-breakpoint
+CREATE INDEX `tasks_status_due_idx` ON `tasks` (`status`,`due_date`);--> statement-breakpoint
+CREATE INDEX `tasks_created_at_idx` ON `tasks` (`created_at`);--> statement-breakpoint
+CREATE INDEX `notifications_recipient_read_created_idx` ON `notifications` (`recipient_id`,`is_read`,`created_at`);

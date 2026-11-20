@@ -24,7 +24,12 @@ export const tasks = sqliteTable('tasks', {
   index('tasks_lead_id_idx').on(t.leadId),
   index('tasks_customer_id_idx').on(t.customerId),
   index('tasks_assigned_to_id_idx').on(t.assignedToId),
+  index('tasks_created_by_idx').on(t.createdById),
   index('tasks_status_idx').on(t.status),
+  index('tasks_priority_idx').on(t.priority),
+  index('tasks_due_date_idx').on(t.dueDate),
+  index('tasks_status_due_idx').on(t.status, t.dueDate),
+  index('tasks_created_at_idx').on(t.createdAt),
 ]);
 
 

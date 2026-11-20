@@ -83,6 +83,7 @@ export const customerServices = sqliteTable('customer_services', {
   index('customer_services_customer_id_idx').on(t.customerId),
   index('customer_services_service_id_idx').on(t.serviceId),
   index('customer_services_status_idx').on(t.status),
+  index('customer_services_created_by_idx').on(t.createdById),
 ]);
 
 // Relational Definitions

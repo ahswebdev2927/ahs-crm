@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { users } from "./users";
 
@@ -44,6 +44,7 @@ export const leads = sqliteTable('leads', {
   index('leads_stage_deleted_position_idx').on(t.stageId, t.deletedAt, t.position),
   index('leads_phone_idx').on(t.phone),
   index('leads_email_idx').on(t.email),
+  index('leads_created_by_idx').on(t.createdById),
 ]);
 
 export const leadStageHistory = sqliteTable('lead_stage_history', {
@@ -56,6 +57,7 @@ export const leadStageHistory = sqliteTable('lead_stage_history', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('lead_history_lead_id_idx').on(t.leadId),
+  index('lead_history_created_at_idx').on(t.createdAt),
 ]);
 
 export const leadPartners = sqliteTable('lead_partners', {
@@ -75,6 +77,7 @@ export const leadPartners = sqliteTable('lead_partners', {
   index('lead_partners_lead_id_idx').on(t.leadId),
   index('lead_partners_partner_id_idx').on(t.partnerId),
   index('lead_partners_status_idx').on(t.status),
+  index('lead_partners_lead_partner_status_idx').on(t.leadId, t.partnerId, t.status),
 ]);
 
 export const leadActivities = sqliteTable('lead_activities', {

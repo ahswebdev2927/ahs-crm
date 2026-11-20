@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, index, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
 export const departments = sqliteTable('departments', {
@@ -47,7 +47,7 @@ export const teams = sqliteTable('teams', {
   name: text('name').notNull(),
   code: text('code').notNull().unique(),
   departmentId: integer('department_id').references(() => departments.id, { onDelete: 'cascade' }),
-  managerId: text('manager_id'),
+  managerId: text('manager_id').references((): AnySQLiteColumn => users.id, { onDelete: 'set null' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
@@ -62,8 +62,8 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   roleId: integer('role_id').notNull().references(() => roles.id),
   departmentId: integer('department_id').references(() => departments.id, { onDelete: 'set null' }),
-  teamId: integer('team_id').references(() => teams.id, { onDelete: 'set null' }),
-  managerId: text('manager_id'),
+  teamId: integer('team_id').references((): AnySQLiteColumn => teams.id, { onDelete: 'set null' }),
+  managerId: text('manager_id').references((): AnySQLiteColumn => users.id, { onDelete: 'set null' }),
   dataVisibility: text('data_visibility', { enum: ['own', 'shared', 'partnered', 'team', 'all'] }).notNull().default('own'),
   status: text('status', { enum: ['active', 'inactive', 'suspended'] }).notNull().default('active'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
@@ -75,6 +75,8 @@ export const users = sqliteTable('users', {
   index('users_department_id_idx').on(t.departmentId),
   index('users_team_id_idx').on(t.teamId),
   index('users_manager_id_idx').on(t.managerId),
+  index('users_status_idx').on(t.status),
+  index('users_deleted_at_idx').on(t.deletedAt),
 ]);
 
 export const userPermissions = sqliteTable('user_permissions', {
@@ -96,6 +98,7 @@ export const sessions = sqliteTable('sessions', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('sessions_user_id_idx').on(t.userId),
+  index('sessions_expires_at_idx').on(t.expiresAt),
 ]);
 
 // Relational Definitions

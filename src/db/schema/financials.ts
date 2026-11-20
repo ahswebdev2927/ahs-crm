@@ -29,6 +29,7 @@ export const quotations = sqliteTable('quotations', {
   index('quotations_customer_id_idx').on(t.customerId),
   index('quotations_quote_number_idx').on(t.quoteNumber),
   index('quotations_status_idx').on(t.status),
+  index('quotations_created_by_idx').on(t.createdById),
   index('quotations_created_at_idx').on(t.createdAt),
   index('quotations_status_created_idx').on(t.status, t.createdAt),
 ]);
@@ -45,6 +46,7 @@ export const quotationItems = sqliteTable('quotation_items', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('quotation_items_quotation_id_idx').on(t.quotationId),
+  index('quotation_items_service_id_idx').on(t.serviceId),
 ]);
 
 export const invoices = sqliteTable('invoices', {
@@ -68,7 +70,9 @@ export const invoices = sqliteTable('invoices', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('invoices_customer_id_idx').on(t.customerId),
+  index('invoices_quotation_id_idx').on(t.quotationId),
   index('invoices_invoice_number_idx').on(t.invoiceNumber),
+  index('invoices_created_by_idx').on(t.createdById),
   index('invoices_status_idx').on(t.status),
   index('invoices_due_date_idx').on(t.dueDate),
   index('invoices_created_at_idx').on(t.createdAt),
@@ -87,6 +91,7 @@ export const invoiceItems = sqliteTable('invoice_items', {
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
 }, (t) => [
   index('invoice_items_invoice_id_idx').on(t.invoiceId),
+  index('invoice_items_service_id_idx').on(t.serviceId),
 ]);
 
 export const payments = sqliteTable('payments', {
@@ -108,6 +113,7 @@ export const payments = sqliteTable('payments', {
   index('payments_invoice_id_idx').on(t.invoiceId),
   index('payments_customer_id_idx').on(t.customerId),
   index('payments_received_by_id_idx').on(t.receivedById),
+  index('payments_status_idx').on(t.status),
   index('payments_payment_date_idx').on(t.paymentDate),
   index('payments_created_at_idx').on(t.createdAt),
   index('payments_status_date_idx').on(t.status, t.paymentDate),

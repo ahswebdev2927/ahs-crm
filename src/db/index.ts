@@ -13,13 +13,14 @@ export const client = createClient({
 
 export const db = drizzle(client, { schema });
 
-// Enable SQLite Write-Ahead Logging (WAL) mode locally for development
+// Enable SQLite Write-Ahead Logging (WAL) and foreign keys enforcement locally for development
 if (url.startsWith("file:")) {
   (async () => {
     try {
       await client.execute("PRAGMA journal_mode = WAL;");
+      await client.execute("PRAGMA foreign_keys = ON;");
     } catch (err) {
-      console.error("Failed to enable SQLite WAL mode:", err);
+      console.error("Failed to enable SQLite WAL / foreign_keys mode:", err);
     }
   })();
 }

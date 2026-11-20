@@ -20,6 +20,7 @@ export const notifications = sqliteTable('notifications', {
   index('notifications_is_read_idx').on(t.isRead),
   index('notifications_category_idx').on(t.category),
   index('notifications_created_at_idx').on(t.createdAt),
+  index('notifications_recipient_read_created_idx').on(t.recipientId, t.isRead, t.createdAt),
 ]);
 
 export const pushSubscriptions = sqliteTable('push_subscriptions', {
