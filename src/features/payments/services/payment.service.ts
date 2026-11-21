@@ -3,6 +3,7 @@ import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { sendNotification } from "@/features/notifications/services/notification.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -148,6 +149,20 @@ export const recordPayment = async (
     createdAt: validated.paymentDate ? new Date(validated.paymentDate) : new Date(),
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "payment:recorded",
+    entity: "payments",
+    entityId: payment.id,
+    actorId: user.id,
+    metadata: {
+      invoiceId: payment.invoiceId,
+      amountPaise: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      status: payment.status,
+      paymentDate: payment.paymentDate,
+    },
+  });
+
   // Instantly invalidate financial stats & dashboard caches
   const tagsToInvalidate = [
     CACHE_TAGS.DASHBOARD_BUSINESS,
@@ -191,6 +206,18 @@ export const updatePaymentStatus = async (
     oldData: { status: existing.status },
     newData: { status: validated.status, reason: validated.reason },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: `payment:${validated.status}`,
+    entity: "payments",
+    entityId: paymentId,
+    actorId: user.id,
+    metadata: {
+      previousStatus: existing.status,
+      newStatus: validated.status,
+      reason: validated.reason,
+    },
+  });
 
   // Instantly invalidate financial stats & dashboard caches
   const tagsToInvalidate = [

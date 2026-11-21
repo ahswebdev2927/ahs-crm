@@ -2,6 +2,7 @@ import { AppError } from "@/lib/errors/AppError";
 import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -135,6 +136,18 @@ export const createCustomer = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "customer:created",
+    entity: "customers",
+    entityId: created.id,
+    actorId: user.id,
+    metadata: {
+      name: created.name,
+      company: created.company,
+      ownerId: created.ownerId,
+    },
+  });
+
   invalidateCustomerCaches(user);
 
   return created;
@@ -176,6 +189,16 @@ export const updateCustomer = async (
     },
     newData: validated,
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "customer:updated",
+    entity: "customers",
+    entityId: customerId,
+    actorId: user.id,
+    metadata: {
+      updatedFields: Object.keys(validated),
+    },
+  });
 
   invalidateCustomerCaches(user);
 
@@ -237,6 +260,19 @@ export const convertLeadToCustomer = async (
       customerCompany: customer.company,
     },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "customer:converted_from_lead",
+    entity: "customers",
+    entityId: customer.id,
+    actorId: user.id,
+    metadata: {
+      leadId: validated.leadId,
+      customerName: customer.name,
+      company: customer.company,
+      ownerId: customer.ownerId,
+    },
+  });
 
   invalidateCustomerCaches(user);
   CacheService.invalidateTags([CACHE_TAGS.PIPELINE_BOARD(user.id)]);

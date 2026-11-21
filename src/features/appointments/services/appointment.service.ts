@@ -1,5 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
-import { logger } from "@/lib/logger";
+import { logger, logBusinessMutation } from "@/lib/logger";
 import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
@@ -246,6 +246,20 @@ export const createAppointment = async (
     createdAt: created.createdAt,
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "appointment:created",
+    entity: "appointments",
+    entityId: created.id,
+    actorId: user.id,
+    metadata: {
+      leadId: created.leadId,
+      customerId: created.customerId,
+      assignedToId: created.assignedToId,
+      startTime: created.startTime,
+      title: created.title,
+    },
+  });
+
   invalidateAppointmentCaches(user, created.assignedToId);
 
   return created;
@@ -328,6 +342,18 @@ export const updateAppointmentStatus = async (
     );
   }
 
+  logBusinessMutation({
+    action: "appointment:status_changed",
+    entity: "appointments",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      previousStatus: existing.status,
+      newStatus: updated.status,
+      assignedToId: updated.assignedToId,
+    },
+  });
+
   invalidateAppointmentCaches(user, updated.assignedToId);
 
   return updated;
@@ -386,6 +412,18 @@ export const rescheduleAppointment = async (
     );
   }
 
+  logBusinessMutation({
+    action: "appointment:rescheduled",
+    entity: "appointments",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      newStartTime: validatedInput.startTime,
+      newEndTime: validatedInput.endTime,
+      rescheduleReason: validatedInput.rescheduleReason,
+    },
+  });
+
   invalidateAppointmentCaches(user, updated.assignedToId);
 
   return updated;
@@ -423,6 +461,17 @@ export const cancelAppointment = async (
       `Cancelled Appointment: ${updated.title}. Reason: ${validatedInput.cancellationReason}`
     );
   }
+
+  logBusinessMutation({
+    action: "appointment:cancelled",
+    entity: "appointments",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      cancellationReason: validatedInput.cancellationReason,
+      assignedToId: updated.assignedToId,
+    },
+  });
 
   invalidateAppointmentCaches(user, updated.assignedToId);
 

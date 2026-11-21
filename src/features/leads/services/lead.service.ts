@@ -3,6 +3,7 @@ import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
 import { sendNotification } from "@/features/notifications/services/notification.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   checkPermission,
   checkLeadAccess,
@@ -192,7 +193,22 @@ export const createLead = async (
     },
   }).catch(() => {});
 
-  // 8. Instantly invalidate affected lead & dashboard caches
+  // 8. Structured operational logging
+  logBusinessMutation({
+    action: "lead:created",
+    entity: "leads",
+    entityId: createdLead.id,
+    actorId: user.id,
+    metadata: {
+      name: createdLead.name,
+      company: createdLead.company,
+      stageId: createdLead.stageId,
+      stageName: stage.name,
+      ownerId,
+    },
+  });
+
+  // 9. Instantly invalidate affected lead & dashboard caches
   invalidateLeadCaches(user, ownerId);
 
   return createdLead;
@@ -252,6 +268,19 @@ export const updateLead = async (
       newData: { stageId: validated.stageId, stageName: targetStage.name, reason: "Lead stage updated via lead edit form" },
     }).catch(() => {});
 
+    logBusinessMutation({
+      action: "lead:stage_changed",
+      entity: "leads",
+      entityId: leadId,
+      actorId: user.id,
+      metadata: {
+        fromStageId: existing.stageId,
+        fromStageName: existing.stage?.name,
+        toStageId: validated.stageId,
+        toStageName: targetStage.name,
+      },
+    });
+
     return updated;
   }
 
@@ -274,6 +303,16 @@ export const updateLead = async (
     },
     newData: validated,
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "lead:updated",
+    entity: "leads",
+    entityId: leadId,
+    actorId: user.id,
+    metadata: {
+      updatedFields: Object.keys(validated),
+    },
+  });
 
   // Instantly invalidate affected lead & dashboard caches
   invalidateLeadCaches(user, existing.ownerId);
@@ -314,7 +353,20 @@ export const assignLead = async (
     newData: { ownerId: validated.ownerId, leadName: existing.name },
   }).catch(() => {});
 
-  // 6. Dispatch notification to newly assigned owner (fail-safe)
+  // 6. Structured operational logging
+  logBusinessMutation({
+    action: existing.ownerId ? "lead:transferred" : "lead:assigned",
+    entity: "leads",
+    entityId: leadId,
+    actorId: user.id,
+    metadata: {
+      previousOwnerId: existing.ownerId,
+      newOwnerId: validated.ownerId,
+      leadName: existing.name,
+    },
+  });
+
+  // 7. Dispatch notification to newly assigned owner (fail-safe)
   sendNotification({
     recipientId: validated.ownerId,
     title: "Lead Assigned",
@@ -527,6 +579,21 @@ export const moveLeadStage = async (
     oldData: { stageId: existing.stageId, stageName: existing.stage?.name },
     newData: { stageId: targetStage.id, stageName: targetStage.name, reason: validated.reason ?? "Moved via Sales Pipeline Kanban" },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "lead:stage_changed",
+    entity: "leads",
+    entityId: validated.leadId,
+    actorId: user.id,
+    metadata: {
+      fromStageId: validated.fromStageId,
+      fromStageName: existing.stage?.name,
+      toStageId: validated.toStageId,
+      toStageName: targetStage.name,
+      newPosition: validated.newPosition,
+      reason: validated.reason ?? "Moved via Sales Pipeline Kanban",
+    },
+  });
 
   // Instantly invalidate affected lead & dashboard caches
   invalidateLeadCaches(user, existing.ownerId);

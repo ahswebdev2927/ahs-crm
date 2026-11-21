@@ -15,8 +15,45 @@ type RouteHandler = (
 
 export function withErrorHandling(handler: RouteHandler): RouteHandler {
   return async (request: NextRequest, context: RouteHandlerContext) => {
+    const startTime = performance.now();
+    logger.debug(
+      {
+        event: "API_REQUEST_START",
+        method: request.method,
+        url: request.url,
+      },
+      `API request started: ${request.method} ${request.url}`
+    );
+
     try {
-      return await handler(request, context);
+      const response = await handler(request, context);
+      const durationMs = Math.round(performance.now() - startTime);
+
+      if (durationMs > 1000) {
+        logger.warn(
+          {
+            event: "SLOW_API_REQUEST",
+            method: request.method,
+            url: request.url,
+            statusCode: response.status,
+            durationMs,
+          },
+          `Slow API request: ${request.method} ${request.url} took ${durationMs}ms (status: ${response.status})`
+        );
+      } else {
+        logger.debug(
+          {
+            event: "API_REQUEST_END",
+            method: request.method,
+            url: request.url,
+            statusCode: response.status,
+            durationMs,
+          },
+          `API request completed: ${request.method} ${request.url} (${response.status}) in ${durationMs}ms`
+        );
+      }
+
+      return response;
     } catch (error) {
       // 1. Handle AppError (anticipated domain-level errors)
       if (error instanceof AppError) {

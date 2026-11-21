@@ -9,6 +9,7 @@ import {
   recordAuditLog,
   recordLeadActivityIfApplicable,
 } from "@/features/audit/services/audit.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -166,6 +167,22 @@ export const createInvoice = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "invoice:created",
+    entity: "invoices",
+    entityId: created.id,
+    actorId: user.id,
+    metadata: {
+      invoiceNumber: created.invoiceNumber,
+      customerId: created.customerId,
+      quotationId: created.quotationId,
+      totalPaise: created.total,
+      subtotalPaise: created.subtotal,
+      dueDate: created.dueDate,
+      status: created.status,
+    },
+  });
+
   invalidateInvoiceCaches(user);
 
   return created;
@@ -296,6 +313,19 @@ export const convertQuotationToInvoice = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "quotation:converted_to_invoice",
+    entity: "invoices",
+    entityId: invoice.id,
+    actorId: user.id,
+    metadata: {
+      invoiceNumber: invoice.invoiceNumber,
+      quotationId,
+      customerId,
+      totalPaise: invoice.total,
+    },
+  });
+
   invalidateInvoiceCaches(user);
 
   return invoice;
@@ -372,6 +402,17 @@ export const updateInvoice = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "invoice:updated",
+    entity: "invoices",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      invoiceNumber: updated.invoiceNumber,
+      totalPaise: updated.total,
+    },
+  });
+
   invalidateInvoiceCaches(user);
 
   return updated;
@@ -412,6 +453,18 @@ export const updateInvoiceStatus = async (
     oldData: { status: existing.status },
     newData: { status: validated.status },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "invoice:status_changed",
+    entity: "invoices",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      invoiceNumber: existing.invoiceNumber,
+      previousStatus: existing.status,
+      newStatus: validated.status,
+    },
+  });
 
   invalidateInvoiceCaches(user);
 

@@ -1,6 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import pino from "pino";
+import { NextRequest, NextResponse } from "next/server";
+import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import {
   logger,
   pinoOptions,
@@ -501,6 +503,113 @@ describe("Phase 28 — Logging Security Hardening Unit & Integration Tests", () 
       assert.equal(parsed.service, "AppointmentService");
       assert.equal(parsed.operation, "sendNotification");
       assert.equal(parsed.errorMessage, "Network socket hangup");
+    });
+  });
+
+  // =========================================================================
+  // 5. API Route Performance & Duration Tracking (withErrorHandling)
+  // =========================================================================
+  describe("API Route Duration & Slow Request Tracking", () => {
+    it("tracks request execution and returns standard response without error", async () => {
+      const handler = withErrorHandling(async () => {
+        return NextResponse.json({ success: true, data: "test-ok" });
+      });
+
+      const request = new NextRequest("http://localhost:3000/api/leads");
+      const response = await handler(request, { params: Promise.resolve({}) });
+
+      assert.equal(response.status, 200);
+      const body = await response.json();
+      assert.equal(body.success, true);
+      assert.equal(body.data, "test-ok");
+    });
+
+    it("triggers SLOW_API_REQUEST warning when handler exceeds 1000ms threshold", async () => {
+      const warnedEvents: Array<{ event?: string; durationMs?: number; method?: string }> = [];
+
+      // Temporarily spy on logger.warn
+      const originalWarn = logger.warn.bind(logger);
+      (logger as unknown as { warn: unknown }).warn = (obj: Record<string, unknown>, msg?: string) => {
+        if (typeof obj === "object" && obj?.event === "SLOW_API_REQUEST") {
+          warnedEvents.push(obj as { event?: string; durationMs?: number; method?: string });
+        }
+        return originalWarn(obj, msg);
+      };
+
+      try {
+        const slowHandler = withErrorHandling(async () => {
+          // Simulate slow query / external API operation > 1000ms
+          await new Promise((resolve) => setTimeout(resolve, 1050));
+          return NextResponse.json({ success: true, message: "slow operation complete" });
+        });
+
+        const req = new NextRequest("http://localhost:3000/api/reports/heavy-calc", { method: "GET" });
+        const res = await slowHandler(req, { params: Promise.resolve({}) });
+
+        assert.equal(res.status, 200);
+        assert.equal(warnedEvents.length, 1, "Must emit exactly 1 SLOW_API_REQUEST warning");
+        assert.equal(warnedEvents[0].event, "SLOW_API_REQUEST");
+        assert.equal(warnedEvents[0].method, "GET");
+        assert.ok(
+          (warnedEvents[0].durationMs || 0) >= 1000,
+          `Duration (${warnedEvents[0].durationMs}ms) must be >= 1000ms`
+        );
+      } finally {
+        // Restore original logger.warn
+        logger.warn = originalWarn;
+      }
+    });
+
+    it("verifies financial mutation logging records authoritative payment details safely", () => {
+      const chunks: string[] = [];
+      const mockStream = {
+        write: (chunk: string) => {
+          chunks.push(chunk);
+          return true;
+        },
+      };
+
+      const testLogger = pino(
+        {
+          level: "info",
+          redact: { paths: sensitivePaths, censor: "[REDACTED]" },
+        },
+        mockStream
+      );
+
+      // Simulate financial payment recording
+      testLogger.info(
+        {
+          event: "BUSINESS_MUTATION",
+          action: "payment:recorded",
+          entity: "payments",
+          entityId: "pay-rec-101",
+          actorId: "usr-sales-1",
+          metadata: {
+            invoiceId: "inv-001",
+            amountPaise: 15000000, // ₹1,50,000.00 in paise
+            paymentMethod: "bank_transfer",
+            status: "completed",
+            // Verify sensitive creditCard/password/token fields get redacted if mistakenly attached
+            creditCard: "4111222233334444",
+            token: "trans-token-xyz",
+          },
+        },
+        "Business mutation: payment:recorded on payments (pay-rec-101) by usr-sales-1"
+      );
+
+      assert.equal(chunks.length, 1);
+      const parsed = JSON.parse(chunks[0]);
+      assert.equal(parsed.event, "BUSINESS_MUTATION");
+      assert.equal(parsed.action, "payment:recorded");
+      assert.equal(parsed.metadata.amountPaise, 15000000);
+      assert.equal(parsed.metadata.paymentMethod, "bank_transfer");
+
+      // Verify that sensitive fields inside metadata are thoroughly redacted
+      assert.equal(parsed.metadata.creditCard, "[REDACTED]");
+      assert.equal(parsed.metadata.token, "[REDACTED]");
+      assert.ok(!chunks[0].includes("4111222233334444"));
+      assert.ok(!chunks[0].includes("trans-token-xyz"));
     });
   });
 });

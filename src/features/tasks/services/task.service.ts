@@ -3,7 +3,7 @@ import { leads, customers, users } from "@/db/schema";
 import { sendNotification } from "@/features/notifications/services/notification.service";
 import { eq, and, isNull } from "drizzle-orm";
 import { AppError } from "@/lib/errors/AppError";
-import { logger } from "@/lib/logger";
+import { logger, logBusinessMutation } from "@/lib/logger";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import {
   checkPermission,
@@ -238,6 +238,20 @@ export async function createTask(input: CreateTaskInput): Promise<TaskItem> {
     task.description ?? undefined
   );
 
+  logBusinessMutation({
+    action: "task:created",
+    entity: "tasks",
+    entityId: task.id,
+    actorId: user.id,
+    metadata: {
+      leadId: task.leadId,
+      customerId: task.customerId,
+      assignedToId: task.assignedToId,
+      priority: task.priority,
+      status: task.status,
+    },
+  });
+
   return task;
 }
 
@@ -343,6 +357,18 @@ export async function updateTaskStatus(
     `Task marked as "${validated.status}"`
   );
 
+  logBusinessMutation({
+    action: "task:status_changed",
+    entity: "tasks",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      previousStatus: existing.status,
+      newStatus: validated.status,
+      assignedToId: updated.assignedToId,
+    },
+  });
+
   return updated;
 }
 
@@ -350,10 +376,18 @@ export async function updateTaskStatus(
  * Soft delete a task with access verification
  */
 export async function deleteTask(id: string): Promise<boolean> {
-  await checkTaskAccess(id, "delete");
+  const user = await checkTaskAccess(id, "delete");
   const deleted = await deleteTaskRecord(id, true);
   if (!deleted) {
     throw new AppError("Task not found or already deleted.", 404, "NOT_FOUND");
   }
+
+  logBusinessMutation({
+    action: "task:deleted",
+    entity: "tasks",
+    entityId: id,
+    actorId: user.id,
+  });
+
   return true;
 }

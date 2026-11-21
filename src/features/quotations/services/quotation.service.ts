@@ -6,6 +6,7 @@ import {
   recordAuditLog,
   recordLeadActivityIfApplicable,
 } from "@/features/audit/services/audit.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   assertUserPermission,
   checkLeadAccess,
@@ -179,6 +180,21 @@ export const createQuotation = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "quotation:created",
+    entity: "quotations",
+    entityId: created.id,
+    actorId: user.id,
+    metadata: {
+      quoteNumber: created.quoteNumber,
+      leadId: created.leadId,
+      customerId: created.customerId,
+      totalPaise: created.total,
+      subtotalPaise: created.subtotal,
+      status: created.status,
+    },
+  });
+
   invalidateQuotationCaches(user);
 
   return created;
@@ -249,6 +265,17 @@ export const updateQuotation = async (
       total,
     },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "quotation:updated",
+    entity: "quotations",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      quoteNumber: updated.quoteNumber,
+      totalPaise: updated.total,
+    },
+  });
 
   invalidateQuotationCaches(user);
 
@@ -321,6 +348,19 @@ export const updateQuotationStatus = async (
       amountPaise: existing.total,
     },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "quotation:status_changed",
+    entity: "quotations",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      quoteNumber: existing.quoteNumber,
+      previousStatus: existing.status,
+      newStatus: validated.status,
+      totalPaise: existing.total,
+    },
+  });
 
   invalidateQuotationCaches(user);
 

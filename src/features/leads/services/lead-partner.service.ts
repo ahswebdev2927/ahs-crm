@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm";
 import { users } from "@/db/schema";
 import { AppError } from "@/lib/errors/AppError";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
+import { logBusinessMutation } from "@/lib/logger";
 import { checkLeadAccess } from "@/features/auth/services/authorization.service";
 import type { AuthenticatedUserPayload } from "@/features/auth/services/auth.service";
 import {
-  findActiveLeadPartners,
   findAllLeadPartners,
   findPartnerRecordById,
   findActivePartnerByLeadAndUser,
@@ -157,6 +157,19 @@ export const addLeadPartner = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "lead_partner:added",
+    entity: "lead_partners",
+    entityId: newPartner.id,
+    actorId: currentUser.id,
+    metadata: {
+      leadId,
+      partnerId: input.partnerId,
+      percentage: input.percentage,
+      role: input.role,
+    },
+  });
+
   return newPartner;
 };
 
@@ -227,6 +240,20 @@ export const updateLeadPartner = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "lead_partner:updated",
+    entity: "lead_partners",
+    entityId: partnerRecordId,
+    actorId: currentUser.id,
+    metadata: {
+      leadId,
+      partnerId: existingPartner.partnerId,
+      previousPercentage: existingPartner.percentage,
+      newPercentage: updatedPartner.percentage,
+      newRole: updatedPartner.role,
+    },
+  });
+
   return updatedPartner;
 };
 
@@ -283,6 +310,18 @@ export const removeLeadPartner = async (
       removalReason: input.removalReason ?? null,
     },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "lead_partner:removed",
+    entity: "lead_partners",
+    entityId: partnerRecordId,
+    actorId: currentUser.id,
+    metadata: {
+      leadId,
+      partnerId: existingPartner.partnerId,
+      removalReason: input.removalReason,
+    },
+  });
 
   return removedPartner;
 };

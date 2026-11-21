@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { AppError } from "@/lib/errors/AppError";
 import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { recordAuditLog } from "@/features/audit/services/audit.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   assertUserPermission,
   checkCustomerAccess,
@@ -35,7 +36,6 @@ import type {
   CatalogServiceItem,
   CustomerServiceSubscriptionItem,
   ServiceKpis,
-  BillingModel,
 } from "../types/service.types";
 
 /**
@@ -104,6 +104,19 @@ export const createCatalogItem = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "service_catalog:created",
+    entity: "services",
+    entityId: String(created.id),
+    actorId: user.id,
+    metadata: {
+      name: created.name,
+      code: created.code,
+      billingModel: created.billingModel,
+      pricePaise: created.price,
+    },
+  });
+
   // Instantly invalidate services catalog cache
   CacheService.invalidateTags(CACHE_TAGS.SERVICES);
 
@@ -153,6 +166,18 @@ export const updateCatalogItem = async (
     },
     newData: validated,
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: validated.status === "inactive" ? "service_catalog:archived" : "service_catalog:updated",
+    entity: "services",
+    entityId: String(id),
+    actorId: user.id,
+    metadata: {
+      name: updated.name,
+      code: updated.code,
+      status: updated.status,
+    },
+  });
 
   // Instantly invalidate services catalog cache
   CacheService.invalidateTags(CACHE_TAGS.SERVICES);
@@ -231,6 +256,19 @@ export const assignService = async (
     },
   }).catch(() => {});
 
+  logBusinessMutation({
+    action: "customer_service:assigned",
+    entity: "customer_services",
+    entityId: subscriptionId,
+    actorId: user.id,
+    metadata: {
+      customerId: validated.customerId,
+      serviceId: catalogService.id,
+      quantity,
+      totalPricePaise: totalPrice,
+    },
+  });
+
   return assigned;
 };
 
@@ -285,6 +323,18 @@ export const updateSubscription = async (
       status: validated.status,
     },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "customer_service:status_changed",
+    entity: "customer_services",
+    entityId: assignmentId,
+    actorId: user.id,
+    metadata: {
+      customerId: existing.customerId,
+      previousStatus: existing.status,
+      newStatus: validated.status,
+    },
+  });
 
   return updated;
 };

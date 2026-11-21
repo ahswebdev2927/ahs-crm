@@ -1,6 +1,7 @@
 import { AppError } from "@/lib/errors/AppError";
 import { CacheService, CACHE_TAGS } from "@/lib/cache/cache.service";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
+import { logBusinessMutation } from "@/lib/logger";
 import {
   checkPermission,
   checkFollowUpAccess,
@@ -138,6 +139,20 @@ export const createFollowUp = async (
     });
   }
 
+  logBusinessMutation({
+    action: "follow_up:created",
+    entity: "follow_ups",
+    entityId: created.id,
+    actorId: user.id,
+    metadata: {
+      leadId: created.leadId,
+      customerId: created.customerId,
+      assignedToId: created.assignedToId,
+      type: created.type,
+      scheduledAt: created.scheduledAt,
+    },
+  });
+
   invalidateFollowUpCaches(user, created.assignedToId);
 
   return created;
@@ -237,6 +252,19 @@ export const completeFollowUp = async (
     }).catch(() => {});
   }
 
+  logBusinessMutation({
+    action: "follow_up:completed",
+    entity: "follow_ups",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      leadId: result.completed.leadId,
+      customerId: result.completed.customerId,
+      outcome: validatedInput.outcome,
+      hasNextFollowUp: Boolean(result.nextFollowUp),
+    },
+  });
+
   invalidateFollowUpCaches(user, result.completed.assignedToId);
 
   return result;
@@ -274,6 +302,17 @@ export const cancelFollowUp = async (
       }`
     ).catch(() => {});
   }
+
+  logBusinessMutation({
+    action: "follow_up:cancelled",
+    entity: "follow_ups",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      reason: validatedInput.reason,
+      assignedToId: updated.assignedToId,
+    },
+  });
 
   invalidateFollowUpCaches(user, updated.assignedToId);
 

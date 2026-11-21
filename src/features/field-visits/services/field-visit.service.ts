@@ -1,5 +1,5 @@
 import { AppError } from "@/lib/errors/AppError";
-import { logger } from "@/lib/logger";
+import { logger, logBusinessMutation } from "@/lib/logger";
 import { logSystemEvent } from "@/features/activities/services/activity.service";
 import { db } from "@/db";
 import { leadActivities, followUps, appointments } from "@/db/schema";
@@ -287,6 +287,20 @@ export const createFieldVisit = async (
     );
   }
 
+  logBusinessMutation({
+    action: "field_visit:created",
+    entity: "field_visits",
+    entityId: created.id,
+    actorId: user.id,
+    metadata: {
+      leadId: created.leadId,
+      customerId: created.customerId,
+      appointmentId: created.appointmentId,
+      assignedToId: created.assignedToId,
+      purpose: created.purpose,
+    },
+  });
+
   return created;
 };
 
@@ -447,6 +461,20 @@ export const completeFieldVisit = async (
       summary: validatedInput.summary,
     },
   }).catch(() => {});
+
+  logBusinessMutation({
+    action: "field_visit:completed",
+    entity: "field_visits",
+    entityId: id,
+    actorId: user.id,
+    metadata: {
+      leadId: existing.leadId,
+      customerId: existing.customerId,
+      appointmentId: existing.appointmentId,
+      outcome: validatedInput.outcome,
+      nextAction: validatedInput.nextAction,
+    },
+  });
 
   return updated;
 };
